@@ -1,0 +1,281 @@
+@font-face {
+  font-family: 'S-CoreDream';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/S-CoreDream-5Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'S-CoreDream';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/S-CoreDream-6Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: 'Pretendard Variable', 'Pretendard', 'Noto Sans KR', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background-color: #f2f4f6;
+    color: #191919;
+    min-height: 100dvh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+@layer components {
+  /* ===== 로그인 배경 ===== */
+  .login-bg {
+    background: #f2f4f6;
+  }
+
+  /* ===== 포탈 타이틀 (S-CoreDream, 한림병원 공식 동일) ===== */
+  .portal-title {
+    font-family: 'S-CoreDream', 'Pretendard', sans-serif;
+    font-weight: 700;
+    color: #171C61;
+    white-space: nowrap;
+  }
+
+  /* ===== 로그인 카드: 토스 스타일 - 부드러운 곡선 + 은은한 그림자 ===== */
+  .login-card {
+    background: #ffffff;
+    border-radius: 20px;
+    border-top: 3px solid #ff7a00;
+    box-shadow:
+      0 4px 6px rgba(0, 0, 0, 0.04),
+      0 12px 32px rgba(0, 0, 0, 0.08),
+      0 1px 2px rgba(0, 0, 0, 0.04);
+  }
+
+  /* ===== 토스형 입력창: 연회색 배경, 부드러운 곡선 ===== */
+  .input-toss {
+    background: #f8f9fa;
+    border: 1.5px solid transparent;
+    border-radius: 12px;
+    outline: none;
+    transition: all 0.2s ease;
+    color: #191919;
+  }
+
+  .input-toss::placeholder {
+    color: #adb5bd;
+  }
+
+  .input-toss:focus {
+    background: #ffffff;
+    border-color: #004b8d;
+    box-shadow: 0 0 0 3px rgba(0, 75, 141, 0.12);
+  }
+
+  /* ===== 비밀번호 숨김 마스크 (비밀번호 경고 회피용) ===== */
+  .password-mask {
+    -webkit-text-security: disc;
+  }
+
+  /* ===== 로그인 버튼: 주황색, 토스형 곡선 ===== */
+  .btn-login {
+    background: #ff7a00;
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 15px;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(255, 122, 0, 0.3);
+  }
+
+  .btn-login:hover {
+    background: #e66e00;
+    box-shadow: 0 4px 16px rgba(255, 122, 0, 0.4);
+    transform: translateY(-1px);
+  }
+
+  .btn-login:active {
+    background: #cc6200;
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(255, 122, 0, 0.3);
+  }
+
+  .btn-login:disabled {
+    background: #ffb770;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  /* ===== 로딩 스피너 ===== */
+  .spinner {
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    border-top: 2px solid #ffffff;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    animation: spin 0.75s linear infinite;
+  }
+
+  /* ===== 사이드바 ===== */
+  .sidebar {
+    background: #ffffff;
+    border-right: 1px solid #f3f4f6;
+  }
+
+  .sidebar-menu-item {
+    transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.15s ease, color 0.15s ease;
+    border-left: 3px solid transparent;
+    border-radius: 0;
+    color: #4b5563;
+  }
+
+  .sidebar-menu-item:hover {
+    background: #f9fafb;
+    color: #111827;
+  }
+
+  .sidebar-menu-item:active {
+    transform: scale(0.95);
+  }
+
+  .sidebar-menu-item.active {
+    color: #4b5563;
+    border-left-color: transparent;
+    background: transparent;
+  }
+
+  .sidebar-menu-item.active svg {
+    color: #ff7a00;
+  }
+
+  /* ===== 하단 내비게이션 바 (모바일) ===== */
+  .bottom-nav {
+    background: #ffffff;
+    border-top: 1px solid #e9ecef;
+  }
+
+  .bottom-nav-item {
+    color: #9ca3af;
+    transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .bottom-nav-item:active {
+    transform: scale(0.92);
+  }
+
+  .bottom-nav-item.active svg {
+    color: #ff7a00;
+  }
+
+  /* ===== 모바일 가로 스크롤 숨김 ===== */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeSlideOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+.fade-enter {
+  animation: fadeSlideIn 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.fade-exit {
+  animation: fadeSlideOut 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* ===== 스크롤바 ===== */
+::-webkit-scrollbar {
+  width: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #ced4da;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #adb5bd;
+}
+
+/* ===== 알림 이동 항목 시각적 강조 효과 (맥박 애니메이션) ===== */
+@keyframes alarmGlow {
+  0%, 100% {
+    box-shadow: 0 0 0 0px rgba(255, 122, 0, 0.4);
+    border-color: #ff7a00;
+    background-color: rgba(255, 122, 0, 0.03);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(255, 122, 0, 0);
+    border-color: #ff7a00;
+    background-color: rgba(255, 122, 0, 0.08);
+  }
+}
+
+.alarm-highlight {
+  animation: alarmGlow 1.5s ease-in-out infinite;
+  border-color: #ff7a00 !important;
+  position: relative;
+  z-index: 10;
+}
+
+.alarm-highlight:hover {
+  animation: none !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.04) !important;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+

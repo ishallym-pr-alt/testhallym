@@ -1,0 +1,6 @@
+# Ignore all files by default
+**/*
+
+# Allow only the Apps Script code file and manifest
+!GAS_Code.js
+!appsscript.json

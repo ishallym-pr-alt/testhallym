@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>한림병원 근무표 프리뷰 (test.html)</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 50: '#e6f0f8', 100: '#b3d1e8', 500: '#004b8d', 600: '#00437f' },
+                        accent: { 50: '#fff5eb', 100: '#ffe0c2', 500: '#ff7a00', 600: '#e66e00' },
+                    },
+                    fontFamily: {
+                        sans: ['"Pretendard"', '"Noto Sans KR"', 'sans-serif'],
+                    }
+                }
+            }
+        };
+    </script>
+
+    <!-- Pretendard & S-CoreDream 폰트 -->
+    <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
+    <style>
+        @font-face {
+            font-family: 'S-CoreDream';
+            src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/S-CoreDream-6Bold.woff2') format('woff2');
+            font-weight: 700;
+        }
+
+        body {
+            background-color: #f2f4f6;
+            color: #191919;
+        }
+
+        .title-font {
+            font-family: 'S-CoreDream', sans-serif;
+        }
+
+        /* 스크롤바 커스텀 */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #ced4da;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #adb5bd;
+        }
+
+        /* Sticky 테이블 유틸 */
+        .sticky-col {
+            position: sticky;
+            left: 0;
+            background: white;
+            z-index: 10;
+            border-right: 1px solid #e5e7eb;
+        }
+
+        .sticky-header {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            background: #f9fafb;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .sticky-corner {
+            position: sticky;
+            top: 0;
+            left: 0;
+            z-index: 30;
+            background: #f3f4f6;
+            border-right: 1px solid #e5e7eb;
+            border-bottom: 1px solid #e5e7eb;
+        }
+    </style>
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+
+<body class="h-screen overflow-hidden flex flex-col font-sans text-sm">
+
+    <!-- 1. 상단 헤더 -->
+    <header class="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-6 shrink-0 z-40">
+        <div class="flex items-center gap-3">
+            <div
+                class="w-8 h-8 bg-gray-50 border border-gray-200 rounded-lg flex items-center justify-center font-bold text-primary-500">
+                H</div>
+            <span class="title-font text-primary-500 text-lg">한림병원 기능검사실</span>
+            <span class="text-gray-400">|</span>
+            <span class="font-bold text-gray-700">월간 근무표 플래너</span>
+        </div>
+        <div class="flex items-center gap-4">
+            <button onclick="changeMonth(-1)" class="p-1 hover:bg-gray-100 rounded"><i data-lucide="chevron-left"
+                    class="w-5 h-5 text-gray-600"></i></button>
+            <strong id="month-display" class="text-gray-800 text-base">2026년 6월</strong>
+            <button onclick="changeMonth(1)" class="p-1 hover:bg-gray-100 rounded"><i data-lucide="chevron-right"
+                    class="w-5 h-5 text-gray-600"></i></button>
+        </div>
+    </header>
+
+    <div class="flex-1 flex overflow-hidden">
+        <!-- 2. 고정 사이드바 -->
+        <aside class="w-64 bg-white border-r border-gray-200 flex flex-col shrink-0">
+            <div class="p-4 border-b border-gray-100">
+                <button class="w-full flex items-center gap-2 bg-primary-50 text-primary-500 font-bold p-3 rounded-xl">
+                    <i data-lucide="calendar" class="w-4 h-4"></i> 근무표 작성
+                </button>
+            </div>
+
+            <!-- 실시간 검증 패널 -->
+            <div class="flex-1 p-4 overflow-y-auto">
+                <h3 class="font-bold text-gray-500 text-xs mb-3 flex items-center gap-1">
+                    <i data-lucide="check-circle" class="w-3.5 h-3.5"></i> 실시간 규칙 검증
+                </h3>
+                <div id="validator-panel" class="space-y-2">
+                    <!-- JS에서 검증 결과 렌더링 -->
+                </div>
+            </div>
+        </aside>
+
+        <!-- 3. 메인 작업 영역 -->
+        <main class="flex-1 flex flex-col overflow-hidden p-4 gap-4">
+            <!-- 컨트롤 바 -->
+            <div
+                class="bg-white rounded-xl shadow-sm border border-gray-100 p-3 shrink-0 flex flex-wrap items-center justify-between gap-4">
+                <div class="flex bg-gray-100 rounded-lg p-1">
+                    <button id="btn-view-staff" onclick="setViewMode('staff')"
+                        class="px-4 py-1.5 rounded-md font-bold text-primary-500 bg-white shadow-sm transition-all text-xs">직원
+                        기준 뷰</button>
+                    <button id="btn-view-room" onclick="setViewMode('room')"
+                        class="px-4 py-1.5 rounded-md font-bold text-gray-500 hover:text-gray-800 transition-all text-xs">검실
+                        기준 뷰</button>
+                    <button id="btn-view-calendar" onclick="setViewMode('calendar')"
+                        class="px-4 py-1.5 rounded-md font-bold text-gray-500 hover:text-gray-800 transition-all text-xs">개인
+                        캘린더 뷰</button>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold text-gray-400">퀵 스탬프:</span>
+                    <button onclick="setStamp('none')" id="stamp-none"
+                        class="px-2 py-1 rounded text-[11px] font-bold border-2 border-primary-500 bg-white text-primary-500">선택모드</button>
+                    <button onclick="setStamp('OFF')" id="stamp-OFF"
+                        class="px-2 py-1 rounded text-[11px] font-bold border-2 border-transparent bg-gray-100 text-gray-600">OFF</button>
+                    <div class="w-px h-4 bg-gray-300 mx-1"></div>
+                    <!-- JS에서 방 스탬프 렌더링 -->
+                    <div id="stamp-rooms-container" class="flex gap-1"></div>
+                </div>
+
+                <div class="flex gap-2">
+                    <button onclick="autoSchedule()"
+                        class="px-3 py-1.5 bg-primary-500 text-white rounded-lg text-xs font-bold hover:bg-primary-600 flex items-center gap-1">
+                        <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> 자동 배치
+                    </button>
+                    <button onclick="clearSchedule()"
+                        class="px-3 py-1.5 bg-gray-100 text-red-600 rounded-lg text-xs font-bold hover:bg-red-50 flex items-center gap-1">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> 지우기
+                    </button>
+                </div>
+            </div>
+
+            <!-- 스크롤 가능한 테이블 컨테이너 (직원/검실 뷰) -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 flex-1 overflow-auto relative"
+                id="table-container">
+                <table class="w-full border-collapse table-fixed min-w-max text-xs text-center">
+                    <thead>
+                        <tr id="table-header">
+                            <!-- JS에서 헤더 렌더링 -->
+                        </tr>
+                    </thead>
+                    <tbody id="table-body">
+                        <!-- JS에서 데이터 렌더링 -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 캘린더 뷰 컨테이너 (개인 캘린더 뷰) -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 flex-1 flex overflow-hidden hidden"
+                id="calendar-container">
+                <!-- 직원 선택 리스트 -->
+                <div class="w-40 border-r border-gray-100 bg-gray-50 flex flex-col shrink-0">
+                    <div
+                        class="p-2.5 border-b border-gray-100 text-xs font-bold text-gray-600 text-center flex items-center justify-center gap-1">
+                        <i data-lucide="users" class="w-4 h-4"></i> 직원 선택
+                    </div>
+                    <div class="flex-1 overflow-y-auto p-1.5 space-y-1" id="calendar-staff-list">
+                        <!-- JS 렌더링 -->
+                    </div>
+                </div>
+                <!-- 캘린더 그리드 -->
+                <div class="flex-1 flex flex-col overflow-hidden">
+                    <div
+                        class="grid grid-cols-7 border-b border-gray-100 text-center text-xs font-bold text-gray-500 shrink-0 bg-white">
+                        <div class="py-2 text-red-500">일</div>
+                        <div class="py-2">월</div>
+                        <div class="py-2">화</div>
+                        <div class="py-2">수</div>
+                        <div class="py-2">목</div>
+                        <div class="py-2">금</div>
+                        <div class="py-2 text-blue-500">토</div>
+                    </div>
+                    <div class="flex-1 overflow-y-auto bg-gray-50/30">
+                        <div class="grid grid-cols-7 auto-rows-[minmax(80px,1fr)] h-full" id="calendar-grid">
+                            <!-- JS 렌더링 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 4. 플로팅 팝오버 메뉴 -->
+    <div id="popover"
+        class="fixed hidden z-50 bg-white rounded-xl shadow-[0_10px_25px_rgba(0,0,0,0.1)] border border-gray-200 p-3 w-64">
+        <div class="flex justify-between items-center mb-2 border-b pb-2">
+            <strong id="popover-title" class="text-xs text-gray-800"></strong>
+            <button onclick="closePopover()" class="text-gray-400 hover:text-gray-700"><i data-lucide="x"
+                    class="w-4 h-4"></i></button>
+        </div>
+        <div class="grid grid-cols-4 gap-1 mb-2">
+            <button onclick="assignShift('OFF')"
+                class="bg-gray-100 text-gray-600 font-bold py-1 rounded text-[10px]">OFF</button>
+            <button onclick="assignShift('연차')"
+                class="bg-red-50 text-red-600 font-bold py-1 rounded text-[10px]">연차</button>
+            <button onclick="assignShift('반차')"
+                class="bg-yellow-50 text-yellow-600 font-bold py-1 rounded text-[10px]">반차</button>
+            <button onclick="assignShift('교육')"
+                class="bg-blue-50 text-blue-600 font-bold py-1 rounded text-[10px]">교육</button>
+        </div>
+        <div id="popover-rooms" class="space-y-1 max-h-40 overflow-y-auto">
+            <!-- JS에서 룸 리스트 렌더링 -->
+        </div>
+        <button onclick="assignShift('')"
+            class="w-full mt-2 bg-gray-50 text-gray-500 py-1.5 rounded text-[10px] font-bold border border-gray-200">배치
+            취소 (비우기)</button>
+    </div>
+    <div id="popover-backdrop" class="fixed inset-0 z-40 hidden" onclick="closePopover()"></div>
+
+    <!-- JS 로직 -->
+    <script>
+        const staffList = [
+            { id: 'S01', name: '김주간' }, { id: 'S02', name: '이오전' }, { id: 'S03', name: '최오후' },
+            { id: 'S04', name: '박대무' }, { id: 'S05', name: '정야간' }, { id: 'S06', name: '한새벽' },
+            { id: 'S07', name: '윤주말' }, { id: 'S08', name: '조응급' }, { id: 'S09', name: '송대체' },
+            { id: 'S10', name: '류지원' }, { id: 'S11', name: '강수간' }, { id: 'S12', name: '임선임' },
+            { id: 'S13', name: '신성실' }, { id: 'S14', name: '최열정' }, { id: 'S15', name: '황협조' }
+        ];
+
+        const rooms = [
+            { id: 'R01', name: '면역치료', floor: '8F', style: 'bg-purple-100 text-purple-800 border-purple-200' },
+            { id: 'R02', name: '안과기능', floor: '4F', style: 'bg-blue-100 text-blue-800 border-blue-200' },
+            { id: 'R03', name: '수면다원', floor: '4F', style: 'bg-blue-100 text-blue-800 border-blue-200' },
+            { id: 'R04', name: '외안부', floor: '4F', style: 'bg-blue-100 text-blue-800 border-blue-200' },
+            { id: 'R05', name: '뇌파', floor: '3F', style: 'bg-green-100 text-green-800 border-green-200' },
+            { id: 'R06', name: '소화기능', floor: '2F', style: 'bg-orange-100 text-orange-800 border-orange-200' },
+            { id: 'R07', name: '심장기능', floor: '2F', style: 'bg-orange-100 text-orange-800 border-orange-200' },
+            { id: 'R08', name: '심장초음파', floor: '2F', style: 'bg-orange-100 text-orange-800 border-orange-200' },
+            { id: 'R09', name: '근전도', floor: '1F', style: 'bg-teal-100 text-teal-800 border-teal-200' },
+            { id: 'R10', name: '호흡기능', floor: '1F', style: 'bg-teal-100 text-teal-800 border-teal-200' },
+            { id: 'R11', name: '청력', floor: 'B1', style: 'bg-cyan-100 text-cyan-800 border-cyan-200' }
+        ];
+
+        let state = {
+            year: 2026, month: 6,
+            viewMode: 'staff',
+            activeStamp: 'none',
+            calendarStaffId: 'S01',
+            schedule: {}, // "YYYY-MM-DD": { "S01": "R01", ... }
+            selectedCell: null
+        };
+
+        const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+
+        window.onload = () => {
+            initData();
+            renderStampPalette();
+            renderAll();
+        };
+
+        function initData() {
+            const days = new Date(state.year, state.month, 0).getDate();
+            for (let d = 1; d <= days; d++) {
+                const dateStr = `${state.year}-${state.month}-${d}`;
+                if (!state.schedule[dateStr]) state.schedule[dateStr] = {};
+            }
+        }
+
+        function changeMonth(diff) {
+            state.month += diff;
+            if (state.month > 12) { state.month = 1; state.year++; }
+            if (state.month < 1) { state.month = 12; state.year--; }
+            initData();
+            renderAll();
+        }
+
+        function setViewMode(mode) {
+            state.viewMode = mode;
+            const activeClass = 'px-4 py-1.5 rounded-md font-bold text-primary-500 bg-white shadow-sm text-xs';
+            const inactiveClass = 'px-4 py-1.5 rounded-md font-bold text-gray-500 hover:text-gray-800 transition-all text-xs';
+
+            document.getElementById('btn-view-staff').className = mode === 'staff' ? activeClass : inactiveClass;
+            document.getElementById('btn-view-room').className = mode === 'room' ? activeClass : inactiveClass;
+            document.getElementById('btn-view-calendar').className = mode === 'calendar' ? activeClass : inactiveClass;
+
+            if (mode === 'calendar') {
+                document.getElementById('table-container').classList.add('hidden');
+                document.getElementById('calendar-container').classList.remove('hidden');
+            } else {
+                document.getElementById('calendar-container').classList.add('hidden');
+                document.getElementById('table-container').classList.remove('hidden');
+            }
+            renderAll();
+        }
+
+        function setStamp(stamp) {
+            state.activeStamp = stamp;
+            document.querySelectorAll('[id^="stamp-"]').forEach(el => el.classList.remove('border-primary-500', 'border-gray-400'));
+            const btn = document.getElementById(`stamp-${stamp}`);
+            if (btn) btn.classList.add('border-primary-500');
+
+            // 적용 대상 커서 변경
+            document.getElementById('table-container').style.cursor = stamp === 'none' ? 'default' : 'cell';
+            document.getElementById('calendar-grid').style.cursor = stamp === 'none' ? 'default' : 'cell';
+        }
+
+        function renderStampPalette() {
+            const container = document.getElementById('stamp-rooms-container');
+            container.innerHTML = '';
+            rooms.forEach(r => {
+                const btn = document.createElement('button');
+                btn.id = `stamp-${r.id}`;
+                btn.className = `px-1.5 py-0.5 rounded text-[10px] font-bold border-2 border-transparent ${r.style} opacity-80 hover:opacity-100`;
+                btn.textContent = r.name;
+                btn.onclick = () => setStamp(r.id);
+                container.appendChild(btn);
+            });
+        }
+
+        function renderAll() {
+            document.getElementById('month-display').textContent = `${state.year}년 ${state.month}월`;
+            if (state.viewMode === 'calendar') {
+                renderCalendar();
+            } else {
+                renderTable();
+            }
+            runValidator();
+            lucide.createIcons();
+        }
+
+        function renderCalendar() {
+            // 사이드바 직원 목록 렌더링
+            const staffListEl = document.getElementById('calendar-staff-list');
+            staffListEl.innerHTML = '';
+            staffList.forEach(s => {
+                const btn = document.createElement('button');
+                const isActive = state.calendarStaffId === s.id;
+                btn.className = `w-full text-left px-3 py-2 rounded-lg text-[11px] font-bold transition-all flex items-center gap-2 ${isActive ? 'bg-primary-500 text-white shadow-md' : 'text-gray-600 hover:bg-white'}`;
+                btn.innerHTML = `<div class="w-1.5 h-1.5 rounded-full ${isActive ? 'bg-white' : 'bg-transparent'}"></div>${s.name}`;
+                btn.onclick = () => {
+                    state.calendarStaffId = s.id;
+                    renderCalendar();
+                };
+                staffListEl.appendChild(btn);
+            });
+
+            const grid = document.getElementById('calendar-grid');
+            grid.innerHTML = '';
+
+            const firstDay = new Date(state.year, state.month - 1, 1).getDay();
+            const daysInMonth = new Date(state.year, state.month, 0).getDate();
+
+            // 이전 달 빈 칸
+            for (let i = 0; i < firstDay; i++) {
+                grid.innerHTML += `<div class="border-r border-b border-gray-100 bg-white opacity-50 p-1"></div>`;
+            }
+
+            // 날짜 칸
+            for (let d = 1; d <= daysInMonth; d++) {
+                const dateStr = `${state.year}-${state.month}-${d}`;
+                const dayOfWeek = new Date(state.year, state.month - 1, d).getDay();
+
+                const cell = document.createElement('div');
+                let bgClass = 'bg-white';
+                if (dayOfWeek === 0) bgClass = 'bg-red-50/10';
+                if (dayOfWeek === 6) bgClass = 'bg-blue-50/10';
+
+                cell.className = `border-r border-b border-gray-100 ${bgClass} p-1.5 flex flex-col gap-1 cursor-pointer hover:bg-gray-50 group relative`;
+                cell.onclick = (e) => handleCellClickCalendar(e, dateStr, state.calendarStaffId);
+
+                let dayColor = 'text-gray-700';
+                if (dayOfWeek === 0) dayColor = 'text-red-500';
+                if (dayOfWeek === 6) dayColor = 'text-blue-500';
+
+                const duty = state.schedule[dateStr][state.calendarStaffId];
+                let dutyHtml = '';
+
+                if (duty === 'OFF' || duty === '연차' || duty === '반차' || duty === '교육') {
+                    let style = 'bg-gray-100 text-gray-600 border border-gray-200';
+                    if (duty === '연차') style = 'bg-red-50 text-red-600 border border-red-100';
+                    if (duty === '반차') style = 'bg-yellow-50 text-yellow-600 border border-yellow-100';
+                    if (duty === '교육') style = 'bg-blue-50 text-blue-600 border border-blue-100';
+                    dutyHtml = `<div class="${style} rounded px-1.5 py-1 text-[11px] font-bold w-full truncate text-left shadow-sm">${duty}</div>`;
+                } else if (duty) {
+                    const r = rooms.find(x => x.id === duty);
+                    if (r) dutyHtml = `<div class="${r.style} rounded border px-1.5 py-1 text-[11px] font-bold w-full truncate text-left shadow-sm">${r.name}</div>`;
+                }
+
+                cell.innerHTML = `
+                    <div class="${dayColor} font-bold text-[11px] p-0.5">${d}</div>
+                    <div class="px-0.5">${dutyHtml}</div>
+                    <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/5 m-1 rounded pointer-events-none">
+                        <span class="text-xs font-bold text-gray-500">+</span>
+                    </div>
+                `;
+                grid.appendChild(cell);
+            }
+
+            // 나머지 빈 칸
+            const totalCells = firstDay + daysInMonth;
+            const remaining = (7 - (totalCells % 7)) % 7;
+            for (let i = 0; i < remaining; i++) {
+                grid.innerHTML += `<div class="border-r border-b border-gray-100 bg-white opacity-50 p-1"></div>`;
+            }
+        }
+
+        function renderTable() {
+            const daysInMonth = new Date(state.year, state.month, 0).getDate();
+            const headerRow = document.getElementById('table-header');
+            const tbody = document.getElementById('table-body');
+            headerRow.innerHTML = '';
+            tbody.innerHTML = '';
+
+            // 코너
+            const corner = document.createElement('th');
+            corner.className = 'sticky-corner w-24 p-2 text-gray-600';
+            corner.textContent = state.viewMode === 'staff' ? '직원 명단' : '검사실 배치';
+            headerRow.appendChild(corner);
+
+            // 날짜 헤더
+            for (let d = 1; d <= daysInMonth; d++) {
+                const date = new Date(state.year, state.month - 1, d);
+                const day = date.getDay();
+                const th = document.createElement('th');
+                th.className = 'sticky-header w-12 min-w-[48px] p-1 border-r border-gray-200';
+                if (day === 6) th.classList.add('bg-blue-50', 'text-blue-600');
+                else if (day === 0) th.classList.add('bg-red-50', 'text-red-600');
+                else th.classList.add('text-gray-700');
+                th.innerHTML = `<div class="font-bold">${d}</div><div class="font-normal opacity-80 text-[10px]">${dayNames[day]}</div>`;
+                headerRow.appendChild(th);
+            }
+
+            // 바디 렌더링
+            const rowsData = state.viewMode === 'staff' ? staffList : rooms;
+
+            rowsData.forEach(rowItem => {
+                const tr = document.createElement('tr');
+                tr.className = 'border-b border-gray-100 hover:bg-gray-50';
+
+                const thCol = document.createElement('td');
+                thCol.className = 'sticky-col p-2 text-left font-bold text-gray-800';
+                thCol.innerHTML = state.viewMode === 'staff'
+                    ? `${rowItem.name}`
+                    : `<span class="text-[9px] bg-gray-100 px-1 rounded mr-1">${rowItem.floor}</span>${rowItem.name}`;
+                tr.appendChild(thCol);
+
+                for (let d = 1; d <= daysInMonth; d++) {
+                    const dateStr = `${state.year}-${state.month}-${d}`;
+                    const date = new Date(state.year, state.month - 1, d);
+                    const day = date.getDay();
+                    const td = document.createElement('td');
+                    td.className = 'p-1 border-r border-gray-100 cursor-pointer h-10';
+                    if (day === 6) td.classList.add('bg-blue-50/20');
+                    if (day === 0) td.classList.add('bg-red-50/20');
+
+                    td.onclick = (e) => handleCellClick(e, dateStr, rowItem.id);
+
+                    // 셀 컨텐츠
+                    if (state.viewMode === 'staff') {
+                        const duty = state.schedule[dateStr][rowItem.id];
+                        if (duty === 'OFF' || duty === '연차' || duty === '반차' || duty === '교육') {
+                            td.innerHTML = `<div class="bg-gray-100 text-gray-600 rounded text-[10px] py-1 font-bold">${duty}</div>`;
+                        } else if (duty) {
+                            const r = rooms.find(x => x.id === duty);
+                            if (r) td.innerHTML = `<div class="${r.style} rounded border text-[10px] py-1 font-bold">${r.name}</div>`;
+                        } else {
+                            td.innerHTML = `<div class="text-transparent hover:text-gray-300 text-lg">+</div>`;
+                        }
+                    } else {
+                        // 검실 기준
+                        const assigned = staffList.filter(s => state.schedule[dateStr][s.id] === rowItem.id);
+                        if (assigned.length > 0) {
+                            td.innerHTML = assigned.map(s => `<div class="bg-primary-50 text-primary-600 border border-primary-100 rounded text-[10px] py-0.5 font-bold mb-0.5 w-full">${s.name}</div>`).join('');
+                        } else {
+                            if (day >= 1 && day <= 5) {
+                                td.innerHTML = `<span class="text-[9px] text-red-300">미배치</span>`;
+                            }
+                        }
+                    }
+                    tr.appendChild(td);
+                }
+                tbody.appendChild(tr);
+            });
+        }
+
+        // 캘린더 전용 셀 클릭 핸들러
+        function handleCellClickCalendar(e, dateStr, staffId) {
+            if (state.activeStamp !== 'none') {
+                state.schedule[dateStr][staffId] = state.activeStamp;
+                renderAll();
+                return;
+            }
+
+            state.selectedCell = { dateStr, targetId: staffId };
+            openPopoverForStaff(e, dateStr, staffId);
+        }
+
+        // 공통 테이블 셀 클릭 핸들러
+        function handleCellClick(e, dateStr, targetId) {
+            if (state.activeStamp !== 'none') {
+                if (state.viewMode === 'staff') {
+                    state.schedule[dateStr][targetId] = state.activeStamp;
+                } else {
+                    if (state.activeStamp.startsWith('R')) {
+                        alert('검실 뷰에서는 직원 배정을 위해 팝업 모드를 사용해주세요.');
+                        return;
+                    }
+                }
+                renderAll();
+                return;
+            }
+
+            state.selectedCell = { dateStr, targetId };
+
+            if (state.viewMode === 'staff') {
+                openPopoverForStaff(e, dateStr, targetId);
+            } else {
+                openPopoverForRoom(e, dateStr, targetId);
+            }
+        }
+
+        function openPopoverForStaff(e, dateStr, staffId) {
+            const popoverRooms = document.getElementById('popover-rooms');
+            popoverRooms.innerHTML = '';
+
+            const s = staffList.find(x => x.id === staffId);
+            document.getElementById('popover-title').textContent = `${s.name} (${dateStr})`;
+
+            rooms.forEach(r => {
+                const btn = document.createElement('button');
+                btn.className = `w-full text-left px-2 py-1.5 rounded text-[11px] font-bold border ${r.style} hover:opacity-80`;
+                btn.textContent = `[${r.floor}] ${r.name}`;
+                btn.onclick = () => assignShift(r.id);
+                popoverRooms.appendChild(btn);
+            });
+
+            positionPopover(e);
+        }
+
+        function openPopoverForRoom(e, dateStr, roomId) {
+            const popoverRooms = document.getElementById('popover-rooms');
+            popoverRooms.innerHTML = '';
+
+            const r = rooms.find(x => x.id === roomId);
+            document.getElementById('popover-title').textContent = `${r.name} 배치 (${dateStr})`;
+
+            const grid = document.createElement('div');
+            grid.className = 'grid grid-cols-3 gap-1';
+            staffList.forEach(s => {
+                const isHere = state.schedule[dateStr][s.id] === r.id;
+                const btn = document.createElement('button');
+                btn.className = `py-1 text-[10px] rounded font-bold ${isHere ? 'bg-primary-500 text-white shadow-sm' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`;
+                btn.textContent = s.name;
+                btn.onclick = () => {
+                    state.schedule[dateStr][s.id] = isHere ? '' : r.id;
+                    renderAll();
+                    closePopover();
+                };
+                grid.appendChild(btn);
+            });
+            popoverRooms.appendChild(grid);
+
+            positionPopover(e);
+        }
+
+        function positionPopover(e) {
+            const popover = document.getElementById('popover');
+            const rect = e.currentTarget.getBoundingClientRect();
+
+            let left = rect.left + window.scrollX;
+            let top = rect.bottom + window.scrollY + 5;
+
+            // 캘린더 모드일 때는 화면 중앙 정렬 쪽에 맞추기
+            if (state.viewMode === 'calendar') {
+                left = rect.left + window.scrollX + (rect.width / 2) - 128;
+            }
+
+            if (left < 10) left = 10;
+            if (left + 256 > window.innerWidth) left = window.innerWidth - 260;
+            if (top + 300 > window.innerHeight) top = rect.top + window.scrollY - 300;
+
+            popover.style.left = left + 'px';
+            popover.style.top = top + 'px';
+            popover.classList.remove('hidden');
+            document.getElementById('popover-backdrop').classList.remove('hidden');
+        }
+
+        function assignShift(val) {
+            if (state.selectedCell) {
+                state.schedule[state.selectedCell.dateStr][state.selectedCell.targetId] = val;
+            }
+            closePopover();
+            renderAll();
+        }
+
+        function closePopover() {
+            document.getElementById('popover').classList.add('hidden');
+            document.getElementById('popover-backdrop').classList.add('hidden');
+        }
+
+        function clearSchedule() {
+            if (!confirm('모든 배치를 삭제할까요?')) return;
+            initData();
+            renderAll();
+        }
+
+        function autoSchedule() {
+            clearSchedule(); // 비우고 시작
+            const daysInMonth = new Date(state.year, state.month, 0).getDate();
+
+            for (let d = 1; d <= daysInMonth; d++) {
+                const dateStr = `${state.year}-${state.month}-${d}`;
+                const day = new Date(state.year, state.month - 1, d).getDay();
+
+                // 간단한 랜덤 셔플
+                const staffs = [...staffList].sort(() => 0.5 - Math.random());
+
+                if (day === 0 || day === 6) {
+                    // 주말: 2명만 당직 (수면다원, 심장기능)
+                    state.schedule[dateStr][staffs[0].id] = 'R03';
+                    state.schedule[dateStr][staffs[1].id] = 'R07';
+                    for (let i = 2; i < 15; i++) state.schedule[dateStr][staffs[i].id] = 'OFF';
+                } else {
+                    // 주중: 11명 방 배치, 4명 OFF
+                    for (let i = 0; i < 4; i++) state.schedule[dateStr][staffs[i].id] = 'OFF';
+                    for (let i = 0; i < 11; i++) state.schedule[dateStr][staffs[i + 4].id] = rooms[i].id;
+                }
+            }
+            renderAll();
+        }
+
+        function runValidator() {
+            const panel = document.getElementById('validator-panel');
+            panel.innerHTML = '';
+
+            const daysInMonth = new Date(state.year, state.month, 0).getDate();
+            let warnings = 0;
+
+            // 평일 미배치 검실 확인
+            for (let d = 1; d <= daysInMonth; d++) {
+                const day = new Date(state.year, state.month - 1, d).getDay();
+                if (day >= 1 && day <= 5) {
+                    const dateStr = `${state.year}-${state.month}-${d}`;
+                    rooms.forEach(r => {
+                        const hasStaff = staffList.some(s => state.schedule[dateStr][s.id] === r.id);
+                        if (!hasStaff) {
+                            warnings++;
+                            panel.innerHTML += `<div class="p-2 bg-red-50 text-red-700 text-[11px] rounded border border-red-100 mb-1">
+                                <strong>${state.month}/${d}</strong>: [${r.name}] 인력 공백
+                            </div>`;
+                        }
+                    });
+                }
+            }
+
+            if (warnings === 0) {
+                panel.innerHTML = `<div class="p-3 bg-emerald-50 text-emerald-600 text-xs text-center rounded-xl font-bold border border-emerald-100">
+                    <i data-lucide="check" class="w-5 h-5 mx-auto mb-1"></i>배치 이상 없음
+                </div>`;
+            }
+            lucide.createIcons();
+        }
+    </script>
+</body>
+
+</html>

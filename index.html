@@ -1,0 +1,1649 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="인성의료재단 한림병원 직원용 포탈 시스템">
+    <title>한림병원 직원용 포탈</title>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#e6f0f8',
+                            100: '#b3d1e8',
+                            200: '#80b3d8',
+                            300: '#4d94c8',
+                            400: '#2680ba',
+                            500: '#004b8d',
+                            600: '#00437f',
+                            700: '#003a6e',
+                            800: '#00315d',
+                            900: '#00213f',
+                        },
+                        accent: {
+                            50: '#fff5eb',
+                            100: '#ffe0c2',
+                            200: '#ffcc99',
+                            300: '#ffb770',
+                            400: '#ff9938',
+                            500: '#ff7a00',
+                            600: '#e66e00',
+                            700: '#cc6200',
+                            800: '#b35600',
+                            900: '#804000',
+                        },
+                    },
+                    fontFamily: {
+                        sans: ['"Pretendard"', '"Noto Sans KR"', '"Segoe UI"', 'system-ui', '-apple-system', 'sans-serif'],
+                    },
+                    borderRadius: {
+                        'xl': '0.75rem',
+                        '2xl': '1rem',
+                        '3xl': '1.5rem',
+                    },
+                },
+            },
+        };
+    </script>
+
+    <!-- Pretendard 폰트 -->
+    <link rel="stylesheet" as="style" crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
+
+    <!-- S-CoreDream 폰트 (한림병원 공식 웹사이트 동일) -->
+    <style>
+        @font-face {
+            font-family: 'S-CoreDream';
+            src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/S-CoreDream-5Medium.woff2') format('woff2');
+            font-weight: 500;
+            font-style: normal;
+        }
+
+        @font-face {
+            font-family: 'S-CoreDream';
+            src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/S-CoreDream-6Bold.woff2') format('woff2');
+            font-weight: 700;
+            font-style: normal;
+        }
+    </style>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+    <style>
+        /* ===== 전역 리셋 ===== */
+        *,
+        *::before,
+        *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Pretendard Variable', 'Pretendard', 'Noto Sans KR', 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background-color: #f2f4f6;
+            color: #191919;
+            min-height: 100dvh;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* ===== 로그인 배경 ===== */
+        .login-bg {
+            background: #f2f4f6;
+        }
+
+        /* ===== 포탈 타이틀 (S-CoreDream, 한림병원 공식 동일) ===== */
+        .portal-title {
+            font-family: 'S-CoreDream', 'Pretendard', sans-serif;
+            font-weight: 700;
+            color: #171C61;
+            white-space: nowrap;
+        }
+
+        /* ===== 로그인 카드: 토스 스타일 - 부드러운 곡선 + 은은한 그림자 ===== */
+        .login-card {
+            background: #ffffff;
+            border-radius: 20px;
+            border-top: 3px solid #ff7a00;
+            box-shadow:
+                0 4px 6px rgba(0, 0, 0, 0.04),
+                0 12px 32px rgba(0, 0, 0, 0.08),
+                0 1px 2px rgba(0, 0, 0, 0.04);
+        }
+
+        /* ===== 토스형 입력창: 연회색 배경, 부드러운 곡선 ===== */
+        .input-toss {
+            background: #f8f9fa;
+            border: 1.5px solid transparent;
+            border-radius: 12px;
+            outline: none;
+            transition: all 0.2s ease;
+            color: #191919;
+        }
+
+        .input-toss::placeholder {
+            color: #adb5bd;
+        }
+
+        .input-toss:focus {
+            background: #ffffff;
+            border-color: #004b8d;
+            box-shadow: 0 0 0 3px rgba(0, 75, 141, 0.12);
+        }
+
+        /* ===== 로그인 버튼: 주황색, 토스형 곡선 ===== */
+        .btn-login {
+            background: #ff7a00;
+            color: #ffffff;
+            font-weight: 700;
+            font-size: 15px;
+            border-radius: 12px;
+            border: none;
+            cursor: pointer;
+            letter-spacing: 0.5px;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(255, 122, 0, 0.3);
+        }
+
+        .btn-login:hover {
+            background: #e66e00;
+            box-shadow: 0 4px 16px rgba(255, 122, 0, 0.4);
+            transform: translateY(-1px);
+        }
+
+        .btn-login:active {
+            background: #cc6200;
+            transform: translateY(0);
+            box-shadow: 0 2px 8px rgba(255, 122, 0, 0.3);
+        }
+
+        .btn-login:disabled {
+            background: #ffb770;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* ===== 로딩 스피너 ===== */
+        .spinner {
+            border: 2px solid rgba(255, 255, 255, 0.35);
+            border-top: 2px solid #ffffff;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            animation: spin 0.75s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* ===== 화면 전환 애니메이션 ===== */
+        .fade-enter {
+            animation: fadeSlideIn 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+
+        .fade-exit {
+            animation: fadeSlideOut 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+
+        @keyframes fadeSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeSlideOut {
+            from {
+                opacity: 1;
+                transform: translateY(0);
+            }
+
+            to {
+                opacity: 0;
+                transform: translateY(-8px);
+            }
+        }
+
+        /* ===== 사이드바 ===== */
+        .sidebar {
+            background: #ffffff;
+            border-right: 1px solid #f3f4f6;
+        }
+
+        .sidebar-menu-item {
+            transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.15s ease, color 0.15s ease;
+            border-left: 3px solid transparent;
+            border-radius: 0;
+            color: #4b5563;
+            /* text-gray-600 */
+        }
+
+        .sidebar-menu-item:hover {
+            background: #f9fafb;
+            /* bg-gray-50 */
+            color: #111827;
+            /* text-gray-900 */
+        }
+
+        .sidebar-menu-item:active {
+            transform: scale(0.95);
+        }
+
+        .sidebar-menu-item.active {
+            color: #4b5563;
+            border-left-color: transparent;
+            background: transparent;
+        }
+
+        .sidebar-menu-item.active svg {
+            color: #ff7a00;
+            /* text-accent-500 */
+        }
+
+        /* ===== 하단 내비게이션 바 (모바일) ===== */
+        .bottom-nav {
+            background: #ffffff;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .bottom-nav-item {
+            color: #9ca3af;
+            /* text-gray-400 */
+            transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .bottom-nav-item:active {
+            transform: scale(0.92);
+        }
+
+        .bottom-nav-item.active svg {
+            color: #ff7a00;
+            /* text-accent-500 */
+        }
+
+        /* ===== 모바일 가로 스크롤 숨김 ===== */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            /* IE and Edge */
+            scrollbar-width: none;
+            /* Firefox */
+        }
+
+        /* ===== 스크롤바 ===== */
+        ::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #ced4da;
+            border-radius: 999px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #adb5bd;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ============================================================ -->
+    <!-- [화면 0] 로그인 화면                                          -->
+    <!-- ============================================================ -->
+    <div id="screen-login" class="login-bg fixed inset-0 z-50 flex flex-col items-center justify-center px-4">
+
+        <!-- ── 1. 로고 영역: 카드와 동일한 폭(w-full mx-4 max-w-md), 가로 구조 유지 ── -->
+        <div class="w-full max-w-md mx-auto flex flex-row items-center justify-center gap-2 sm:gap-3 px-4 mb-6">
+            <img src="logo.png" class="h-6 sm:h-8 w-auto object-contain" alt="인성의료재단 한림병원">
+
+            <span class="text-gray-300 text-sm sm:text-base font-light">|</span>
+
+            <h1 class="portal-title text-[#004b8d] font-bold text-sm sm:text-lg tracking-tight whitespace-nowrap">직원용 포탈
+            </h1>
+        </div>
+
+        <!-- ── 2. 로그인 카드 (입력창 + 버튼만) ── -->
+        <!-- 로고 컨테이너와 동일한 폭: w-full mx-4 max-w-md -->
+        <div class="login-card w-full mx-4 md:mx-0 max-w-md px-8 md:px-10 py-8">
+
+            <!-- 로그인 폼 -->
+            <form id="login-form" class="space-y-4" onsubmit="return false;">
+
+                <!-- 사번 입력 -->
+                <div class="space-y-1.5">
+                    <label for="input-employee-id" class="block text-sm font-semibold text-gray-700">
+                        사번
+                    </label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                            <i data-lucide="user" class="w-4 h-4 text-gray-400"></i>
+                        </div>
+                        <input type="text" id="input-employee-id" placeholder="사번을 입력하세요" autocomplete="username"
+                            class="input-toss w-full pl-10 pr-4 py-3 text-sm" />
+                    </div>
+                </div>
+
+                <!-- 비밀번호 입력 -->
+                <div class="space-y-1.5">
+                    <label for="input-password" class="block text-sm font-semibold text-gray-700">
+                        비밀번호
+                    </label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                            <i data-lucide="lock" class="w-4 h-4 text-gray-400"></i>
+                        </div>
+                        <input type="password" id="input-password" placeholder="비밀번호를 입력하세요"
+                            autocomplete="current-password" class="input-toss w-full pl-10 pr-11 py-3 text-sm" />
+                        <button type="button" id="btn-toggle-password" onclick="togglePasswordVisibility()"
+                            class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                            aria-label="비밀번호 보기/숨기기">
+                            <i data-lucide="eye" id="icon-eye" class="w-4 h-4"></i>
+                            <i data-lucide="eye-off" id="icon-eye-off" class="w-4 h-4 hidden"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 로그인 버튼 -->
+                <div class="pt-2">
+                    <button type="button" id="btn-login" onclick="handleLogin()"
+                        class="btn-login w-full py-3.5 flex items-center justify-center gap-2">
+                        <span id="login-btn-text">로그인</span>
+                        <div id="login-spinner" class="spinner hidden"></div>
+                    </button>
+                </div>
+            </form>
+
+            <!-- 하단 저작권 -->
+            <p class="text-center text-xs text-gray-400 mt-6">
+                © 2026 인성의료재단 한림병원
+            </p>
+        </div>
+    </div>
+
+
+    <!-- ============================================================ -->
+    <!-- [메인 레이아웃] 로그인 후 표시되는 앱 구조                      -->
+    <!-- ============================================================ -->
+    <div id="screen-main" class="hidden">
+
+        <!-- ===== PC 사이드바 (md 이상에서 표시) ===== -->
+        <aside class="sidebar hidden md:flex fixed left-0 top-0 bottom-0 w-60 flex-col z-40">
+
+            <!-- 사이드바 헤더 -->
+            <div class="px-4 py-5 border-b border-gray-100">
+                <div class="flex items-center gap-3">
+                    <div
+                        class="w-8 h-8 bg-gray-50 border border-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <img src="logo.png" alt="한림병원" class="w-6 h-6 object-contain"
+                            onerror="this.style.display='none'">
+                    </div>
+                    <div>
+                        <p class="text-primary-900 font-bold text-sm leading-tight">한림병원</p>
+                        <p class="text-gray-500 text-[11px] mt-0.5">직원용 포탈</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 사이드바 메뉴 -->
+            <nav class="flex-1 py-2 overflow-y-auto">
+                <button onclick="navigateTo('dashboard')" data-menu="dashboard"
+                    class="sidebar-menu-item active w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium">
+                    <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+                    <span>대시보드</span>
+                </button>
+                <button onclick="navigateTo('notices')" data-menu="notices"
+                    class="sidebar-menu-item w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium">
+                    <i data-lucide="megaphone" class="w-4 h-4"></i>
+                    <span>공지사항</span>
+                    <span
+                        class="ml-auto bg-accent-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">3</span>
+                </button>
+                <button onclick="navigateTo('handover')" data-menu="handover"
+                    class="sidebar-menu-item w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium">
+                    <i data-lucide="repeat-2" class="w-4 h-4"></i>
+                    <span>인수인계</span>
+                </button>
+                <button onclick="navigateTo('equipment')" data-menu="equipment"
+                    class="sidebar-menu-item w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium">
+                    <i data-lucide="monitor-check" class="w-4 h-4"></i>
+                    <span>의료장비</span>
+                    <span
+                        class="ml-auto bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">!</span>
+                </button>
+                <button onclick="navigateTo('stats')" data-menu="stats"
+                    class="sidebar-menu-item w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium">
+                    <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
+                    <span>장비 통계</span>
+                </button>
+            </nav>
+
+            <!-- 사이드바 하단: 사용자 정보 -->
+            <div class="px-4 py-3 border-t border-gray-100">
+                <div class="flex items-center gap-3">
+                    <div
+                        class="w-8 h-8 rounded-full bg-orange-50 border border-orange-100 flex items-center justify-center flex-shrink-0">
+                        <i data-lucide="user" class="w-4 h-4 text-accent-500"></i>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-gray-900 text-sm font-semibold truncate" id="sidebar-username">사용자</p>
+                        <p class="text-gray-500 text-[11px] truncate" id="sidebar-employee-id">사번 미입력</p>
+                    </div>
+                    <button onclick="handleLogout()"
+                        class="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0" title="로그아웃">
+                        <i data-lucide="log-out" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- ===== 메인 콘텐츠 영역 ===== -->
+        <main class="md:ml-60 min-h-[100dvh] pb-24 md:pb-0 bg-gray-50">
+
+            <!-- 상단 헤더 바 -->
+            <header class="sticky top-0 z-30 bg-white border-b border-gray-100 shadow-sm">
+                <div class="flex items-center justify-between px-4 sm:px-6 h-14">
+                    <div class="flex items-center gap-3">
+                        <button id="btn-mobile-menu"
+                            class="md:hidden p-2 -ml-2 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors">
+                            <i data-lucide="menu" class="w-5 h-5"></i>
+                        </button>
+                        <h1 id="header-title" class="text-sm font-bold text-gray-900">대시보드</h1>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <button class="relative p-2 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors">
+                            <i data-lucide="bell" class="w-4 h-4"></i>
+                            <span class="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-accent-500 rounded-full"></span>
+                        </button>
+                        <div class="hidden sm:flex items-center gap-2 ml-2 pl-3 border-l border-gray-200">
+                            <div class="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center">
+                                <i data-lucide="user" class="w-3.5 h-3.5 text-blue-600"></i>
+                            </div>
+                            <span id="header-username" class="text-sm font-medium text-gray-700">사용자</span>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- 페이지 콘텐츠 -->
+            <div class="p-4 sm:p-6">
+
+                <!-- 대시보드 (임시 메시지) -->
+                <div id="page-dashboard" class="fade-enter">
+                    <!-- 미서명 인수인계 알림 배너 -->
+                    <div id="dashboard-handover-banner"
+                        class="hidden mb-6 bg-accent-500 rounded-2xl p-4 sm:p-5 shadow-lg shadow-orange-200 text-white flex items-center justify-between gap-4 cursor-pointer hover:bg-accent-600 transition-colors"
+                        onclick="navigateTo('handover')">
+                        <div class="flex items-center gap-3 text-left">
+                            <i data-lucide="alert-circle"
+                                class="w-6 h-6 sm:w-7 sm:h-7 animate-pulse text-white shrink-0"></i>
+                            <div>
+                                <h3 class="font-bold text-sm sm:text-base">미서명된 업무 인수인계가 있습니다.</h3>
+                                <p class="text-xs sm:text-sm text-accent-50 mt-0.5">확인 후 서명해 주세요.</p>
+                            </div>
+                        </div>
+                        <i data-lucide="chevron-right" class="w-5 h-5 text-accent-100 shrink-0"></i>
+                    </div>
+
+                    <div class="max-w-xl mx-auto mt-8 sm:mt-12 text-center">
+                        <div
+                            class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-accent-500 mb-6 shadow-lg shadow-orange-200">
+                            <i data-lucide="check" class="w-8 h-8 text-white"></i>
+                        </div>
+                        <h2 class="text-xl sm:text-2xl font-bold text-gray-900 mb-2">로그인 성공!</h2>
+                        <p class="text-gray-500 text-sm sm:text-base leading-relaxed">
+                            메인 화면 뼈대 공간입니다.<br>
+                            <span class="text-gray-400">(다음 Phase에서 메뉴가 구현됩니다)</span>
+                        </p>
+                        <div
+                            class="mt-8 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-50 border border-green-100 text-green-700 text-sm font-medium">
+                            <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                            시스템 정상 가동 중
+                        </div>
+                        <div class="mt-10 grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                                <div class="text-2xl font-bold text-accent-500">—</div>
+                                <div class="text-xs text-gray-400 mt-1">공지사항</div>
+                            </div>
+                            <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                                <div class="text-2xl font-bold text-accent-500">—</div>
+                                <div class="text-xs text-gray-400 mt-1">인수인계</div>
+                            </div>
+                            <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                                <div class="text-2xl font-bold text-accent-500">—</div>
+                                <div class="text-xs text-gray-400 mt-1">장비 알림</div>
+                            </div>
+                            <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                                <div class="text-2xl font-bold text-gray-300">—</div>
+                                <div class="text-xs text-gray-400 mt-1">나의 할 일</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 향후 추가 페이지들 (Phase 2+) -->
+                <div id="page-notices" class="hidden">
+                    <!-- 미니 카드 슬림 그리드 필터 -->
+                    <div id="notice-filter-container" class="mb-5 space-y-1.5">
+                        <!-- JS에서 렌더링 -->
+                    </div>
+
+                    <!-- 공지사항 리스트 -->
+                    <div class="space-y-4" id="notice-list-container">
+                        <!-- JS에서 렌더링 -->
+                    </div>
+                </div>
+                <div id="page-handover" class="hidden">
+                    <div class="flex flex-wrap items-center gap-2 md:gap-4 mb-5">
+                        <h2 class="text-base sm:text-lg font-bold text-gray-900 whitespace-nowrap shrink-0">인수인계 내역</h2>
+                        <div class="flex-1 md:max-w-xs relative">
+                            <div class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+                                <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor"
+                                    viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                </svg>
+                            </div>
+                            <input type="text" id="handover-search-input" placeholder="검색..."
+                                oninput="handleHandoverSearch(this.value)"
+                                class="w-full py-1.5 pl-8 pr-3 bg-gray-100 rounded-xl text-xs sm:text-sm focus:outline-none focus:bg-white focus:ring-2 focus:ring-accent-500 border border-transparent focus:border-accent-500 transition-all">
+                        </div>
+                        <span
+                            class="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-bold rounded-full whitespace-nowrap shrink-0"
+                            id="handover-count">총 0건</span>
+                    </div>
+                    <div class="space-y-4" id="handover-list-container">
+                        <!-- JS에서 렌더링 -->
+                    </div>
+                </div>
+                <div id="page-equipment" class="hidden">
+                    <!-- 장비 이슈 리스트 -->
+                    <div class="flex items-center gap-2 md:gap-4 mb-5">
+                        <h2 class="text-base sm:text-lg font-bold text-gray-900 whitespace-nowrap shrink-0">장비 이슈 현황
+                        </h2>
+                        <div class="flex-1 md:max-w-xs relative">
+                            <div class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+                                <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor"
+                                    viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                </svg>
+                            </div>
+                            <input type="text" id="equipment-search-input" placeholder="검색..."
+                                oninput="handleEquipmentSearch(this.value)"
+                                class="w-full py-1.5 pl-8 pr-3 bg-gray-100 rounded-xl text-xs sm:text-sm focus:outline-none focus:bg-white focus:ring-2 focus:ring-accent-500 border border-transparent focus:border-accent-500 transition-all">
+                        </div>
+                        <span
+                            class="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-bold rounded-full whitespace-nowrap shrink-0"
+                            id="equipment-count">총 0건</span>
+                    </div>
+                    <div class="space-y-4" id="equipment-list-container">
+                        <!-- JS에서 렌더링 -->
+                    </div>
+                </div>
+                <div id="page-stats" class="hidden">
+                    <div id="equipment-stats-dashboard" class="space-y-4">
+                        <!-- JS에서 렌더링 -->
+                    </div>
+                </div>
+
+            </div>
+        </main>
+
+        <!-- ===== 모바일 하단 내비게이션 (md 미만) ===== -->
+        <nav
+            class="bottom-nav block md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
+            <div class="grid grid-cols-5 items-center h-16">
+
+                <button onclick="navigateTo('dashboard')" data-menu="dashboard"
+                    class="bottom-nav-item active flex flex-col items-center justify-center gap-0.5 h-full relative">
+                    <i data-lucide="layout-dashboard" class="w-[18px] h-[18px]"></i>
+                    <span class="text-[9px] sm:text-[10px] font-semibold">대시보드</span>
+                </button>
+
+                <button onclick="navigateTo('notices')" data-menu="notices"
+                    class="bottom-nav-item flex flex-col items-center justify-center gap-0.5 h-full relative">
+                    <div class="relative">
+                        <i data-lucide="megaphone" class="w-[18px] h-[18px]"></i>
+                        <span
+                            class="absolute -top-1.5 -right-2 bg-accent-500 text-white text-[7px] font-bold w-3.5 h-3.5 rounded-full flex items-center justify-center">3</span>
+                    </div>
+                    <span class="text-[9px] sm:text-[10px] font-semibold">공지</span>
+                </button>
+
+                <button onclick="navigateTo('handover')" data-menu="handover"
+                    class="bottom-nav-item flex flex-col items-center justify-center gap-0.5 h-full relative">
+                    <i data-lucide="repeat-2" class="w-[18px] h-[18px]"></i>
+                    <span class="text-[9px] sm:text-[10px] font-semibold">인수인계</span>
+                </button>
+
+                <button onclick="navigateTo('equipment')" data-menu="equipment"
+                    class="bottom-nav-item flex flex-col items-center justify-center gap-0.5 h-full relative">
+                    <div class="relative">
+                        <i data-lucide="monitor-check" class="w-[18px] h-[18px]"></i>
+                        <span
+                            class="absolute -top-1.5 -right-2 bg-red-500 text-white text-[7px] font-bold w-3.5 h-3.5 rounded-full flex items-center justify-center">!</span>
+                    </div>
+                    <span class="text-[9px] sm:text-[10px] font-semibold">장비</span>
+                </button>
+
+                <button onclick="navigateTo('stats')" data-menu="stats"
+                    class="bottom-nav-item flex flex-col items-center justify-center gap-0.5 h-full relative">
+                    <i data-lucide="bar-chart-3" class="w-[18px] h-[18px]"></i>
+                    <span class="text-[9px] sm:text-[10px] font-semibold">통계</span>
+                </button>
+
+            </div>
+        </nav>
+    </div>
+
+
+    <!-- 필터 모달 제거됨 -->
+
+    <!-- ============================================================ -->
+    <!-- 자바스크립트: 글로벌 상태 관리 및 화면 전환 로직                  -->
+    <!-- ============================================================ -->
+    <script>
+        // ===================================================================
+        // 글로벌 상태 객체
+        // - 로그인 상태, 현재 화면, 사용자 정보 등 앱 전체 상태를 관리
+        // - 향후 구글 스프레드시트 API 대체를 고려하여 데이터 구조 분리
+        // ===================================================================
+        var state = {
+            // 인증 상태
+            isLoggedIn: false,
+            currentUser: {
+                employeeId: '',
+                name: '',
+            },
+
+            // 현재 활성 화면 (dashboard, notices, handover, equipment)
+            currentPage: 'dashboard',
+
+            // ---------------------------------------------------------------
+            // 데이터 더미 배열 (Phase 2+에서 실제 데이터로 대체)
+            // ---------------------------------------------------------------
+            currentNoticeFilter: '전체',
+            searchQuery: '',
+            handoverSearchQuery: '',
+            equipmentSearchQuery: '',
+            noticeRooms: [
+                { id: '전체', label: '전체 보기', floor: 'All', hasNew: false },
+                { id: '8F 면역치료', label: '면역치료', floor: '8F', hasNew: false },
+                { id: '4F 안과기능', label: '안과기능', floor: '4F', hasNew: false },
+                { id: '4F 수면다원', label: '수면다원', floor: '4F', hasNew: true },
+                { id: '4F 외안부', label: '외안부', floor: '4F', hasNew: false },
+                { id: '3F 뇌파', label: '뇌파검사', floor: '3F', hasNew: false },
+                { id: '2F 소화기능', label: '소화기능', floor: '2F', hasNew: false },
+                { id: '2F 심장기능', label: '심장기능', floor: '2F', hasNew: true },
+                { id: '2F 심장초음파', label: '심초음파', floor: '2F', hasNew: false },
+                { id: '1F 근전도', label: '근전도실', floor: '1F', hasNew: false },
+                { id: '1F 호흡기능', label: '호흡기능', floor: '1F', hasNew: false },
+                { id: 'B1 청력', label: '청력검사', floor: 'B1', hasNew: false }
+            ],
+            notices: [
+                { id: 1, title: '면역치료센터 장비 점검 안내', content: '내일 오전 10시부터 11시까지 면역치료센터 장비 정기 점검이 있습니다.', date: '2026-06-05', author: '관리팀', floor: '8F', room: '8F 면역치료' },
+                { id: 2, title: '수면다원검사 예약 환자 주의사항', content: '금일 수면다원검사 예약 환자분들께 사전문진표 작성을 안내해주세요.', date: '2026-06-05', author: '기능검사실', floor: '4F', room: '4F 수면다원' },
+                { id: 3, title: '심장초음파실 젤리 재고 확인 요청', content: '초음파 젤리 재고가 부족합니다. 각 실별로 확인 후 청구 바랍니다.', date: '2026-06-04', author: '수간호사', floor: '2F', room: '2F 심장초음파' },
+                { id: 4, title: '전체 검사실 감염관리 교육', content: '다음주 수요일 전체 기능검사실 직원을 대상으로 감염관리 필수 교육이 진행됩니다.', date: '2026-06-03', author: '감염관리실', floor: '전체', room: '전체' }
+            ],
+            handovers: [
+                { id: 1, room: '안과기능', sender: '김주간', receiver: '사용자', content: '오후 3시 망막전위도검사(ERG) 예약 환자\n휠체어 탑승 상태이므로 보조 인력 대기 필요합니다.', date: '2026-06-05 13:00', isSigned: false, signedEmpId: "", signedAt: "" },
+                { id: 2, room: '심장초음파', sender: '이오전', receiver: '최오후', content: '초음파 젤리 2박스 청구 완료했습니다.\n내일 오전 중 도착 예정입니다.', date: '2026-06-04 11:30', isSigned: true, signedEmpId: "123456", signedAt: '2026-06-04 12:15:22' }
+            ],
+            // 의료장비 관리 데이터
+            teamMembers: ['김주간', '이오전', '최오후', '박대무', '정야간', '한새벽', '윤주말', '조응급', '송대체', '류지원'],
+            equipmentIssues: [
+                // === 2026년 6월 (최신) ===
+                { id: 1, room: '심장초음파', equipmentName: '심초음파 2관 PC', severity: '가동불가', content: '부팅 시 블루스크린 반복 발생.\n환자 검사 불가 상태입니다.\nMIS 수리의뢰 접수 필요합니다.', status: '신고됨', reporter: '이오전', date: '2026-06-05 09:30', confirmedUsers: ['이오전', '김주간'], misChecked: false },
+                { id: 2, room: '안과기능', equipmentName: '안과 3관 프린터', severity: '소모품', content: '토너 잔량 부족 경고 표시됨.\n금주 내 교체 필요합니다.', status: '수리중', reporter: '김주간', date: '2026-06-04 14:00', confirmedUsers: ['김주간', '이오전', '최오후', '박대무'], misChecked: false },
+                { id: 3, room: '근전도', equipmentName: '근전도 Keypoint PC', severity: '일반고장', content: '마우스 좌클릭 간헐적 미반응.\n교체용 마우스 필요합니다.', status: '조치완료', reporter: '정야간', date: '2026-06-03 16:45', confirmedUsers: ['정야간', '김주간', '이오전', '최오후', '박대무', '한새벽', '윤주말', '조응급', '송대체', '류지원'], misChecked: false },
+                // === 2026년 5월 ===
+                { id: 4, room: '심장기능', equipmentName: '심전도 모니터 A', severity: '일반고장', content: '화면 깜빡임 반복.', status: '조치완료', reporter: '김주간', date: '2026-05-28 10:00', confirmedUsers: ['김주간'], misChecked: false },
+                { id: 5, room: '안과기능', equipmentName: '안과 1관 PC', severity: '가동불가', content: 'Windows 업데이트 후 부팅 불가.', status: '조치완료', reporter: '박대무', date: '2026-05-22 14:30', confirmedUsers: ['박대무', '김주간'], misChecked: true },
+                { id: 6, room: '심장초음파', equipmentName: '심초음파 1관 프린터', severity: '소모품', content: '용지 재고 소진.', status: '조치완료', reporter: '이오전', date: '2026-05-15 09:00', confirmedUsers: ['이오전'], misChecked: false },
+                { id: 7, room: '소화기능', equipmentName: '내시경 PC', severity: '일반고장', content: 'USB 포트 접촉 불량.', status: '조치완료', reporter: '최오후', date: '2026-05-10 11:20', confirmedUsers: ['최오후'], misChecked: false },
+                // === 2026년 4월 ===
+                { id: 8, room: '뇌파검사', equipmentName: '뇌파 검사기 PC', severity: '가동불가', content: 'HDD 물리적 손상.', status: '조치완료', reporter: '한새벽', date: '2026-04-25 08:30', confirmedUsers: ['한새벽'], misChecked: true },
+                { id: 9, room: '심장기능', equipmentName: '트레드밀 PC', severity: '소모품', content: '키보드 일부 키 무반응.', status: '조치완료', reporter: '김주간', date: '2026-04-18 15:00', confirmedUsers: ['김주간'], misChecked: false },
+                { id: 10, room: '호흡기능', equipmentName: '폐기능 검사기 PC', severity: '일반고장', content: '모니터 색상 왜곡.', status: '조치완료', reporter: '윤주말', date: '2026-04-12 13:00', confirmedUsers: ['윤주말'], misChecked: false },
+                { id: 11, room: '안과기능', equipmentName: '안과 2관 모니터', severity: '일반고장', content: '화면 한쪽 굠 발생.', status: '조치완료', reporter: '김주간', date: '2026-04-05 10:00', confirmedUsers: ['김주간'], misChecked: false },
+                // === 2026년 3월 ===
+                { id: 12, room: '심장초음파', equipmentName: '심초음파 2관 모니터', severity: '일반고장', content: '모니터 전원 간헐적 꺼짐.', status: '조치완료', reporter: '이오전', date: '2026-03-28 09:00', confirmedUsers: ['이오전'], misChecked: false },
+                { id: 13, room: '근전도', equipmentName: '근전도 2관 PC', severity: '가동불가', content: '메인보드 고장 추정.', status: '조치완료', reporter: '정야간', date: '2026-03-20 16:00', confirmedUsers: ['정야간'], misChecked: true },
+                { id: 14, room: '청력검사', equipmentName: '청력 검사기 PC', severity: '소모품', content: '이어폰 쿠션 마모.', status: '조치완료', reporter: '조응급', date: '2026-03-15 14:00', confirmedUsers: ['조응급'], misChecked: false },
+                { id: 15, room: '안과기능', equipmentName: 'ERG 검사기', severity: '일반고장', content: '전극 접촉 불량.', status: '조치완료', reporter: '김주간', date: '2026-03-08 11:30', confirmedUsers: ['김주간'], misChecked: false },
+                // === 2026년 2월 ===
+                { id: 16, room: '심장기능', equipmentName: '심전도 모니터 B', severity: '가동불가', content: '내부 팔 파손.', status: '조치완료', reporter: '송대체', date: '2026-02-25 10:00', confirmedUsers: ['송대체'], misChecked: true },
+                { id: 17, room: '소화기능', equipmentName: '위내시경 PC', severity: '소모품', content: 'SSD 용량 90% 초과.', status: '조치완료', reporter: '최오후', date: '2026-02-18 09:00', confirmedUsers: ['최오후'], misChecked: false },
+                { id: 18, room: '심장초음파', equipmentName: '심초음파 젤리 워머', severity: '소모품', content: '젤리 워머 고장.', status: '조치완료', reporter: '이오전', date: '2026-02-10 14:30', confirmedUsers: ['이오전'], misChecked: false },
+                // === 2026년 1월 ===
+                { id: 19, room: '수면다원', equipmentName: '수면다원 모니터', severity: '일반고장', content: '화면 선명도 저하.', status: '조치완료', reporter: '박대무', date: '2026-01-28 15:00', confirmedUsers: ['박대무'], misChecked: false },
+                { id: 20, room: '안과기능', equipmentName: '안과 1관 프린터', severity: '소모품', content: '토너 교체 필요.', status: '조치완료', reporter: '김주간', date: '2026-01-20 10:30', confirmedUsers: ['김주간'], misChecked: false },
+                { id: 21, room: '근전도', equipmentName: '근전도 1관 PC', severity: '일반고장', content: '팔 반닫과 네트워크 드라이버 충돌.', status: '조치완료', reporter: '정야간', date: '2026-01-15 09:00', confirmedUsers: ['정야간'], misChecked: false },
+                { id: 22, room: '심장기능', equipmentName: 'Holter 모니터 3번', severity: '소모품', content: '전극 케이블 마모.', status: '조치완료', reporter: '김주간', date: '2026-01-08 11:00', confirmedUsers: ['김주간'], misChecked: false },
+                // === 2025년 12월 ===
+                { id: 23, room: '뇌파검사', equipmentName: '뇌파 증폭기', severity: '일반고장', content: '채널 3 잡음 발생.', status: '조치완료', reporter: '한새벽', date: '2025-12-22 10:00', confirmedUsers: ['한새벽'], misChecked: false },
+                { id: 24, room: '심장초음파', equipmentName: '심초음파 1관 PC', severity: '가동불가', content: 'RAM 고장 추정.', status: '조치완료', reporter: '이오전', date: '2025-12-15 14:00', confirmedUsers: ['이오전'], misChecked: true },
+                { id: 25, room: '외안부', equipmentName: '외안부 검사기 PC', severity: '소모품', content: '키보드 엔터키 무반응.', status: '조치완료', reporter: '윤주말', date: '2025-12-08 13:00', confirmedUsers: ['윤주말'], misChecked: false },
+                // === 2025년 11월 ===
+                { id: 26, room: '면역치료', equipmentName: '면역치료 PC', severity: '일반고장', content: '업무용 프로그램 버전 충돌.', status: '조치완료', reporter: '류지원', date: '2025-11-20 10:30', confirmedUsers: ['류지원'], misChecked: false },
+                { id: 27, room: '심장기능', equipmentName: '심전도 프린터', severity: '소모품', content: '용지 잔량 부족.', status: '조치완료', reporter: '김주간', date: '2025-11-10 09:00', confirmedUsers: ['김주간'], misChecked: false },
+                // === 2025년 10월 ===
+                { id: 28, room: '안과기능', equipmentName: '안과 2관 PC', severity: '가동불가', content: '전원부 고장.', status: '조치완료', reporter: '박대무', date: '2025-10-25 11:00', confirmedUsers: ['박대무'], misChecked: true },
+                { id: 29, room: '소화기능', equipmentName: '식도 검사기 PC', severity: '일반고장', content: '프린터 연결 오류.', status: '조치완료', reporter: '최오후', date: '2025-10-15 14:00', confirmedUsers: ['최오후'], misChecked: false },
+                // === 2025년 9월 ===
+                { id: 30, room: '청력검사', equipmentName: '청력 검사실 PC', severity: '일반고장', content: '보안 업데이트 후 오류.', status: '조치완료', reporter: '조응급', date: '2025-09-18 10:00', confirmedUsers: ['조응급'], misChecked: false },
+                { id: 31, room: '심장초음파', equipmentName: '심초음파 프로브', severity: '일반고장', content: '프로브 접촉 불량.', status: '조치완료', reporter: '이오전', date: '2025-09-05 09:30', confirmedUsers: ['이오전'], misChecked: false },
+                // === 2025년 8월 ===
+                { id: 32, room: '호흡기능', equipmentName: '폐기능 필터', severity: '소모품', content: '일회용 필터 재고 소진.', status: '조치완료', reporter: '윤주말', date: '2025-08-20 14:00', confirmedUsers: ['윤주말'], misChecked: false },
+                // === 2025년 7월 ===
+                { id: 33, room: '안과기능', equipmentName: '안과 3관 PC', severity: '일반고장', content: '방화벽 프로그램 충돌.', status: '조치완료', reporter: '김주간', date: '2025-07-22 11:00', confirmedUsers: ['김주간'], misChecked: false },
+                { id: 34, room: '심장기능', equipmentName: '심전도 리드선', severity: '소모품', content: '리드선 재고 소진.', status: '조치완료', reporter: '김주간', date: '2025-07-10 09:00', confirmedUsers: ['김주간'], misChecked: false }
+            ],
+            equipmentNextId: 35,
+        };
+
+
+        // ===================================================================
+        // 초기화: DOM 로드 완료 후 실행
+        // ===================================================================
+        document.addEventListener('DOMContentLoaded', function () {
+            lucide.createIcons();
+
+            // Enter 키 로그인 지원
+            var loginForm = document.getElementById('login-form');
+            loginForm.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleLogin();
+                }
+            });
+
+            renderApp();
+            updateFilterUI();
+            renderNotices();
+            renderHandovers();
+            renderEquipment();
+            renderEquipmentStats();
+        });
+
+
+        // ===================================================================
+        // 앱 렌더링: state에 따라 로그인/메인 화면 표시
+        // ===================================================================
+        function renderApp() {
+            var screenLogin = document.getElementById('screen-login');
+            var screenMain = document.getElementById('screen-main');
+
+            if (state.isLoggedIn) {
+                screenLogin.classList.add('hidden');
+                screenMain.classList.remove('hidden');
+                lucide.createIcons();
+            } else {
+                screenLogin.classList.remove('hidden');
+                screenMain.classList.add('hidden');
+            }
+        }
+
+
+        // ===================================================================
+        // 로그인 처리 (검증 없이 즉시 전환 - 테스트 편의)
+        // ===================================================================
+        function handleLogin() {
+            var btnLogin = document.getElementById('btn-login');
+            var btnText = document.getElementById('login-btn-text');
+            var spinner = document.getElementById('login-spinner');
+            var employeeIdInput = document.getElementById('input-employee-id');
+            var screenLogin = document.getElementById('screen-login');
+            var screenMain = document.getElementById('screen-main');
+
+            // 버튼 로딩 상태 전환
+            btnLogin.disabled = true;
+            btnText.textContent = '로그인 중...';
+            spinner.classList.remove('hidden');
+
+            setTimeout(function () {
+                // 상태 업데이트
+                state.isLoggedIn = true;
+                state.currentUser.employeeId = employeeIdInput.value.trim() || '미입력';
+                state.currentUser.name = '사용자';
+
+                updateUserInfo();
+
+                // 화면 전환 애니메이션
+                screenLogin.classList.add('fade-exit');
+
+                setTimeout(function () {
+                    screenLogin.classList.add('hidden');
+                    screenLogin.classList.remove('fade-exit');
+
+                    screenMain.classList.remove('hidden');
+                    screenMain.classList.add('fade-enter');
+
+                    lucide.createIcons();
+
+                    setTimeout(function () {
+                        screenMain.classList.remove('fade-enter');
+                    }, 350);
+                }, 250);
+
+                // 버튼 상태 복원
+                btnLogin.disabled = false;
+                btnText.textContent = '로그인';
+                spinner.classList.add('hidden');
+
+            }, 700);
+        }
+
+
+        // ===================================================================
+        // 로그아웃 처리
+        // ===================================================================
+        function handleLogout() {
+            var screenLogin = document.getElementById('screen-login');
+            var screenMain = document.getElementById('screen-main');
+
+            screenMain.classList.add('fade-exit');
+
+            setTimeout(function () {
+                // 상태 초기화
+                state.isLoggedIn = false;
+                state.currentUser.employeeId = '';
+                state.currentUser.name = '';
+                state.currentPage = 'dashboard';
+
+                screenMain.classList.add('hidden');
+                screenMain.classList.remove('fade-exit');
+
+                screenLogin.classList.remove('hidden');
+                screenLogin.classList.add('fade-enter');
+
+                // 입력창 초기화
+                document.getElementById('input-employee-id').value = '';
+                document.getElementById('input-password').value = '';
+
+                lucide.createIcons();
+
+                setTimeout(function () {
+                    screenLogin.classList.remove('fade-enter');
+                }, 350);
+            }, 250);
+        }
+
+
+        // ===================================================================
+        // 사용자 정보 UI 업데이트
+        // ===================================================================
+        function updateUserInfo() {
+            var name = state.currentUser.name || '사용자';
+            var empId = state.currentUser.employeeId || '미입력';
+
+            var sidebarUsername = document.getElementById('sidebar-username');
+            var sidebarEmployeeId = document.getElementById('sidebar-employee-id');
+            var headerUsername = document.getElementById('header-username');
+
+            if (sidebarUsername) sidebarUsername.textContent = name;
+            if (sidebarEmployeeId) sidebarEmployeeId.textContent = '사번: ' + empId;
+            if (headerUsername) headerUsername.textContent = name;
+        }
+
+
+        // ===================================================================
+        // 페이지 네비게이션 (사이드바/하단 탭 메뉴 전환)
+        // ===================================================================
+        function navigateTo(page) {
+            if (state.currentPage === page) return;
+
+            var prevPage = state.currentPage;
+            state.currentPage = page;
+
+            // 이전 페이지 숨기기
+            var prevEl = document.getElementById('page-' + prevPage);
+            if (prevEl) prevEl.classList.add('hidden');
+
+            // 새 페이지 표시
+            var newEl = document.getElementById('page-' + page);
+            if (newEl) {
+                newEl.classList.remove('hidden');
+                newEl.classList.add('fade-enter');
+                setTimeout(function () {
+                    newEl.classList.remove('fade-enter');
+                }, 350);
+            }
+
+            // 헤더 타이틀 업데이트
+            var pageTitles = {
+                dashboard: '대시보드',
+                notices: '공지사항',
+                handover: '인수인계',
+                equipment: '의료장비',
+                stats: '장비 통계',
+            };
+            var headerTitle = document.getElementById('header-title');
+            if (headerTitle) headerTitle.textContent = pageTitles[page] || '대시보드';
+
+            // 메뉴 활성 상태 업데이트
+            document.querySelectorAll('[data-menu]').forEach(function (item) {
+                var menuKey = item.getAttribute('data-menu');
+
+                // CSS 클래스(active)를 통해 스타일 자동 제어
+                if (menuKey === page) {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+        }
+
+
+        // ===================================================================
+        // 비밀번호 표시/숨기기 토글
+        // ===================================================================
+        function togglePasswordVisibility() {
+            var passwordInput = document.getElementById('input-password');
+            var iconEye = document.getElementById('icon-eye');
+            var iconEyeOff = document.getElementById('icon-eye-off');
+
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                iconEye.classList.add('hidden');
+                iconEyeOff.classList.remove('hidden');
+            } else {
+                passwordInput.type = 'password';
+                iconEye.classList.remove('hidden');
+                iconEyeOff.classList.add('hidden');
+            }
+        }
+
+        // ===================================================================
+        // 공지사항 미니 카드 필터 로직
+        // ===================================================================
+        function updateFilterUI() {
+            var container = document.getElementById('notice-filter-container');
+            if (!container) return;
+
+            var allRoom = state.noticeRooms.find(function (r) { return r.id === '전체'; });
+            var otherRooms = state.noticeRooms.filter(function (r) { return r.id !== '전체'; });
+
+            var isAllActive = state.currentNoticeFilter === '전체';
+            var allBaseClass = "w-full relative flex items-center justify-center py-2 sm:py-2.5 rounded-xl border transition-all cursor-pointer text-center overflow-hidden ";
+            if (isAllActive) {
+                allBaseClass += "border-accent-500 bg-accent-50 shadow-sm shadow-orange-100/50";
+            } else {
+                allBaseClass += "border-gray-100 bg-white hover:bg-gray-50 hover:border-gray-200 shadow-sm";
+            }
+            var allTextClass = isAllActive ? "text-accent-600 font-bold" : "text-gray-700 font-medium";
+
+            var html = '<div class="grid grid-cols-2 gap-2 mb-3">';
+            html += '<button onclick="setNoticeFilter(\'전체\')" class="' + allBaseClass + '">' +
+                '<span class="text-xs sm:text-sm ' + allTextClass + '">전체 보기</span>' +
+                '</button>';
+            html += '<div class="relative">' +
+                '<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">' +
+                '<svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>' +
+                '</div>' +
+                '<input type="text" id="notice-search-input" placeholder="제목, 내용, 날짜로 검색..." value="' + (state.searchQuery || '') + '" oninput="handleNoticeSearch(this.value)" class="w-full h-full pl-9 pr-3 bg-gray-100 rounded-xl text-sm focus:outline-none focus:bg-white focus:ring-2 focus:ring-accent-500 border border-transparent focus:border-accent-500 transition-all">' +
+                '</div>';
+            html += '</div>';
+
+            html += '<div class="grid grid-cols-5 md:grid-cols-6 gap-1.5">';
+
+            html += otherRooms.map(function (room) {
+                var isActive = state.currentNoticeFilter === room.id;
+
+                var baseClass = "relative flex flex-col py-2 px-1 rounded-xl border transition-all cursor-pointer text-center overflow-hidden justify-center items-center ";
+                if (isActive) {
+                    baseClass += "border-accent-500 bg-accent-50 shadow-sm shadow-orange-100/50";
+                } else {
+                    baseClass += "border-gray-100 bg-white hover:bg-gray-50 hover:border-gray-200 shadow-sm";
+                }
+
+                var floorText = isActive ? "text-accent-500" : "text-gray-400";
+                var labelText = isActive ? "text-accent-600 font-bold" : "text-gray-700 font-medium";
+
+                // 새 공지 알림 배지 (우측 상단 펄스 효과 - 더 작게)
+                var badgeHtml = room.hasNew ? '<span class="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-accent-500 animate-pulse"></span>' : '';
+
+                var floorHtml = '<span class="text-[9px] sm:text-[10px] font-bold ' + floorText + ' mb-0.5">' + room.floor + '</span>';
+                var labelHtml = '<span class="text-[10px] sm:text-xs ' + labelText + ' leading-tight truncate w-full">' + room.label + '</span>';
+
+                return '<button onclick="setNoticeFilter(\'' + room.id + '\')" class="' + baseClass + '" title="' + room.label + '">' +
+                    badgeHtml +
+                    floorHtml +
+                    labelHtml +
+                    '</button>';
+            }).join('');
+
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        function setNoticeFilter(roomId) {
+            state.currentNoticeFilter = roomId;
+            updateFilterUI();
+            renderNotices();
+        }
+
+        function handleNoticeSearch(value) {
+            state.searchQuery = value;
+            renderNotices();
+        }
+
+        function renderNotices() {
+            var container = document.getElementById('notice-list-container');
+            if (!container) return;
+
+            var filtered = state.currentNoticeFilter === '전체'
+                ? state.notices
+                : state.notices.filter(function (n) { return n.room === state.currentNoticeFilter || n.room === '전체'; });
+
+            // 검색어 교차 필터링
+            if (state.searchQuery && state.searchQuery.trim() !== '') {
+                var query = state.searchQuery.trim().toLowerCase();
+                filtered = filtered.filter(function (n) {
+                    return n.title.toLowerCase().indexOf(query) !== -1 ||
+                        n.content.toLowerCase().indexOf(query) !== -1 ||
+                        (n.date && n.date.toLowerCase().indexOf(query) !== -1);
+                });
+            }
+
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="py-10 text-center text-gray-500 bg-white rounded-2xl border border-gray-100 shadow-sm">해당 검사실의 공지사항이 없습니다.</div>';
+                return;
+            }
+
+            container.innerHTML = filtered.map(function (n) {
+                return '<div class="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">' +
+                    '<div class="flex items-start justify-between gap-4 mb-2">' +
+                    '<div class="flex items-center gap-2">' +
+                    '<span class="px-2 py-0.5 rounded-md bg-blue-50 text-primary-600 text-xs font-bold whitespace-nowrap">' + n.room + '</span>' +
+                    '<h3 class="text-gray-900 font-bold text-base line-clamp-1">' + n.title + '</h3>' +
+                    '</div>' +
+                    '</div>' +
+                    '<p class="text-gray-600 text-sm line-clamp-2 leading-relaxed mb-3">' + n.content + '</p>' +
+                    '<div class="flex items-center gap-3 text-xs text-gray-400 font-medium">' +
+                    '<span class="flex items-center gap-1"><i data-lucide="calendar" class="w-3.5 h-3.5"></i>' + n.date + '</span>' +
+                    '<span class="flex items-center gap-1"><i data-lucide="user" class="w-3.5 h-3.5"></i>' + n.author + '</span>' +
+                    '</div>' +
+                    '</div>';
+            }).join('');
+
+            lucide.createIcons();
+        }
+
+        function handleHandoverSearch(value) {
+            state.handoverSearchQuery = value;
+            renderHandovers();
+        }
+
+        // ===================================================================
+        // 인수인계 렌더링 및 서명 로직
+        // ===================================================================
+        function renderHandovers() {
+            var container = document.getElementById('handover-list-container');
+            var countBadge = document.getElementById('handover-count');
+            if (!container) return;
+
+            // 검색어 필터링
+            var filtered = state.handovers;
+            if (state.handoverSearchQuery && state.handoverSearchQuery.trim() !== '') {
+                var q = state.handoverSearchQuery.trim().toLowerCase();
+                filtered = filtered.filter(function (h) {
+                    return h.room.toLowerCase().indexOf(q) !== -1 ||
+                        h.sender.toLowerCase().indexOf(q) !== -1 ||
+                        h.content.toLowerCase().indexOf(q) !== -1 ||
+                        (h.isSigned && '서명 완료'.indexOf(q) !== -1) ||
+                        (h.isSigned && h.signedEmpId && String(h.signedEmpId).toLowerCase().indexOf(q) !== -1) ||
+                        (h.isSigned && h.signedAt && String(h.signedAt).toLowerCase().indexOf(q) !== -1);
+                });
+            }
+
+            if (countBadge) countBadge.textContent = '총 ' + filtered.length + '건';
+
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="py-10 text-center text-gray-500 bg-white rounded-2xl border border-gray-100 shadow-sm">' + (state.handoverSearchQuery ? '검색 결과가 없습니다.' : '인수인계 내역이 없습니다.') + '</div>';
+                updateDashboardBanner();
+                return;
+            }
+
+            container.innerHTML = filtered.map(function (h) {
+                var borderClass = h.isSigned ? "border-gray-100" : "border-orange-300 border-[1.5px]";
+                var statusHtml = "";
+                var actionHtml = "";
+
+                if (h.isSigned) {
+                    statusHtml = '<div class="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-xl text-center text-xs sm:text-sm text-gray-500 font-bold">' +
+                        '🟢 서명 완료 (확인 사번: ' + h.signedEmpId + ' / 일시: ' + h.signedAt + ')' +
+                        '</div>';
+                } else {
+                    actionHtml = '<div class="mt-4 pt-3 border-t border-gray-100">' +
+                        '<p class="text-xs sm:text-sm text-gray-600 font-medium mb-2 text-center">"위 인계 사항을 모두 숙지하였으며, 이에 서명합니다."</p>' +
+                        '<div class="flex items-center gap-2">' +
+                        '<input type="text" id="handover-emp-id-' + h.id + '" placeholder="사번 입력" maxlength="10" onkeydown="if(event.key === \'Enter\') { event.preventDefault(); signHandover(' + h.id + '); }" class="flex-1 min-w-0 px-3 py-2 sm:py-2.5 bg-gray-50 border border-gray-200 rounded-lg sm:rounded-xl text-sm sm:text-base focus:outline-none focus:border-accent-500 focus:ring-1 focus:ring-accent-500 transition-all text-center">' +
+                        '<button onclick="signHandover(' + h.id + ')" class="px-4 sm:px-5 py-2 sm:py-2.5 bg-accent-500 hover:bg-accent-600 text-white font-bold text-sm sm:text-base rounded-lg sm:rounded-xl transition-colors shadow-sm whitespace-nowrap shrink-0">' +
+                        '서명하기' +
+                        '</button>' +
+                        '</div>' +
+                        '</div>';
+                }
+
+                return '<div class="bg-white rounded-2xl p-4 sm:p-5 shadow-sm transition-shadow ' + borderClass + '">' +
+                    '<div class="flex items-center justify-between gap-4 mb-3">' +
+                    '<div class="flex items-center gap-2">' +
+                    '<span class="px-2 py-0.5 rounded-md bg-orange-50 text-accent-600 text-xs font-bold whitespace-nowrap">' + h.room + '</span>' +
+                    '<div class="text-xs text-gray-400 font-medium">' + h.date + '</div>' +
+                    '</div>' +
+                    '</div>' +
+                    '<div class="flex items-center gap-2 mb-3 text-sm font-medium text-gray-800">' +
+                    '<span class="px-2 py-1 bg-gray-100 rounded-md">인계: ' + h.sender + '</span>' +
+                    '<i data-lucide="arrow-right" class="w-4 h-4 text-gray-400"></i>' +
+                    '<span class="px-2 py-1 bg-blue-50 text-primary-700 rounded-md">인수: ' + h.receiver + '</span>' +
+                    '</div>' +
+                    '<p class="text-gray-700 text-sm leading-relaxed whitespace-pre-line">' + h.content + '</p>' +
+                    statusHtml +
+                    actionHtml +
+                    '</div>';
+            }).join('');
+
+            lucide.createIcons();
+            updateDashboardBanner();
+        }
+
+        function signHandover(id) {
+            var handover = state.handovers.find(function (h) { return h.id === id; });
+            if (handover && !handover.isSigned) {
+                var inputEl = document.getElementById('handover-emp-id-' + id);
+                var empId = inputEl ? inputEl.value.trim() : '';
+
+                if (!empId) {
+                    alert('사번을 정확히 입력해주세요.');
+                    if (inputEl) inputEl.focus();
+                    return;
+                }
+
+                var now = new Date();
+                var timeString = now.getFullYear() + '-' +
+                    String(now.getMonth() + 1).padStart(2, '0') + '-' +
+                    String(now.getDate()).padStart(2, '0') + ' ' +
+                    String(now.getHours()).padStart(2, '0') + ':' +
+                    String(now.getMinutes()).padStart(2, '0') + ':' +
+                    String(now.getSeconds()).padStart(2, '0');
+
+                handover.isSigned = true;
+                handover.signedEmpId = empId;
+                handover.signedAt = timeString;
+
+                renderHandovers();
+            }
+        }
+
+        function updateDashboardBanner() {
+            var banner = document.getElementById('dashboard-handover-banner');
+            if (!banner) return;
+
+            var hasUnsigned = state.handovers.some(function (h) {
+                return !h.isSigned && (h.receiver === state.currentUser.name || h.receiver === '사용자');
+            });
+
+            if (hasUnsigned) {
+                banner.classList.remove('hidden');
+            } else {
+                banner.classList.add('hidden');
+            }
+        }
+
+        function handleEquipmentSearch(value) {
+            state.equipmentSearchQuery = value;
+            renderEquipment();
+        }
+
+        // ===================================================================
+        // 의료장비 관리 렌더링 및 로직
+        // ===================================================================
+        function renderEquipment() {
+            var container = document.getElementById('equipment-list-container');
+            var countBadge = document.getElementById('equipment-count');
+            if (!container) return;
+
+            // 검색어 필터링
+            var filtered = state.equipmentIssues;
+            if (state.equipmentSearchQuery && state.equipmentSearchQuery.trim() !== '') {
+                var q = state.equipmentSearchQuery.trim().toLowerCase();
+                var userName = state.currentUser.name || '사용자';
+
+                filtered = filtered.filter(function (eq) {
+                    var unconfirmedUsers = state.teamMembers.filter(function (m) {
+                        return eq.confirmedUsers.indexOf(m) === -1;
+                    });
+                    var hasUnconfirmedUser = unconfirmedUsers.some(function (name) { return name.toLowerCase().indexOf(q) !== -1; });
+                    var confirmedCount = eq.confirmedUsers.length;
+                    var totalCount = state.teamMembers.length;
+                    var userConfirmed = eq.confirmedUsers.indexOf(userName) !== -1;
+
+                    var actionBtnText = "";
+                    if (eq.status === '신고됨') actionBtnText = "수리중 전환";
+                    else if (eq.status === '수리중') actionBtnText = "조치완료 전환";
+
+                    return eq.room.toLowerCase().indexOf(q) !== -1 ||
+                        eq.equipmentName.toLowerCase().indexOf(q) !== -1 ||
+                        eq.content.toLowerCase().indexOf(q) !== -1 ||
+                        (eq.severity && eq.severity.toLowerCase().indexOf(q) !== -1) ||
+                        (eq.status && eq.status.toLowerCase().indexOf(q) !== -1) ||
+                        (eq.date && eq.date.toLowerCase().indexOf(q) !== -1) ||
+                        (eq.reporter && eq.reporter.toLowerCase().indexOf(q) !== -1) ||
+                        (actionBtnText && actionBtnText.toLowerCase().indexOf(q) !== -1) ||
+                        (q === '확인완료' && userConfirmed) ||
+                        ('미확인자'.indexOf(q) !== -1 && confirmedCount < totalCount) ||
+                        ('확인자'.indexOf(q) !== -1 && confirmedCount > 0) ||
+                        hasUnconfirmedUser;
+                });
+            }
+
+            if (countBadge) countBadge.textContent = '총 ' + filtered.length + '건';
+
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="py-10 text-center text-gray-500 bg-white rounded-2xl border border-gray-100 shadow-sm">' + (state.equipmentSearchQuery ? '검색 결과가 없습니다.' : '등록된 장비 이슈가 없습니다.') + '</div>';
+                return;
+            }
+
+            container.innerHTML = filtered.map(function (eq) {
+                // 심각도 뱃지 컬러
+                var sevBg = '', sevText = '';
+                if (eq.severity === '소모품') { sevBg = 'bg-green-50 border-green-200'; sevText = 'text-green-700'; }
+                else if (eq.severity === '일반고장') { sevBg = 'bg-orange-50 border-orange-200'; sevText = 'text-orange-700'; }
+                else if (eq.severity === '가동불가') { sevBg = 'bg-red-50 border-red-200'; sevText = 'text-red-700'; }
+
+                // 상태 뱃지 컬러
+                var statusBg = '', statusText = '', statusIcon = '';
+                if (eq.status === '신고됨') { statusBg = 'bg-yellow-50 border-yellow-200'; statusText = 'text-yellow-700'; statusIcon = '🟡'; }
+                else if (eq.status === '수리중') { statusBg = 'bg-blue-50 border-blue-200'; statusText = 'text-blue-700'; statusIcon = '🔵'; }
+                else if (eq.status === '조치완료') { statusBg = 'bg-gray-100 border-gray-200'; statusText = 'text-gray-500'; statusIcon = '✅'; }
+
+                var isResolved = eq.status === '조치완료';
+                var cardBorder = isResolved ? 'border-gray-100 opacity-60' : (eq.severity === '가동불가' ? 'border-red-200 border-[1.5px]' : 'border-gray-100');
+
+                // 확인 현황
+                var confirmCount = eq.confirmedUsers.length;
+                var totalMembers = state.teamMembers.length;
+                var userName = state.currentUser.name || '사용자';
+                var userConfirmed = eq.confirmedUsers.indexOf(userName) !== -1;
+
+                // 미확인자 목록 계산
+                var unconfirmedUsers = state.teamMembers.filter(function (m) {
+                    return eq.confirmedUsers.indexOf(m) === -1;
+                });
+                var unconfirmedText = unconfirmedUsers.length > 0 ? '미확인: ' + unconfirmedUsers.join(', ') : '전원 확인 완료';
+
+                // 확인 버튼
+                var confirmBtnHtml = '';
+                if (!isResolved) {
+                    if (userConfirmed) {
+                        confirmBtnHtml = '<button disabled class="px-3 py-1.5 bg-gray-100 text-gray-400 text-xs sm:text-sm font-bold rounded-lg cursor-not-allowed">확인 완료 ✓</button>';
+                    } else {
+                        confirmBtnHtml = '<button onclick="confirmEquipment(' + eq.id + ')" class="px-3 py-1.5 bg-primary-500 hover:bg-primary-600 text-white text-xs sm:text-sm font-bold rounded-lg transition-colors shadow-sm">내용을 확인했습니다 👍</button>';
+                    }
+                }
+
+                // 확인 현황 표시 (호버 가능)
+                var confirmInfoHtml = '<div class="relative inline-block group">' +
+                    '<span class="text-xs sm:text-sm font-bold ' + (confirmCount === totalMembers ? 'text-green-600' : 'text-accent-600') + ' cursor-help border-b border-dashed border-gray-300">확인 ' + confirmCount + ' / ' + totalMembers + '명</span>' +
+                    '<div class="hidden group-hover:block absolute bottom-full left-0 mb-1.5 px-3 py-2 bg-gray-800 text-white text-[11px] rounded-lg shadow-lg whitespace-nowrap z-20 max-w-[200px]">' +
+                    '<div class="absolute bottom-[-4px] left-4 w-2 h-2 bg-gray-800 rotate-45"></div>' +
+                    unconfirmedText +
+                    '</div>' +
+                    '</div>';
+
+                // MIS 체크박스 (가동불가 이슈만)
+                var misHtml = '';
+                if (eq.severity === '가동불가' && !isResolved) {
+                    var misChecked = eq.misChecked ? 'checked' : '';
+                    var misLabelColor = eq.misChecked ? 'text-green-600 font-bold' : 'text-gray-600';
+                    misHtml = '<div class="mt-3 pt-3 border-t border-gray-100">' +
+                        '<label class="flex items-center gap-2 cursor-pointer group" onclick="toggleMIS(' + eq.id + ')">' +
+                        '<input type="checkbox" ' + misChecked + ' class="w-4 h-4 rounded border-gray-300 text-primary-500 focus:ring-primary-500 cursor-pointer" readonly>' +
+                        '<span class="text-xs sm:text-sm ' + misLabelColor + '">MIS 수리의뢰 입력완료</span>' +
+                        '</label>' +
+                        '</div>';
+                }
+
+                // 상태 전환 버튼
+                var statusBtnHtml = '';
+                if (eq.status === '신고됨') {
+                    statusBtnHtml = '<button onclick="changeEquipmentStatus(' + eq.id + ', \'수리중\')" class="text-[10px] sm:text-xs px-2 py-1 bg-blue-50 text-blue-600 font-bold rounded-md hover:bg-blue-100 transition-colors border border-blue-200">수리중 전환</button>';
+                } else if (eq.status === '수리중') {
+                    statusBtnHtml = '<button onclick="changeEquipmentStatus(' + eq.id + ', \'조치완료\')" class="text-[10px] sm:text-xs px-2 py-1 bg-green-50 text-green-600 font-bold rounded-md hover:bg-green-100 transition-colors border border-green-200">조치완료 전환</button>';
+                }
+
+                return '<div class="bg-white rounded-2xl p-4 sm:p-5 shadow-sm transition-all ' + cardBorder + '">' +
+                    '<div class="flex items-start justify-between gap-3 mb-3">' +
+                    '<div class="flex items-center gap-1.5 flex-wrap">' +
+                    '<span class="px-2 py-0.5 rounded-md border text-xs font-bold whitespace-nowrap ' + sevBg + ' ' + sevText + '">' + eq.severity + '</span>' +
+                    '<span class="px-2 py-0.5 rounded-md border text-xs font-bold whitespace-nowrap ' + statusBg + ' ' + statusText + '">' + statusIcon + ' ' + eq.status + '</span>' +
+                    statusBtnHtml +
+                    '</div>' +
+                    '</div>' +
+                    '<div class="flex items-center gap-2 mb-2">' +
+                    '<span class="px-2 py-0.5 rounded-md bg-blue-50 text-primary-600 text-xs font-bold whitespace-nowrap">' + eq.room + '</span>' +
+                    '<h3 class="text-gray-900 font-bold text-sm sm:text-base truncate">' + eq.equipmentName + '</h3>' +
+                    '</div>' +
+                    '<p class="text-gray-700 text-sm leading-relaxed whitespace-pre-line mb-3">' + eq.content + '</p>' +
+                    '<div class="flex items-center gap-3 text-xs text-gray-400 font-medium mb-3">' +
+                    '<span class="flex items-center gap-1"><i data-lucide="calendar" class="w-3.5 h-3.5"></i>' + eq.date + '</span>' +
+                    '<span class="flex items-center gap-1"><i data-lucide="user" class="w-3.5 h-3.5"></i>신고: ' + eq.reporter + '</span>' +
+                    '</div>' +
+                    misHtml +
+                    '<div class="' + (eq.severity === '가동불가' && !isResolved ? '' : 'mt-3 pt-3 border-t border-gray-100') + '">' +
+                    '<div class="flex items-center justify-between gap-3 ' + (eq.severity === '가동불가' && !isResolved ? 'mt-3 pt-3 border-t border-gray-100' : '') + '">' +
+                    confirmInfoHtml +
+                    confirmBtnHtml +
+                    '</div>' +
+                    '</div>' +
+                    '</div>';
+            }).join('');
+
+            lucide.createIcons();
+        }
+
+        function confirmEquipment(id) {
+            var issue = state.equipmentIssues.find(function (eq) { return eq.id === id; });
+            if (!issue) return;
+            var userName = state.currentUser.name || '사용자';
+            if (issue.confirmedUsers.indexOf(userName) === -1) {
+                issue.confirmedUsers.push(userName);
+                renderEquipment();
+            }
+        }
+
+        function changeEquipmentStatus(id, newStatus) {
+            var issue = state.equipmentIssues.find(function (eq) { return eq.id === id; });
+            if (!issue) return;
+            issue.status = newStatus;
+            renderEquipment();
+        }
+
+        function toggleMIS(id) {
+            var issue = state.equipmentIssues.find(function (eq) { return eq.id === id; });
+            if (!issue) return;
+            issue.misChecked = !issue.misChecked;
+            renderEquipment();
+        }
+
+        function registerEquipmentIssue() {
+            var room = document.getElementById('eq-room').value;
+            var name = document.getElementById('eq-name').value.trim();
+            var severity = document.getElementById('eq-severity').value;
+            var content = document.getElementById('eq-content').value.trim();
+
+            if (!room || !name || !severity || !content) {
+                alert('모든 항목을 입력해주세요.');
+                return;
+            }
+
+            var now = new Date();
+            var dateStr = now.getFullYear() + '-' +
+                String(now.getMonth() + 1).padStart(2, '0') + '-' +
+                String(now.getDate()).padStart(2, '0') + ' ' +
+                String(now.getHours()).padStart(2, '0') + ':' +
+                String(now.getMinutes()).padStart(2, '0');
+
+            var reporter = state.currentUser.name || '사용자';
+
+            state.equipmentIssues.unshift({
+                id: state.equipmentNextId++,
+                room: room,
+                equipmentName: name,
+                severity: severity,
+                content: content,
+                status: '신고됨',
+                reporter: reporter,
+                date: dateStr,
+                confirmedUsers: [reporter],
+                misChecked: false
+            });
+
+            // 폼 초기화
+            document.getElementById('eq-room').value = '';
+            document.getElementById('eq-name').value = '';
+            document.getElementById('eq-severity').value = '';
+            document.getElementById('eq-content').value = '';
+
+            renderEquipment();
+            renderEquipmentStats();
+        }
+
+        // ===================================================================
+        // 연간 장비 통계 대시보드 렌더링
+        // ===================================================================
+        function renderEquipmentStats() {
+            var container = document.getElementById('equipment-stats-dashboard');
+            if (!container) return;
+
+            var now = new Date();
+            var currentYear = now.getFullYear();
+            var currentMonth = now.getMonth(); // 0-indexed
+
+            // 12개월 범위 계산 (오늘 기준 12개월 이내)
+            var twelveMonthsAgo = new Date(currentYear, currentMonth - 11, 1);
+
+            // 데이터 필터링 (12개월 이내)
+            var yearData = state.equipmentIssues.filter(function (eq) {
+                var d = new Date(eq.date.split(' ')[0]);
+                return d >= twelveMonthsAgo;
+            });
+
+            var totalIssues = yearData.length;
+            var monthlyAvg = totalIssues > 0 ? (totalIssues / 12).toFixed(1) : '0';
+
+            // 가장 고장이 잦은 방 계산
+            var roomCounts = {};
+            yearData.forEach(function (eq) {
+                roomCounts[eq.room] = (roomCounts[eq.room] || 0) + 1;
+            });
+            var topRoom = '-';
+            var topRoomCount = 0;
+            Object.keys(roomCounts).forEach(function (room) {
+                if (roomCounts[room] > topRoomCount) {
+                    topRoomCount = roomCounts[room];
+                    topRoom = room;
+                }
+            });
+
+            // 상태별 집계
+            var countSingodwem = state.equipmentIssues.filter(function (eq) { return eq.status === '신고됨'; }).length;
+            var countSuriJung = state.equipmentIssues.filter(function (eq) { return eq.status === '수리중'; }).length;
+            var countMisUnchecked = state.equipmentIssues.filter(function (eq) { return eq.severity === '가동불가' && !eq.misChecked && eq.status !== '조치완료'; }).length;
+
+            // 월별 건수 계산 (12개월)
+            var monthLabels = [];
+            var monthValues = [];
+            for (var i = 11; i >= 0; i--) {
+                var targetDate = new Date(currentYear, currentMonth - i, 1);
+                var tYear = targetDate.getFullYear();
+                var tMonth = targetDate.getMonth();
+                monthLabels.push((tMonth + 1) + '월');
+                var count = yearData.filter(function (eq) {
+                    var d = new Date(eq.date.split(' ')[0]);
+                    return d.getFullYear() === tYear && d.getMonth() === tMonth;
+                }).length;
+                monthValues.push(count);
+            }
+            var maxMonthValue = Math.max.apply(null, monthValues) || 1;
+            var barMaxHeight = 100; // px
+
+            // 검사실별 순위 계산
+            var allRooms = ['안과기능', '수면다원', '외안부', '뇌파검사', '소화기능', '심장기능', '심장초음파', '근전도', '호흡기능', '청력검사', '면역치료'];
+            var roomRanking = allRooms.map(function (room) {
+                return { room: room, count: roomCounts[room] || 0 };
+            }).sort(function (a, b) { return b.count - a.count; });
+            var maxRoomCount = roomRanking.length > 0 ? roomRanking[0].count : 1;
+
+            // === HTML 조립 ===
+            var html = '';
+
+            // 1) 연간 스코어보드
+            html += '<div class="grid grid-cols-3 gap-2 sm:gap-3">';
+            html += '<div class="bg-white rounded-2xl p-3 sm:p-4 shadow-sm border border-gray-100 text-center">';
+            html += '<div class="text-[10px] sm:text-xs text-gray-400 font-medium mb-1">연간 누적 고장</div>';
+            html += '<div class="text-xl sm:text-2xl font-bold text-accent-500">' + totalIssues + '<span class="text-xs sm:text-sm font-medium text-gray-400">건</span></div>';
+            html += '</div>';
+            html += '<div class="bg-white rounded-2xl p-3 sm:p-4 shadow-sm border border-gray-100 text-center">';
+            html += '<div class="text-[10px] sm:text-xs text-gray-400 font-medium mb-1">월평균 고장</div>';
+            html += '<div class="text-xl sm:text-2xl font-bold text-primary-500">' + monthlyAvg + '<span class="text-xs sm:text-sm font-medium text-gray-400">건</span></div>';
+            html += '</div>';
+            html += '<div class="bg-white rounded-2xl p-3 sm:p-4 shadow-sm border border-gray-100 text-center">';
+            html += '<div class="text-[10px] sm:text-xs text-gray-400 font-medium mb-1">최다 고장실</div>';
+            html += '<div class="text-sm sm:text-lg font-bold text-gray-900 truncate">' + topRoom + '</div>';
+            html += '<div class="text-[10px] sm:text-xs text-gray-400">' + topRoomCount + '건</div>';
+            html += '</div>';
+            html += '</div>';
+
+            // 2) 상태별 미니 카드 (3열)
+            html += '<div class="grid grid-cols-3 gap-2 sm:gap-3">';
+            html += '<div class="bg-white rounded-xl p-3 shadow-sm border border-gray-100 flex items-center gap-2 sm:gap-3">';
+            html += '<div class="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-orange-50 flex items-center justify-center shrink-0"><span class="text-sm sm:text-base">🚨</span></div>';
+            html += '<div><div class="text-[10px] text-gray-400 font-medium">조치 필요</div><div class="text-lg font-bold text-accent-500">' + countSingodwem + '</div></div>';
+            html += '</div>';
+            html += '<div class="bg-white rounded-xl p-3 shadow-sm border border-gray-100 flex items-center gap-2 sm:gap-3">';
+            html += '<div class="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-blue-50 flex items-center justify-center shrink-0"><span class="text-sm sm:text-base">🛠️</span></div>';
+            html += '<div><div class="text-[10px] text-gray-400 font-medium">수리 중</div><div class="text-lg font-bold text-primary-500">' + countSuriJung + '</div></div>';
+            html += '</div>';
+            html += '<div class="bg-white rounded-xl p-3 shadow-sm border border-gray-100 flex items-center gap-2 sm:gap-3">';
+            html += '<div class="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-red-50 flex items-center justify-center shrink-0"><span class="text-sm sm:text-base">⚠️</span></div>';
+            html += '<div><div class="text-[10px] text-gray-400 font-medium">MIS 미접수</div><div class="text-lg font-bold text-red-500">' + countMisUnchecked + '</div></div>';
+            html += '</div>';
+            html += '</div>';
+
+            // 3) 12개월 막대그래프
+            html += '<div class="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-gray-100">';
+            html += '<h3 class="text-sm sm:text-base font-bold text-gray-900 mb-4">월별 장비 이슈 추이 (12개월)</h3>';
+            html += '<div class="flex items-end justify-between gap-1" style="height:' + (barMaxHeight + 30) + 'px;">';
+            for (var j = 0; j < 12; j++) {
+                var barHeight = monthValues[j] > 0 ? Math.max(8, Math.round((monthValues[j] / maxMonthValue) * barMaxHeight)) : 4;
+                var barColor = monthValues[j] > 0 ? 'bg-accent-500' : 'bg-gray-200';
+                html += '<div class="flex-1 flex flex-col items-center justify-end h-full gap-1">';
+                if (monthValues[j] > 0) {
+                    html += '<span class="text-[9px] sm:text-[10px] font-bold text-accent-600">' + monthValues[j] + '</span>';
+                }
+                html += '<div class="w-full max-w-[24px] rounded-t-full ' + barColor + ' transition-all" style="height:' + barHeight + 'px;"></div>';
+                html += '<span class="text-[8px] sm:text-[10px] text-gray-400 font-medium mt-0.5">' + monthLabels[j] + '</span>';
+                html += '</div>';
+            }
+            html += '</div>';
+            html += '</div>';
+
+            // 4) 검사실별 연간 누적 순위
+            html += '<div class="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-gray-100">';
+            html += '<h3 class="text-sm sm:text-base font-bold text-gray-900 mb-4">검사실별 연간 누적 순위</h3>';
+            html += '<div class="space-y-2">';
+            roomRanking.forEach(function (item, idx) {
+                var barWidth = maxRoomCount > 0 ? Math.max(4, Math.round((item.count / maxRoomCount) * 100)) : 0;
+                var rankColor = idx === 0 ? 'bg-accent-500' : (idx === 1 ? 'bg-accent-400' : (idx === 2 ? 'bg-accent-300' : 'bg-gray-300'));
+                var rankTextColor = idx < 3 ? 'text-accent-600 font-bold' : 'text-gray-500 font-medium';
+                html += '<div class="flex items-center gap-2 sm:gap-3">';
+                html += '<span class="w-5 text-[10px] sm:text-xs ' + rankTextColor + ' text-right">' + (idx + 1) + '</span>';
+                html += '<span class="w-16 sm:w-20 text-xs sm:text-sm text-gray-700 font-medium truncate">' + item.room + '</span>';
+                html += '<div class="flex-1 bg-gray-100 rounded-full h-3 sm:h-3.5 overflow-hidden">';
+                html += '<div class="h-full rounded-full ' + rankColor + ' transition-all" style="width:' + barWidth + '%;"></div>';
+                html += '</div>';
+                html += '<span class="w-8 text-right text-xs sm:text-sm font-bold ' + (item.count > 0 ? 'text-gray-700' : 'text-gray-300') + '">' + item.count + '</span>';
+                html += '</div>';
+            });
+            html += '</div>';
+            html += '</div>';
+
+            container.innerHTML = html;
+        }
+
+        // ===================================================================
+        // 글로벌 팝업 작성창 제어
+        // ===================================================================
+        function openWriteModal() {
+            var modal = document.getElementById('global-write-modal');
+            if (modal) {
+                modal.classList.remove('hidden');
+            }
+        }
+
+        function closeWriteModal() {
+            var modal = document.getElementById('global-write-modal');
+            if (modal) {
+                modal.classList.add('hidden');
+            }
+        }
+    </script>
+
+    <!-- 글로벌 플로팅 '작성' 버튼 -->
+    <button onclick="openWriteModal()"
+        class="fixed z-40 bottom-24 right-6 md:bottom-8 md:right-8 bg-accent-500 hover:bg-accent-600 text-white rounded-full p-4 shadow-xl flex items-center justify-center gap-2 transition-all duration-200">
+        <i data-lucide="pen-line" class="w-5 h-5"></i>
+        <span class="font-bold text-sm">작성</span>
+    </button>
+
+    <!-- 중앙 팝업 작성창 (Modal) -->
+    <div id="global-write-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+        <!-- 어두운 배경 (클릭 시 닫기) -->
+        <div class="absolute inset-0 bg-black bg-opacity-50 transition-opacity" onclick="closeWriteModal()"></div>
+
+        <!-- 모달 컨텐츠 -->
+        <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col z-10">
+            <!-- 모달 헤더 -->
+            <div class="flex items-center justify-between p-5 border-b border-gray-100">
+                <h2 class="text-lg font-bold text-gray-900">새 글 작성</h2>
+                <button onclick="closeWriteModal()"
+                    class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- 모달 본문 (비워둠) -->
+            <div class="p-6 text-center text-gray-500 min-h-[150px] flex items-center justify-center">
+                <!-- 추후 입력 폼이 추가될 공간 -->
+                <p>작성 폼 영역 (준비 중)</p>
+            </div>
+
+            <!-- 모달 푸터 -->
+            <div class="flex items-center justify-end gap-2 p-5 border-t border-gray-100 bg-gray-50">
+                <button onclick="closeWriteModal()"
+                    class="px-4 py-2 text-sm font-bold text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 hover:text-gray-800 rounded-xl transition-colors shadow-sm">
+                    취소
+                </button>
+                <button
+                    class="px-5 py-2 text-sm font-bold text-white bg-accent-500 hover:bg-accent-600 rounded-xl transition-colors shadow-sm">
+                    등록
+                </button>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

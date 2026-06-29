@@ -1,0 +1,1302 @@
+import { create } from 'zustand';
+import { Notice, Handover, EquipmentIssue, Employee } from '@/lib/dummyData';
+import { formatDateTime } from '@/lib/utils';
+
+const SHORT_TO_FULL_WORKPLACE: Record<string, string> = {
+  '면역': '면역치료실',
+  '안과': '안과검사실',
+  '수면': '수면다원검사실',
+  '근전도': '근전도실',
+  '뇌파': '뇌파검사실',
+  '소화': '소화기능검사실',
+  '심기능': '심장기능검사실',
+  '심초': '심장초음파실',
+  '호흡': '호흡기능검사실',
+  '청력': '청력기능검사실',
+  '외안부': '안과검사실'
+};
+
+interface User {
+  employeeId: string;
+  name: string;
+  position: string;
+  department: string;
+  mainWorkplace: string;
+  subWorkplace: string;
+  isManager: boolean;
+  isRetired: boolean;
+}
+
+export interface Vacation {
+  id: string;
+  empId: string;
+  name: string;
+  department: string;
+  mainWorkplace: string;
+  subWorkplace: string;
+  vacationDate: string;
+  vacationType: string;
+  reason: string;
+  status: '대기' | '승인' | '반려';
+  createdAt: string;
+}
+
+export interface Workplace {
+  id: string;
+  name: string;
+  floor: string;
+}
+
+interface AppState {
+  isLoggedIn: boolean;
+  currentUser: User;
+  currentPage: 'notices' | 'handovers' | 'schedule' | 'equipment' | 'stats';
+  highlightedItemId: number | string | null;
+  highlightedItemIds: (number | string)[];
+  highlightedItemTimestamp: number;
+
+  // Data
+  notices: Notice[];
+  handovers: Handover[];
+  equipmentIssues: EquipmentIssue[];
+  employees: Employee[];
+  vacations: Vacation[];
+  workplaces: Workplace[];
+
+  // Loading & Error
+  isDataLoaded: boolean;
+  isLoading: boolean;
+  isGlobalSyncing: boolean;
+  globalVersion: number;
+  myLastSavedScheduleVersion: number;
+
+  // Filters
+  currentDepartment: string;
+  currentRoom: string;
+  currentFloor: string;
+  currentNoticeCategory: string;
+
+  // Search Queries
+  noticeSearchQuery: string;
+  handoverSearchQuery: string;
+  equipmentSearchQuery: string;
+
+  // Drawer States
+  noticeDrawerMode: 'create' | 'edit' | null;
+  selectedNotice: Notice | null;
+  handoverDrawerMode: 'create' | 'edit' | null;
+  selectedHandover: Handover | null;
+
+  // Actions
+  login: (employeeId: string, password?: string) => Promise<{ success: boolean; error?: string }>;
+  logout: () => void;
+  restoreSession: () => void;
+  setCurrentPage: (page: AppState['currentPage']) => void;
+  setHighlightedItemId: (id: number | string | null) => void;
+  addHighlightedItemId: (id: number | string) => void;
+  removeHighlightedItemId: (id: number | string) => void;
+  clearHighlightedItemIds: () => void;
+  setCurrentRoom: (room: string) => void;
+  setCurrentNoticeCategory: (category: string) => void;
+  setNoticeSearchQuery: (query: string) => void;
+  setHandoverSearchQuery: (query: string) => void;
+  setEquipmentSearchQuery: (query: string) => void;
+  setNoticeDrawerMode: (mode: 'create' | 'edit' | null, notice?: Notice | null) => void;
+  setHandoverDrawerMode: (mode: 'create' | 'edit' | null, handover?: Handover | null) => void;
+
+  // Data Initialization (서버에서 초기 데이터 로드)
+  initializeData: () => Promise<void>;
+  syncData: () => Promise<void>;
+  setGlobalVersion: (version: number) => void;
+  setMyLastSavedScheduleVersion: (version: number) => void;
+
+  // CRUD Actions (낙관적 업데이트 + 백그라운드 API 호출)
+  signHandover: (id: number, employeeId: string) => void;
+  addNotice: (notice: Omit<Notice, 'id'>) => void;
+  addHandover: (handover: Omit<Handover, 'id'>) => void;
+  addEquipmentIssue: (issue: Omit<EquipmentIssue, 'id' | 'confirmedUsers'>) => void;
+  confirmEquipment: (id: number) => void;
+  changeEquipmentStatus: (id: number, newStatus: string) => void;
+  addComment: (type: 'notice' | 'handover' | 'equipment', targetId: number, comment: any) => void;
+  toggleLike: (type: 'notice' | 'handover' | 'equipment', targetId: number, userName: string) => void;
+  markAsRead: (category: 'notice' | 'handover' | 'equipment', id: number, userName: string) => void;
+  addEmployee: (employee: Omit<Employee, 'no'>) => void;
+  updateEmployee: (employeeId: string, updatedFields: Partial<Employee>) => void;
+  deleteEmployee: (employeeId: string) => void;
+
+  addVacation: (vacation: Omit<Vacation, 'id' | 'status' | 'createdAt'>) => void;
+  updateVacationStatus: (id: string, status: '대기' | '승인' | '반려') => void;
+
+  // 수정/삭제/승인 액션
+  editNotice: (id: number, fields: Partial<Notice>) => void;
+  deleteNotice: (id: number) => void;
+
+  editHandover: (id: number, fields: Partial<Handover>) => void;
+  deleteHandover: (id: number) => void;
+  approveHandover: (id: number, isApproved: string) => void;
+
+  editEquipment: (id: number, fields: Partial<EquipmentIssue>) => void;
+  deleteEquipment: (id: number) => void;
+  approveEquipment: (id: number, isApproved: boolean) => void;
+
+  editVacation: (id: string, fields: Partial<Vacation>) => void;
+  deleteVacation: (id: string) => void;
+}
+
+export const useStore = create<AppState>((set, get) => ({
+  isLoggedIn: false,
+  currentUser: { employeeId: '', name: '', position: '', department: '', mainWorkplace: '', subWorkplace: '', isManager: false, isRetired: false },
+  currentPage: 'notices',
+  highlightedItemId: null,
+  highlightedItemIds: typeof window !== 'undefined' ? (() => {
+    try {
+      return JSON.parse(localStorage.getItem('highlighted_item_ids') || '[]');
+    } catch {
+      return [];
+    }
+  })() : [],
+  highlightedItemTimestamp: 0,
+
+  // 초기값은 빈 배열로 설정
+  notices: [],
+  handovers: [],
+  equipmentIssues: [],
+  employees: [],
+  vacations: [],
+  workplaces: [],
+
+  isDataLoaded: false,
+  isLoading: false,
+  isGlobalSyncing: false,
+  globalVersion: 0,
+  myLastSavedScheduleVersion: 0,
+
+  currentDepartment: '기능검사실',
+  currentRoom: '전체',
+  currentFloor: 'All',
+  currentNoticeCategory: '전체',
+
+  noticeSearchQuery: '',
+  handoverSearchQuery: '',
+  equipmentSearchQuery: '',
+
+  noticeDrawerMode: null,
+  selectedNotice: null,
+  handoverDrawerMode: null,
+  selectedHandover: null,
+
+  login: async (employeeId, password = '') => {
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ empId: employeeId, password }),
+      });
+      if (!res.ok) {
+        let errMsg = '서버 응답 오류';
+        try {
+          const errData = await res.json();
+          if (errData && errData.error) {
+            errMsg = errData.error;
+          }
+        } catch {}
+        throw new Error(errMsg);
+      }
+      const result = await res.json();
+      if (result.success && result.employee) {
+        const emp = result.employee;
+        const currentUser = {
+          employeeId: String(emp.empId).trim(),
+          name: emp.name,
+          position: emp.position,
+          department: emp.department,
+          mainWorkplace: emp.mainWorkplace,
+          subWorkplace: emp.subWorkplace,
+          isManager: emp.isManager === true || String(emp.isManager).toUpperCase() === 'TRUE',
+          isRetired: emp.isRetired === true || String(emp.isRetired).toUpperCase() === 'TRUE'
+        };
+        const currentDepartment = emp.mainWorkplace || emp.department || '기능검사실';
+
+        set({
+          isLoggedIn: true,
+          currentUser,
+          currentDepartment
+        });
+
+        if (typeof window !== 'undefined') {
+          const expiryTime = Date.now() + 10 * 60 * 60 * 1000; // 10시간 뒤 만료
+          localStorage.setItem('logged_in_user', JSON.stringify(currentUser));
+          localStorage.setItem('is_logged_in', 'true');
+          localStorage.setItem('current_department', currentDepartment);
+          localStorage.setItem('session_expiry', String(expiryTime));
+        }
+
+        return { success: true };
+      } else {
+        return { success: false, error: result.error || '로그인 정보가 일치하지 않습니다.' };
+      }
+    } catch (e: any) {
+      return { success: false, error: e.message || '네트워크 오류가 발생했습니다.' };
+    }
+  },
+  logout: () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('logged_in_user');
+      localStorage.removeItem('is_logged_in');
+      localStorage.removeItem('current_department');
+      localStorage.removeItem('session_expiry');
+      localStorage.removeItem('highlighted_item_ids');
+    }
+    set({ isLoggedIn: false, currentUser: { employeeId: '', name: '', position: '', department: '', mainWorkplace: '', subWorkplace: '', isManager: false, isRetired: false }, currentPage: 'notices', highlightedItemId: null, highlightedItemIds: [] });
+  },
+  restoreSession: () => {
+    if (typeof window === 'undefined') return;
+    const isLoggedInStr = localStorage.getItem('is_logged_in');
+    const loggedInUserStr = localStorage.getItem('logged_in_user');
+    const currentDept = localStorage.getItem('current_department');
+    const expiryStr = localStorage.getItem('session_expiry');
+
+    if (isLoggedInStr === 'true' && loggedInUserStr && expiryStr) {
+      const now = Date.now();
+      const expiry = Number(expiryStr);
+
+      if (now < expiry) {
+        try {
+          const user = JSON.parse(loggedInUserStr);
+          set({
+            isLoggedIn: true,
+            currentUser: user,
+            currentDepartment: currentDept || user.mainWorkplace || user.department || '기능검사실'
+          });
+        } catch (e) {
+          console.error('[Store] 로컬 세션 복구 실패:', e);
+        }
+      } else {
+        console.warn('[Store] 로그인 세션이 만료되었습니다. (10시간 경과)');
+        localStorage.removeItem('logged_in_user');
+        localStorage.removeItem('is_logged_in');
+        localStorage.removeItem('current_department');
+        localStorage.removeItem('session_expiry');
+      }
+    }
+  },
+  setGlobalVersion: (version) => set({ globalVersion: version }),
+  setMyLastSavedScheduleVersion: (version) => set({ myLastSavedScheduleVersion: version }),
+  setCurrentPage: (page) => set({ 
+    currentPage: page,
+    noticeDrawerMode: null,
+    selectedNotice: null,
+    handoverDrawerMode: null,
+    selectedHandover: null
+  }),
+  setHighlightedItemId: (id) => set((state) => {
+    if (id === null) {
+      return { highlightedItemId: null, highlightedItemTimestamp: 0 };
+    }
+    const nextIds = state.highlightedItemIds.includes(id) ? state.highlightedItemIds : [...state.highlightedItemIds, id];
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('highlighted_item_ids', JSON.stringify(nextIds));
+    }
+    return {
+      highlightedItemId: id,
+      highlightedItemTimestamp: Date.now(),
+      highlightedItemIds: nextIds
+    };
+  }),
+  addHighlightedItemId: (id) => set((state) => {
+    const nextIds = state.highlightedItemIds.includes(id) ? state.highlightedItemIds : [...state.highlightedItemIds, id];
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('highlighted_item_ids', JSON.stringify(nextIds));
+    }
+    return { highlightedItemIds: nextIds };
+  }),
+  removeHighlightedItemId: (id) => set((state) => {
+    const nextIds = state.highlightedItemIds.filter(x => x !== id);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('highlighted_item_ids', JSON.stringify(nextIds));
+    }
+    return {
+      highlightedItemIds: nextIds,
+      highlightedItemId: state.highlightedItemId === id ? null : state.highlightedItemId,
+      highlightedItemTimestamp: state.highlightedItemId === id ? 0 : state.highlightedItemTimestamp
+    };
+  }),
+  clearHighlightedItemIds: () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('highlighted_item_ids');
+    }
+    set({ highlightedItemIds: [], highlightedItemId: null, highlightedItemTimestamp: 0 });
+  },
+  setCurrentRoom: (room) => set({ currentRoom: room }),
+  setCurrentNoticeCategory: (category) => set({ currentNoticeCategory: category }),
+  setNoticeSearchQuery: (query) => set({ noticeSearchQuery: query }),
+  setHandoverSearchQuery: (query) => set({ handoverSearchQuery: query }),
+  setEquipmentSearchQuery: (query) => set({ equipmentSearchQuery: query }),
+  setNoticeDrawerMode: (mode, notice = null) => set({ noticeDrawerMode: mode, selectedNotice: notice }),
+  setHandoverDrawerMode: (mode, handover = null) => set({ handoverDrawerMode: mode, selectedHandover: handover }),
+
+  /* ──────────────────────────────────────────────
+     서버 초기 데이터 로드
+     ────────────────────────────────────────────── */
+  initializeData: async () => {
+    if (get().isDataLoaded || get().isLoading) return;
+
+    // 로컬 스토리지에서 이전 캐시 검사
+    const cachedNotices = localStorage.getItem('cached_notices');
+    const cachedHandovers = localStorage.getItem('cached_handovers');
+    const cachedEquipment = localStorage.getItem('cached_equipment');
+    const cachedEmployees = localStorage.getItem('cached_employees');
+    const cachedVacations = localStorage.getItem('cached_vacations');
+    const cachedWorkplaces = localStorage.getItem('cached_workplaces');
+
+    const cacheUpdates: Partial<AppState> = {};
+    let hasCache = false;
+
+    if (cachedNotices) { try { cacheUpdates.notices = JSON.parse(cachedNotices); hasCache = true; } catch {} }
+    if (cachedHandovers) { try { cacheUpdates.handovers = JSON.parse(cachedHandovers); hasCache = true; } catch {} }
+    if (cachedEquipment) { try { cacheUpdates.equipmentIssues = JSON.parse(cachedEquipment); hasCache = true; } catch {} }
+    if (cachedEmployees) { try { cacheUpdates.employees = JSON.parse(cachedEmployees); hasCache = true; } catch {} }
+    if (cachedVacations) { try { cacheUpdates.vacations = JSON.parse(cachedVacations); hasCache = true; } catch {} }
+    if (cachedWorkplaces) { try { cacheUpdates.workplaces = JSON.parse(cachedWorkplaces); hasCache = true; } catch {} }
+
+    // 캐시가 있으면 UI에 즉시 로드하고, 스피너 로딩은 하지 않고 백그라운드 싱크로 처리
+    if (hasCache) {
+      set({ ...cacheUpdates, isDataLoaded: true, isGlobalSyncing: true });
+    } else {
+      set({ isLoading: true, isGlobalSyncing: false });
+    }
+
+    try {
+      const [noticesRes, handoversRes, equipmentRes, employeesRes, vacationsRes, workplacesRes] = await Promise.allSettled([
+        fetch('/api/notices'),
+        fetch('/api/handovers'),
+        fetch('/api/equipment'),
+        fetch('/api/employees'),
+        fetch('/api/vacations'),
+        fetch('/api/workplaces'),
+      ]);
+
+      const updates: Partial<AppState> = {};
+
+      if (noticesRes.status === 'fulfilled' && noticesRes.value.ok) {
+        const data = await noticesRes.value.json();
+        updates.notices = data;
+        localStorage.setItem('cached_notices', JSON.stringify(data));
+      }
+      if (handoversRes.status === 'fulfilled' && handoversRes.value.ok) {
+        const data = await handoversRes.value.json();
+        updates.handovers = data;
+        localStorage.setItem('cached_handovers', JSON.stringify(data));
+      }
+      if (equipmentRes.status === 'fulfilled' && equipmentRes.value.ok) {
+        const data = await equipmentRes.value.json();
+        updates.equipmentIssues = data;
+        localStorage.setItem('cached_equipment', JSON.stringify(data));
+      }
+      if (employeesRes.status === 'fulfilled' && employeesRes.value.ok) {
+        const data = await employeesRes.value.json();
+        updates.employees = data;
+        localStorage.setItem('cached_employees', JSON.stringify(data));
+      }
+      if (vacationsRes.status === 'fulfilled' && vacationsRes.value.ok) {
+        const data = await vacationsRes.value.json();
+        updates.vacations = data;
+        localStorage.setItem('cached_vacations', JSON.stringify(data));
+      }
+      if (workplacesRes.status === 'fulfilled' && workplacesRes.value.ok) {
+        const data = await workplacesRes.value.json();
+        updates.workplaces = data;
+        localStorage.setItem('cached_workplaces', JSON.stringify(data));
+      }
+
+      set({ ...updates, isDataLoaded: true, isLoading: false, isGlobalSyncing: false });
+    } catch (error) {
+      console.error('[Store] 초기 데이터 로드 실패 — 더미 데이터로 폴백합니다:', error);
+      set({ isDataLoaded: true, isLoading: false, isGlobalSyncing: false });
+    }
+  },
+
+  syncData: async () => {
+    if (get().isGlobalSyncing) return;
+    
+    let stillSyncing = true;
+    const timer = setTimeout(() => {
+      if (stillSyncing) {
+        set({ isGlobalSyncing: true });
+      }
+    }, 500);
+
+    try {
+      const nowTs = Date.now();
+      const [noticesRes, handoversRes, equipmentRes, employeesRes, vacationsRes, workplacesRes] = await Promise.allSettled([
+        fetch(`/api/notices?_t=${nowTs}`, { cache: 'no-store' }),
+        fetch(`/api/handovers?_t=${nowTs}`, { cache: 'no-store' }),
+        fetch(`/api/equipment?_t=${nowTs}`, { cache: 'no-store' }),
+        fetch(`/api/employees?_t=${nowTs}`, { cache: 'no-store' }),
+        fetch(`/api/vacations?_t=${nowTs}`, { cache: 'no-store' }),
+        fetch(`/api/workplaces?_t=${nowTs}`, { cache: 'no-store' }),
+      ]);
+
+      stillSyncing = false;
+      clearTimeout(timer);
+
+      const updates: Partial<AppState> = {};
+
+      if (noticesRes.status === 'fulfilled' && noticesRes.value.ok) {
+        const data = await noticesRes.value.json();
+        const oldData = get().notices;
+        const currentUserName = get().currentUser.name;
+
+        const mergedData = data.map((newItem: Notice) => {
+          const oldItem = oldData.find(item => item.id === newItem.id);
+          if (oldItem) {
+            const hasRecentComment = (oldItem as any)._commentMutatedAt && (Date.now() - (oldItem as any)._commentMutatedAt < 30000);
+            const hasRecentLike = (oldItem as any)._likeMutatedAt && (Date.now() - (oldItem as any)._likeMutatedAt < 30000);
+            
+            const comments = hasRecentComment && (oldItem.comments || []).length > (newItem.comments || []).length
+              ? oldItem.comments
+              : newItem.comments;
+              
+            const likes = hasRecentLike
+              ? oldItem.likes
+              : newItem.likes;
+
+            return {
+              ...newItem,
+              comments,
+              likes,
+              _commentMutatedAt: (oldItem as any)._commentMutatedAt,
+              _likeMutatedAt: (oldItem as any)._likeMutatedAt
+            };
+          }
+          return newItem;
+        });
+
+        mergedData.forEach((newItem: Notice) => {
+          const oldItem = oldData.find(item => item.id === newItem.id);
+          if ((!oldItem || JSON.stringify(oldItem) !== JSON.stringify(newItem)) && String(newItem.author).trim() !== String(currentUserName).trim()) {
+            get().addHighlightedItemId(newItem.id);
+          }
+        });
+
+        if (JSON.stringify(oldData) !== JSON.stringify(mergedData)) {
+          updates.notices = mergedData;
+          localStorage.setItem('cached_notices', JSON.stringify(mergedData));
+          
+          const updatedSelectedNotice = get().selectedNotice
+            ? mergedData.find((item: Notice) => item.id === get().selectedNotice?.id) || null
+            : null;
+          updates.selectedNotice = updatedSelectedNotice;
+        }
+      }
+
+      if (handoversRes.status === 'fulfilled' && handoversRes.value.ok) {
+        const data = await handoversRes.value.json();
+        const oldData = get().handovers;
+        const currentUserName = get().currentUser.name;
+
+        const mergedData = data.map((newItem: Handover) => {
+          const oldItem = oldData.find(item => item.id === newItem.id);
+          if (oldItem) {
+            const hasRecentComment = (oldItem as any)._commentMutatedAt && (Date.now() - (oldItem as any)._commentMutatedAt < 30000);
+            const hasRecentLike = (oldItem as any)._likeMutatedAt && (Date.now() - (oldItem as any)._likeMutatedAt < 30000);
+            
+            const comments = hasRecentComment && (oldItem.comments || []).length > (newItem.comments || []).length
+              ? oldItem.comments
+              : newItem.comments;
+              
+            const likes = hasRecentLike
+              ? oldItem.likes
+              : newItem.likes;
+
+            return {
+              ...newItem,
+              comments,
+              likes,
+              _commentMutatedAt: (oldItem as any)._commentMutatedAt,
+              _likeMutatedAt: (oldItem as any)._likeMutatedAt
+            };
+          }
+          return newItem;
+        });
+
+        mergedData.forEach((newItem: Handover) => {
+          const oldItem = oldData.find(item => item.id === newItem.id);
+          const isSender = String(newItem.sender).trim() === String(currentUserName).trim();
+          const isSigner = newItem.isSigned && String(newItem.signedEmpId).trim() === String(currentUserName).trim();
+          
+          const activeManagers = get().employees.filter(e => e.isManager && !e.isRetired);
+          const approvedNames = newItem.isApproved ? String(newItem.isApproved).split(',').map(x => x.trim()).filter(Boolean) : [];
+          const isFullyApproved = activeManagers.length > 0 && activeManagers.every(m => approvedNames.includes(m.name));
+          
+          const canSee = isFullyApproved || get().currentUser.isManager || isSender;
+
+          if (canSee && (!oldItem || JSON.stringify(oldItem) !== JSON.stringify(newItem)) && !isSender && !isSigner) {
+            get().addHighlightedItemId(newItem.id);
+          }
+        });
+
+        if (JSON.stringify(oldData) !== JSON.stringify(mergedData)) {
+          updates.handovers = mergedData;
+          localStorage.setItem('cached_handovers', JSON.stringify(mergedData));
+          
+          const updatedSelectedHandover = get().selectedHandover
+            ? mergedData.find((item: Handover) => item.id === get().selectedHandover?.id) || null
+            : null;
+          updates.selectedHandover = updatedSelectedHandover;
+        }
+      }
+
+      if (equipmentRes.status === 'fulfilled' && equipmentRes.value.ok) {
+        const data = await equipmentRes.value.json();
+        const oldData = get().equipmentIssues;
+        const currentUserName = get().currentUser.name;
+
+        const mergedData = data.map((newItem: EquipmentIssue) => {
+          const oldItem = oldData.find(item => item.id === newItem.id);
+          if (oldItem) {
+            const hasRecentComment = (oldItem as any)._commentMutatedAt && (Date.now() - (oldItem as any)._commentMutatedAt < 30000);
+            const hasRecentLike = (oldItem as any)._likeMutatedAt && (Date.now() - (oldItem as any)._likeMutatedAt < 30000);
+            
+            const comments = hasRecentComment && (oldItem.comments || []).length > (newItem.comments || []).length
+              ? oldItem.comments
+              : newItem.comments;
+              
+            const likes = hasRecentLike
+              ? oldItem.likes
+              : newItem.likes;
+
+            return {
+              ...newItem,
+              comments,
+              likes,
+              _commentMutatedAt: (oldItem as any)._commentMutatedAt,
+              _likeMutatedAt: (oldItem as any)._likeMutatedAt
+            };
+          }
+          return newItem;
+        });
+
+        mergedData.forEach((newItem: EquipmentIssue) => {
+          const oldItem = oldData.find(item => item.id === newItem.id);
+          const isReporter = String(newItem.reporter).trim() === String(currentUserName).trim();
+          if ((!oldItem || JSON.stringify(oldItem) !== JSON.stringify(newItem)) && !isReporter) {
+            get().addHighlightedItemId(newItem.id);
+          }
+        });
+
+        if (JSON.stringify(oldData) !== JSON.stringify(mergedData)) {
+          updates.equipmentIssues = mergedData;
+          localStorage.setItem('cached_equipment', JSON.stringify(mergedData));
+        }
+      }
+
+      if (employeesRes.status === 'fulfilled' && employeesRes.value.ok) {
+        const data = await employeesRes.value.json();
+        const oldData = get().employees;
+        if (JSON.stringify(oldData) !== JSON.stringify(data)) {
+          updates.employees = data;
+          localStorage.setItem('cached_employees', JSON.stringify(data));
+        }
+      }
+
+      if (vacationsRes.status === 'fulfilled' && vacationsRes.value.ok) {
+        const data = await vacationsRes.value.json();
+        const oldData = get().vacations;
+        if (JSON.stringify(oldData) !== JSON.stringify(data)) {
+          updates.vacations = data;
+          localStorage.setItem('cached_vacations', JSON.stringify(data));
+        }
+      }
+
+      if (workplacesRes.status === 'fulfilled' && workplacesRes.value.ok) {
+        const data = await workplacesRes.value.json();
+        const oldData = get().workplaces;
+        if (JSON.stringify(oldData) !== JSON.stringify(data)) {
+          updates.workplaces = data;
+          localStorage.setItem('cached_workplaces', JSON.stringify(data));
+        }
+      }
+
+      set({ ...updates, isGlobalSyncing: false });
+    } catch (error) {
+      stillSyncing = false;
+      clearTimeout(timer);
+      console.error('[Store] 백그라운드 데이터 동기화 실패:', error);
+      set({ isGlobalSyncing: false });
+    }
+  },
+
+  /* ──────────────────────────────────────────────
+     공지사항 (Notices)
+     ────────────────────────────────────────────── */
+  addNotice: (notice) => {
+    const tempId = Date.now();
+    const optimisticItem: Notice = { id: tempId, ...notice };
+    const previousNotices = get().notices;
+
+    // 낙관적 업데이트
+    set({ notices: [optimisticItem, ...previousNotices] });
+
+    // 백그라운드 API 호출
+    fetch('/api/notices', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...notice, authorEmpId: get().currentUser.employeeId }),
+    }).then(async (res) => {
+      if (!res.ok) throw new Error('Failed');
+      const saved = await res.json();
+      set((state) => ({
+        notices: state.notices.map(n => n.id === tempId ? saved : n),
+      }));
+    }).catch(() => {
+      set({ notices: previousNotices });
+      console.error('[Store] 공지사항 등록 실패 — 롤백합니다.');
+    });
+  },
+
+  editNotice: (id, fields) => {
+    const prev = get().notices;
+    set((state) => ({
+      notices: state.notices.map(n => n.id === id ? { ...n, ...fields } : n),
+    }));
+    fetch('/api/notices', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'edit', id, ...fields }),
+    }).catch(() => {
+      set({ notices: prev });
+      console.error('[Store] 공지사항 수정 실패 — 롤백합니다.');
+    });
+  },
+
+  deleteNotice: (id) => {
+    const prev = get().notices;
+    const selectedNotice = get().selectedNotice;
+    const isCurrentSelected = selectedNotice?.id === id;
+
+    set((state) => ({
+      notices: state.notices.filter(n => n.id !== id),
+      ...(isCurrentSelected ? { selectedNotice: null, noticeDrawerMode: null } : {})
+    }));
+
+    fetch(`/api/notices?id=${id}`, { method: 'DELETE' })
+      .then(async (res) => {
+        if (!res.ok) throw new Error('삭제 실패');
+        try {
+          const verRes = await fetch(`/api/version?_t=${Date.now()}`);
+          if (verRes.ok) {
+            const verData = await verRes.json();
+            set({ globalVersion: verData.version });
+          }
+        } catch (e) {}
+      })
+      .catch((err) => {
+        set({ notices: prev, ...(isCurrentSelected ? { selectedNotice, noticeDrawerMode: 'edit' } : {}) });
+        console.error('[Store] 공지사항 삭제 실패 — 롤백합니다.', err);
+      });
+  },
+
+
+
+  /* ──────────────────────────────────────────────
+     인수인계 (Handovers)
+     ────────────────────────────────────────────── */
+  addHandover: (handover) => {
+    const tempId = Date.now();
+    const optimisticItem: Handover = { id: tempId, ...handover };
+    const previousHandovers = get().handovers;
+
+    set({ handovers: [optimisticItem, ...previousHandovers] });
+
+    fetch('/api/handovers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...handover, senderEmpId: get().currentUser.employeeId }),
+    }).then(async (res) => {
+      if (!res.ok) throw new Error('Failed');
+      const saved = await res.json();
+      set((state) => ({
+        handovers: state.handovers.map(h => h.id === tempId ? saved : h),
+      }));
+    }).catch(() => {
+      set({ handovers: previousHandovers });
+      console.error('[Store] 인수인계 등록 실패 — 롤백합니다.');
+    });
+  },
+
+  signHandover: (id, employeeId) => {
+    const signedAt = formatDateTime(new Date());
+    const previousHandovers = get().handovers;
+
+    // 낙관적 업데이트
+    set((state) => ({
+      handovers: state.handovers.map(h =>
+        h.id === id
+          ? { ...h, isSigned: true, signedEmpId: employeeId, signedAt }
+          : h
+      ),
+    }));
+
+    // 백그라운드 API 호출
+    fetch('/api/handovers', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'sign', id, signedEmpId: employeeId, signedAt }),
+    }).catch(() => {
+      set({ handovers: previousHandovers });
+      console.error('[Store] 인수인계 서명 실패 — 롤백합니다.');
+    });
+  },
+
+  editHandover: (id, fields) => {
+    const prev = get().handovers;
+    set((state) => ({
+      handovers: state.handovers.map(h => h.id === id ? { ...h, ...fields } : h),
+    }));
+    fetch('/api/handovers', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'edit', id, ...fields }),
+    }).catch(() => {
+      set({ handovers: prev });
+      console.error('[Store] 인수인계 수정 실패 — 롤백합니다.');
+    });
+  },
+
+  deleteHandover: (id) => {
+    const prev = get().handovers;
+    const selectedHandover = get().selectedHandover;
+    const isCurrentSelected = selectedHandover?.id === id;
+
+    set((state) => ({
+      handovers: state.handovers.filter(h => h.id !== id),
+      ...(isCurrentSelected ? { selectedHandover: null, handoverDrawerMode: null } : {})
+    }));
+
+    fetch(`/api/handovers?id=${id}`, { method: 'DELETE' })
+      .then(async (res) => {
+        if (!res.ok) throw new Error('삭제 실패');
+        try {
+          const verRes = await fetch(`/api/version?_t=${Date.now()}`);
+          if (verRes.ok) {
+            const verData = await verRes.json();
+            set({ globalVersion: verData.version });
+          }
+        } catch (e) {}
+      })
+      .catch((err) => {
+        set({ handovers: prev, ...(isCurrentSelected ? { selectedHandover, handoverDrawerMode: 'edit' } : {}) });
+        console.error('[Store] 인수인계 삭제 실패 — 롤백합니다.', err);
+      });
+  },
+
+  approveHandover: (id, isApproved) => {
+    const prev = get().handovers;
+    const handover = prev.find(h => h.id === id);
+    const sender = handover ? handover.sender : '';
+    const title = handover ? handover.title : '';
+    const content = handover ? handover.content : '';
+
+    set((state) => ({
+      handovers: state.handovers.map(h => h.id === id ? { ...h, isApproved } : h),
+    }));
+    fetch('/api/handovers', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'approve', id, isApproved, sender, title, content }),
+    }).catch(() => {
+      set({ handovers: prev });
+      console.error('[Store] 인수인계 승인 처리 실패 — 롤백합니다.');
+    });
+  },
+
+  /* ──────────────────────────────────────────────
+     장비 이슈 (Equipment Issues)
+     ────────────────────────────────────────────── */
+  addEquipmentIssue: (issue) => {
+    const tempId = Date.now();
+    const currentUser = get().currentUser;
+    const optimisticItem: EquipmentIssue = {
+      id: tempId,
+      ...issue,
+      status: issue.status || '신고됨',
+      date: issue.date || formatDateTime(new Date()),
+      endDate: issue.endDate || '',
+      confirmedUsers: [currentUser.name],
+      mainWorkplace: currentUser.mainWorkplace || currentUser.department || '',
+      comments: [],
+    };
+    const previousIssues = get().equipmentIssues;
+
+    set({ equipmentIssues: [optimisticItem, ...previousIssues] });
+
+    fetch('/api/equipment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...optimisticItem,
+        reporter: issue.reporter || currentUser.name,
+        reporterEmpId: currentUser.employeeId,
+      }),
+    }).then(async (res) => {
+      if (!res.ok) throw new Error('Failed');
+      const saved = await res.json();
+      set((state) => ({
+        equipmentIssues: state.equipmentIssues.map(eq => eq.id === tempId ? saved : eq),
+      }));
+    }).catch(() => {
+      set({ equipmentIssues: previousIssues });
+      console.error('[Store] 고장접수 등록 실패 — 롤백합니다.');
+    });
+  },
+
+  confirmEquipment: (id) => {
+    const userName = get().currentUser.name || '사용자';
+    const previousIssues = get().equipmentIssues;
+
+    set((state) => ({
+      equipmentIssues: state.equipmentIssues.map(eq =>
+        eq.id === id && !eq.confirmedUsers.includes(userName)
+          ? { ...eq, confirmedUsers: [...eq.confirmedUsers, userName] }
+          : eq
+      ),
+    }));
+
+    fetch('/api/equipment', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, action: 'confirm', userName }),
+    }).catch(() => {
+      set({ equipmentIssues: previousIssues });
+      console.error('[Store] 확인 처리 실패 — 롤백합니다.');
+    });
+  },
+
+  changeEquipmentStatus: (id, newStatus) => {
+    const previousIssues = get().equipmentIssues;
+    const isCompleted = ['조치완료', '정상복구', '폐기'].includes(newStatus);
+    const todayStr = isCompleted ? formatDateTime(new Date()) : '';
+
+    set((state) => ({
+      equipmentIssues: state.equipmentIssues.map(eq =>
+        eq.id === id ? { ...eq, status: newStatus, endDate: isCompleted ? todayStr : eq.endDate } : eq
+      ),
+    }));
+
+    fetch('/api/equipment', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, action: 'changeStatus', newStatus, endDate: isCompleted ? todayStr : undefined }),
+    }).catch(() => {
+      set({ equipmentIssues: previousIssues });
+      console.error('[Store] 상태 변경 실패 — 롤백합니다.');
+    });
+  },
+
+  addComment: (type, targetId, comment) => {
+    const userEmpId = get().currentUser.employeeId;
+
+    if (type === 'equipment') {
+      const previousIssues = get().equipmentIssues;
+      const issue = previousIssues.find((eq) => eq.id === targetId);
+      if (!issue) return;
+      const updatedComments = [...(issue.comments || []), comment];
+
+      set((state) => ({
+        equipmentIssues: state.equipmentIssues.map((eq) =>
+          eq.id === targetId ? { ...eq, comments: updatedComments, _commentMutatedAt: Date.now() } : eq
+        ),
+      }));
+
+      fetch('/api/equipment', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: targetId, action: 'edit', comments: updatedComments, commentAuthorEmpId: userEmpId }),
+      }).catch(() => {
+        set({ equipmentIssues: previousIssues });
+        console.error('[Store] 장비 댓글 추가 실패 — 롤백합니다.');
+      });
+    } else if (type === 'notice') {
+      const previousNotices = get().notices;
+      const notice = previousNotices.find((n) => n.id === targetId);
+      if (!notice) return;
+      const updatedComments = [...(notice.comments || []), comment];
+
+      set((state) => ({
+        notices: state.notices.map((n) =>
+          n.id === targetId ? { ...n, comments: updatedComments, _commentMutatedAt: Date.now() } : n
+        ),
+        selectedNotice: state.selectedNotice && state.selectedNotice.id === targetId
+          ? { ...state.selectedNotice, comments: updatedComments }
+          : state.selectedNotice
+      }));
+
+      fetch('/api/notices', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: targetId, action: 'edit', comments: updatedComments, commentAuthorEmpId: userEmpId }),
+      }).catch(() => {
+        set({ notices: previousNotices });
+        console.error('[Store] 공지 댓글 추가 실패 — 롤백합니다.');
+      });
+    } else if (type === 'handover') {
+      const previousHandovers = get().handovers;
+      const handover = previousHandovers.find((h) => h.id === targetId);
+      if (!handover) return;
+      const updatedComments = [...(handover.comments || []), comment];
+
+      set((state) => ({
+        handovers: state.handovers.map((h) =>
+          h.id === targetId ? { ...h, comments: updatedComments, _commentMutatedAt: Date.now() } : h
+        ),
+        selectedHandover: state.selectedHandover && state.selectedHandover.id === targetId
+          ? { ...state.selectedHandover, comments: updatedComments }
+          : state.selectedHandover
+      }));
+
+      fetch('/api/handovers', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: targetId, action: 'edit', comments: updatedComments, commentAuthorEmpId: userEmpId }),
+      }).catch(() => {
+        set({ handovers: previousHandovers });
+        console.error('[Store] 인수인계 댓글 추가 실패 — 롤백합니다.');
+      });
+    }
+  },
+
+  toggleLike: (type, targetId, userName) => {
+    if (type === 'equipment') {
+      const previousIssues = get().equipmentIssues;
+      const issue = previousIssues.find((eq) => eq.id === targetId);
+      if (!issue) return;
+
+      const currentLikes = issue.likes || [];
+      const updatedLikes = currentLikes.includes(userName)
+        ? currentLikes.filter((name) => name !== userName)
+        : [...currentLikes, userName];
+
+      set((state) => ({
+        equipmentIssues: state.equipmentIssues.map((eq) =>
+          eq.id === targetId ? { ...eq, likes: updatedLikes, _likeMutatedAt: Date.now() } : eq
+        ),
+      }));
+
+      fetch('/api/equipment', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: targetId, action: 'edit', likes: updatedLikes }),
+      }).catch(() => {
+        set({ equipmentIssues: previousIssues });
+        console.error('[Store] 장비 공감 실패 — 롤백합니다.');
+      });
+    } else if (type === 'notice') {
+      const previousNotices = get().notices;
+      const notice = previousNotices.find((n) => n.id === targetId);
+      if (!notice) return;
+
+      const currentLikes = notice.likes || [];
+      const updatedLikes = currentLikes.includes(userName)
+        ? currentLikes.filter((name) => name !== userName)
+        : [...currentLikes, userName];
+
+      set((state) => ({
+        notices: state.notices.map((n) =>
+          n.id === targetId ? { ...n, likes: updatedLikes, _likeMutatedAt: Date.now() } : n
+        ),
+        selectedNotice: state.selectedNotice && state.selectedNotice.id === targetId
+          ? { ...state.selectedNotice, likes: updatedLikes }
+          : state.selectedNotice
+      }));
+
+      fetch('/api/notices', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: targetId, action: 'edit', likes: updatedLikes }),
+      }).catch(() => {
+        set({ notices: previousNotices });
+        console.error('[Store] 공지 공감 실패 — 롤백합니다.');
+      });
+    } else if (type === 'handover') {
+      const previousHandovers = get().handovers;
+      const handover = previousHandovers.find((h) => h.id === targetId);
+      if (!handover) return;
+
+      const currentLikes = handover.likes || [];
+      const updatedLikes = currentLikes.includes(userName)
+        ? currentLikes.filter((name) => name !== userName)
+        : [...currentLikes, userName];
+
+      set((state) => ({
+        handovers: state.handovers.map((h) =>
+          h.id === targetId ? { ...h, likes: updatedLikes, _likeMutatedAt: Date.now() } : h
+        ),
+        selectedHandover: state.selectedHandover && state.selectedHandover.id === targetId
+          ? { ...state.selectedHandover, likes: updatedLikes }
+          : state.selectedHandover
+      }));
+
+      fetch('/api/handovers', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: targetId, action: 'edit', likes: updatedLikes }),
+      }).catch(() => {
+        set({ handovers: previousHandovers });
+        console.error('[Store] 인수인계 공감 실패 — 롤백합니다.');
+      });
+    }
+  },
+
+  markAsRead: (category, id, userName) => {
+    if (category === 'notice') {
+      const prevNotices = get().notices;
+      const target = prevNotices.find(n => n.id === id);
+      if (!target || (target.readBy && target.readBy.includes(userName))) return;
+      
+      const newReadBy = [...(target.readBy || []), userName];
+      set(state => ({
+        notices: state.notices.map(n => n.id === id ? { ...n, readBy: newReadBy } : n),
+        selectedNotice: state.selectedNotice?.id === id ? { ...state.selectedNotice, readBy: newReadBy } : state.selectedNotice
+      }));
+
+      fetch('/api/notices', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'markAsRead', id, userName })
+      }).catch(() => {
+        set({ notices: prevNotices });
+        console.error('[Store] 공지 읽음 처리 실패 — 롤백합니다.');
+      });
+    } else if (category === 'handover') {
+      const prevHandovers = get().handovers;
+      const target = prevHandovers.find(h => h.id === id);
+      if (!target || (target.readBy && target.readBy.includes(userName))) return;
+      
+      const newReadBy = [...(target.readBy || []), userName];
+      set(state => ({
+        handovers: state.handovers.map(h => h.id === id ? { ...h, readBy: newReadBy } : h),
+        selectedHandover: state.selectedHandover?.id === id ? { ...state.selectedHandover, readBy: newReadBy } : state.selectedHandover
+      }));
+
+      fetch('/api/handovers', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'markAsRead', id, userName })
+      }).catch(() => {
+        set({ handovers: prevHandovers });
+        console.error('[Store] 인수인계 읽음 처리 실패 — 롤백합니다.');
+      });
+    } else if (category === 'equipment') {
+      const prevEquipments = get().equipmentIssues;
+      const target = prevEquipments.find(eq => eq.id === id);
+      if (!target || (target.readBy && target.readBy.includes(userName))) return;
+      
+      const newReadBy = [...(target.readBy || []), userName];
+      set(state => ({
+        equipmentIssues: state.equipmentIssues.map(eq => eq.id === id ? { ...eq, readBy: newReadBy } : eq)
+      }));
+
+      fetch('/api/equipment', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'markAsRead', id, userName })
+      }).catch(() => {
+        set({ equipmentIssues: prevEquipments });
+        console.error('[Store] 장비 읽음 처리 실패 — 롤백합니다.');
+      });
+    }
+  },
+
+  editEquipment: (id, fields) => {
+    const prev = get().equipmentIssues;
+    set((state) => ({
+      equipmentIssues: state.equipmentIssues.map(eq => eq.id === id ? { ...eq, ...fields } : eq),
+    }));
+    fetch('/api/equipment', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'edit', id, ...fields }),
+    }).catch(() => {
+      set({ equipmentIssues: prev });
+      console.error('[Store] 장비 이슈 수정 실패 — 롤백합니다.');
+    });
+  },
+
+  deleteEquipment: (id) => {
+    const prev = get().equipmentIssues;
+    set((state) => ({
+      equipmentIssues: state.equipmentIssues.filter(eq => eq.id !== id),
+    }));
+    fetch(`/api/equipment?id=${id}`, { method: 'DELETE' })
+      .then(async (res) => {
+        if (!res.ok) throw new Error('삭제 실패');
+        try {
+          const verRes = await fetch(`/api/version?_t=${Date.now()}`);
+          if (verRes.ok) {
+            const verData = await verRes.json();
+            set({ globalVersion: verData.version });
+          }
+        } catch (e) {}
+      })
+      .catch((err) => {
+        set({ equipmentIssues: prev });
+        console.error('[Store] 장비 이슈 삭제 실패 — 롤백합니다.', err);
+      });
+  },
+
+  approveEquipment: (id, isApproved) => {
+    const prev = get().equipmentIssues;
+    set((state) => ({
+      equipmentIssues: state.equipmentIssues.map(eq => eq.id === id ? { ...eq, isApproved } : eq),
+    }));
+    fetch('/api/equipment', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'approve', id, isApproved }),
+    }).catch(() => {
+      set({ equipmentIssues: prev });
+      console.error('[Store] 장비 승인 처리 실패 — 롤백합니다.');
+    });
+  },
+
+  /* ──────────────────────────────────────────────
+     직원 (Employees)
+     ────────────────────────────────────────────── */
+  addEmployee: (employee) => {
+    const mainWorkplace = SHORT_TO_FULL_WORKPLACE[employee.mainWorkplace] || employee.mainWorkplace;
+    const subWorkplace = SHORT_TO_FULL_WORKPLACE[employee.subWorkplace] || employee.subWorkplace;
+    const mappedEmployee = { ...employee, mainWorkplace, subWorkplace };
+
+    const nextNo = get().employees.length > 0 ? Math.max(...get().employees.map(e => e.no)) + 1 : 1;
+    const optimisticItem: Employee = { ...mappedEmployee, no: nextNo, isRetired: false };
+    const previousEmployees = get().employees;
+
+    set({ employees: [...previousEmployees, optimisticItem] });
+
+    fetch('/api/employees', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(mappedEmployee),
+    }).then(async (res) => {
+      if (!res.ok) throw new Error('Failed');
+      const saved = await res.json();
+      set((state) => ({
+        employees: state.employees.map(e => e.no === nextNo ? { ...e, no: saved.no } : e),
+      }));
+    }).catch(() => {
+      set({ employees: previousEmployees });
+      console.error('[Store] 직원 추가 실패 — 롤백합니다.');
+    });
+  },
+
+  updateEmployee: (employeeId, updatedFields) => {
+    const fieldsCopy = { ...updatedFields };
+    if (fieldsCopy.mainWorkplace) fieldsCopy.mainWorkplace = SHORT_TO_FULL_WORKPLACE[fieldsCopy.mainWorkplace] || fieldsCopy.mainWorkplace;
+    if (fieldsCopy.subWorkplace) fieldsCopy.subWorkplace = SHORT_TO_FULL_WORKPLACE[fieldsCopy.subWorkplace] || fieldsCopy.subWorkplace;
+
+    const previousEmployees = get().employees;
+
+    set((state) => ({
+      employees: state.employees.map(e => e.empId === employeeId ? { ...e, ...fieldsCopy } : e),
+    }));
+
+    fetch('/api/employees', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ empId: employeeId, ...fieldsCopy }),
+    }).catch(() => {
+      set({ employees: previousEmployees });
+      console.error('[Store] 직원 수정 실패 — 롤백합니다.');
+    });
+  },
+
+  deleteEmployee: (employeeId) => {
+    const previousEmployees = get().employees;
+
+    set((state) => ({
+      employees: state.employees.filter(e => e.empId !== employeeId),
+    }));
+
+    fetch(`/api/employees?empId=${employeeId}`, {
+      method: 'DELETE',
+    }).catch(() => {
+      set({ employees: previousEmployees });
+      console.error('[Store] 직원 삭제 실패 — 롤백합니다.');
+    });
+  },
+
+  /* ──────────────────────────────────────────────
+     연차 관리 (Vacations)
+     ────────────────────────────────────────────── */
+  addVacation: (vacation) => {
+    const tempId = String(Date.now());
+    const optimisticItem: Vacation = {
+      id: tempId,
+      ...vacation,
+      status: '대기',
+      createdAt: formatDateTime(new Date()),
+    };
+    const previousVacations = get().vacations;
+
+    set({ vacations: [optimisticItem, ...previousVacations] });
+
+    fetch('/api/vacations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(vacation),
+    }).then(async (res) => {
+      if (!res.ok) throw new Error('Failed');
+      const saved = await res.json();
+      set((state) => ({
+        vacations: state.vacations.map(v => v.id === tempId ? { ...optimisticItem, id: String(saved.id) } : v),
+      }));
+    }).catch(() => {
+      set({ vacations: previousVacations });
+      console.error('[Store] 연차 신청 실패 — 롤백합니다.');
+    });
+  },
+
+  updateVacationStatus: (id, status) => {
+    const previousVacations = get().vacations;
+
+    set((state) => ({
+      vacations: state.vacations.map(v => v.id === id ? { ...v, status } : v),
+    }));
+
+    fetch('/api/vacations', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, status }),
+    }).catch(() => {
+      set({ vacations: previousVacations });
+      console.error('[Store] 연차 상태 변경 실패 — 롤백합니다.');
+    });
+  },
+
+  editVacation: (id, fields) => {
+    const prev = get().vacations;
+    set((state) => ({
+      vacations: state.vacations.map(v => v.id === id ? { ...v, ...fields } : v),
+    }));
+    fetch('/api/vacations', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'edit', id, ...fields }),
+    }).catch(() => {
+      set({ vacations: prev });
+      console.error('[Store] 연차 수정 실패 — 롤백합니다.');
+    });
+  },
+
+  deleteVacation: (id) => {
+    const prev = get().vacations;
+    set((state) => ({
+      vacations: state.vacations.filter(v => v.id !== id),
+    }));
+    fetch(`/api/vacations?id=${id}`, { method: 'DELETE' }).catch(() => {
+      set({ vacations: prev });
+      console.error('[Store] 연차 삭제 실패 — 롤백합니다.');
+    });
+  },
+}));
