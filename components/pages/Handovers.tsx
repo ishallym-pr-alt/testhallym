@@ -1,15 +1,15 @@
 import { useStore } from '@/store/useStore';
-import { Search, ArrowRight, Pencil, Trash2, ShieldCheck, ShieldOff, Plus, Pin, ChevronDown, AlertCircle, Heart, MessageCircle } from 'lucide-react';
+import { Search, ArrowRight, Pencil, Trash2, Plus, Pin, ChevronDown, AlertCircle, Heart, MessageCircle } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { Handover } from '@/lib/dummyData';
 import { createPortal } from 'react-dom';
-import { formatDateTime } from '@/lib/utils';
+import { formatDateTime, getDeptColor } from '@/lib/utils';
 
 export default function Handovers() {
-  const { 
-    handovers, handoverSearchQuery, setHandoverSearchQuery, signHandover, 
-    currentUser, addHandover, editHandover, deleteHandover, approveHandover, 
-    highlightedItemId, setHighlightedItemId, highlightedItemIds, removeHighlightedItemId, 
+  const {
+    handovers, handoverSearchQuery, setHandoverSearchQuery, signHandover,
+    currentUser, addHandover, editHandover, deleteHandover, approveHandover,
+    highlightedItemId, setHighlightedItemId, highlightedItemIds, removeHighlightedItemId,
     employees, currentDepartment, workplaces, currentRoom, setCurrentRoom,
     handoverDrawerMode, selectedHandover, setHandoverDrawerMode,
     addComment, isLoading, markAsRead
@@ -17,10 +17,10 @@ export default function Handovers() {
 
   const [mounted, setMounted] = useState(false);
   const [empIds, setEmpIds] = useState<Record<number, string>>({});
-  
+
   // Alias for selectedHandover
   const currentHandover = selectedHandover;
-  
+
   // Drawer states
   const [isPinned, setIsPinned] = useState(false);
   const [drawerWidth, setDrawerWidth] = useState(500);
@@ -32,7 +32,7 @@ export default function Handovers() {
   const [formTitle, setFormTitle] = useState('');
   const [formContent, setFormContent] = useState('');
   const [formReceiver, setFormReceiver] = useState('');
-  const [formWorkplace, setFormWorkplace] = useState('');
+
 
   const activeManagers = useMemo(() => {
     return (employees || []).filter(e => e.isManager && !e.isRetired);
@@ -52,7 +52,6 @@ export default function Handovers() {
       setFormTitle('');
       setFormContent('');
       setFormReceiver('');
-      setFormWorkplace(currentUser.mainWorkplace || currentUser.department || '기능검사실');
     } else if (handoverDrawerMode === 'edit' && currentHandover) {
       setFormTitle(currentHandover.title || '');
       setFormContent(currentHandover.content);
@@ -69,27 +68,27 @@ export default function Handovers() {
       if (drawer && drawer.contains(e.target as Node)) {
         return;
       }
-      
+
       const target = e.target as HTMLElement;
       if (
-        target.closest('[id^="handover-"]') || 
-        target.closest('button') || 
+        target.closest('[id^="handover-"]') ||
+        target.closest('button') ||
         target.closest('a') ||
         target.closest('.plus-btn')
       ) {
         return;
       }
-      
+
       setHandoverDrawerMode(null);
     };
 
     const timer = setTimeout(() => {
-      document.addEventListener('click', handleClickOutside);
+      document.addEventListener('mousedown', handleClickOutside);
     }, 0);
 
     return () => {
       clearTimeout(timer);
-      document.removeEventListener('click', handleClickOutside);
+      document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isPinned, handoverDrawerMode, setHandoverDrawerMode]);
 
@@ -157,17 +156,10 @@ export default function Handovers() {
 
   const filteredHandovers = useMemo(() => {
     return handovers.filter(h => {
-      const { isFullyApproved } = getApprovalState(h);
-
-      if (!isFullyApproved && !currentUser.isManager && h.sender !== currentUser.name) {
-        return false;
-      }
-
-      // 근무지 필터링 추가
+      // 근무지 필터링
       if (currentRoom !== '전체' && currentRoom !== 'All') {
         const selectedWorkplace = workplaces.find(w => w.id === currentRoom);
         if (selectedWorkplace) {
-          // mainWorkplace가 없거나 선택된 근무지와 일치하지 않으면 필터링
           if (!h.mainWorkplace || h.mainWorkplace !== selectedWorkplace.name) {
             return false;
           }
@@ -186,36 +178,23 @@ export default function Handovers() {
         (h.isSigned && h.signedAt && String(h.signedAt).toLowerCase().includes(q))
       );
     });
-  }, [handovers, handoverSearchQuery, currentUser, activeManagers, currentRoom, workplaces]);
+  }, [handovers, handoverSearchQuery, currentUser, currentRoom, workplaces]);
 
   const columns = useMemo(() => {
-    return currentUser.isManager
-      ? [
-          { id: 'approve_pending', title: '승인 전', description: '부서장 승인 대기 중인 인수인계입니다.' },
-          { id: 'sign_pending', title: '서명 전', description: '승인이 완료되어 인계 대상자의 서명을 대기 중입니다.' },
-          { id: 'completed', title: '서명완료', description: '서명이 완료된 인수인계입니다.' }
-        ]
-      : [
-          { id: 'sign_pending', title: '서명 전', description: '승인을 대기 중이거나 인수 대상자의 서명을 대기 중입니다.' },
-          { id: 'completed', title: '서명완료', description: '서명이 완료된 인수인계입니다.' }
-        ];
-  }, [currentUser.isManager]);
+    return [
+      { id: 'sign_pending', title: '서명 전', description: '인계 대상자의 서명을 대기 중입니다.' },
+      { id: 'completed', title: '서명완료', description: '서명이 완료된 인수인계입니다.' }
+    ];
+  }, []);
 
   const groupedHandovers = useMemo(() => {
     const result: Record<string, Handover[]> = {
-      approve_pending: [],
       sign_pending: [],
       completed: []
     };
 
     filteredHandovers.forEach(h => {
-      const { isFullyApproved } = getApprovalState(h);
-      if (!isFullyApproved) {
-        result.approve_pending.push(h);
-        if (!currentUser.isManager) {
-          result.sign_pending.push(h);
-        }
-      } else if (!h.isSigned) {
+      if (!h.isSigned) {
         result.sign_pending.push(h);
       } else {
         result.completed.push(h);
@@ -223,16 +202,14 @@ export default function Handovers() {
     });
 
     return result;
-  }, [filteredHandovers, currentUser.isManager, activeManagers]);
+  }, [filteredHandovers]);
 
   const canEdit = (h: Handover) => {
-    const { isFullyApproved } = getApprovalState(h);
-    return currentUser.name === h.sender && !isFullyApproved;
+    return currentUser.name === h.sender && !h.isSigned;
   };
-  
+
   const canDelete = (h: Handover) => {
-    const { isFullyApproved } = getApprovalState(h);
-    return (currentUser.name === h.sender && !isFullyApproved) || currentUser.isManager;
+    return (currentUser.name === h.sender && !h.isSigned) || currentUser.isManager;
   };
 
   const handleDelete = (h: Handover, e: React.MouseEvent) => {
@@ -295,13 +272,13 @@ export default function Handovers() {
         signedEmpId: '',
         signedAt: '',
         title: formTitle || '제목 없음',
-        mainWorkplace: formWorkplace || currentUser.mainWorkplace || currentUser.department || '기능검사실'
+        mainWorkplace: currentUser.mainWorkplace || currentUser.department || '기능검사실'
       });
     } else if (handoverDrawerMode === 'edit' && selectedHandover) {
-      editHandover(selectedHandover.id, { 
-        title: formTitle, 
+      editHandover(selectedHandover.id, {
+        title: formTitle,
         content: formContent,
-        receiver: formReceiver 
+        receiver: formReceiver
       });
     }
     setHandoverDrawerMode(null);
@@ -313,12 +290,12 @@ export default function Handovers() {
     if (!handoverDrawerMode) return null;
 
     return (
-      <div 
+      <div
         id="handover-drawer"
         style={{ width: isPinned ? '100%' : `${drawerWidth}px`, maxWidth: '100%' }}
         className={`bg-white flex flex-col h-full ${isPinned ? 'relative border-l border-gray-200' : 'fixed top-14 bottom-0 right-0 z-50 shadow-2xl border-l border-gray-100 rounded-l-3xl'}`}
       >
-        <div 
+        <div
           onMouseDown={handleMouseDown}
           className="absolute top-0 bottom-0 left-0 w-2.5 cursor-col-resize -translate-x-1/2 z-50 hover:bg-orange-500/25 active:bg-orange-500/40 transition-all flex items-center justify-center group"
           title="드래그하여 크기 조절"
@@ -326,127 +303,92 @@ export default function Handovers() {
           <div className="w-1 h-8 rounded-full bg-gray-300 group-hover:bg-orange-50 group-active:bg-orange-600 transition-all opacity-0 group-hover:opacity-100" />
         </div>
 
-        <div className="w-full h-full flex flex-col overflow-hidden rounded-l-3xl">
-          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between shrink-0">
-            <h3 className="font-bold text-gray-900 text-xl">
-              {handoverDrawerMode === 'create' ? '새 인수인계 등록' : (isFormEditable ? '인수인계 수정' : '인수인계 상세')}
-            </h3>
-            <div className="flex items-center gap-2">
-              <button 
-                type="button" 
-                onClick={() => setIsPinned(!isPinned)} 
-                className={`hidden md:inline-flex p-1.5 rounded-lg transition-colors ${isPinned ? 'text-[#004b8d] bg-blue-50 hover:bg-blue-100' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
-                title={isPinned ? '고정 해제' : '우측 고정'}
-              >
-                <Pin className={`w-4 h-4 ${isPinned ? 'fill-current' : ''}`} />
-              </button>
-              <button type="button" onClick={() => setHandoverDrawerMode(null)} className="text-gray-400 hover:text-gray-600 transition-colors p-1.5 rounded-lg hover:bg-gray-100">✕</button>
+        <div className="w-full flex flex-col overflow-hidden rounded-l-3xl">
+          <form onSubmit={handleDrawerSubmit} className="w-full h-[calc(100vh-56px)] flex flex-col overflow-hidden bg-white">
+            <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between shrink-0">
+              <h3 className="font-bold text-gray-900 text-lg">
+                {handoverDrawerMode === 'create' ? '새 인수인계 등록' : (isFormEditable ? '인수인계 수정' : '인수인계 상세')}
+              </h3>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsPinned(!isPinned)}
+                  className={`hidden md:inline-flex p-1.5 rounded-lg transition-colors ${isPinned ? 'text-[#004b8d] bg-blue-50 hover:bg-blue-100' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
+                  title={isPinned ? '고정 해제' : '우측 고정'}
+                >
+                  <Pin className={`w-4 h-4 ${isPinned ? 'fill-current' : ''}`} />
+                </button>
+                <button type="button" onClick={() => setHandoverDrawerMode(null)} className="text-gray-400 hover:text-gray-600 transition-colors p-1.5 rounded-lg hover:bg-gray-100">✕</button>
+              </div>
             </div>
-          </div>
-          
-          <div className="p-5 flex flex-col flex-1 min-h-0 overflow-y-auto custom-scrollbar space-y-4">
-             <form onSubmit={handleDrawerSubmit} className="space-y-4">
-                
-                <div className="space-y-1.5">
-                  <label className="block text-base font-bold text-gray-700">제목</label>
-                  {isFormEditable ? (
-                    <input 
-                      type="text" 
-                      value={formTitle} 
-                      onChange={e => setFormTitle(e.target.value)} 
-                      placeholder="예: 야간 당직 특이사항" 
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-[#004b8d] focus:bg-white focus:ring-4 focus:ring-[#004b8d]/10 transition-all outline-none text-base font-medium" 
-                      required 
-                    />
-                  ) : (
-                    <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-base font-medium text-gray-900">
-                      {formTitle}
-                    </div>
-                  )}
-                </div>
 
-                <div className="space-y-1.5 flex flex-col min-w-0">
-                  <label className="block text-base font-bold text-gray-700">인수자 이름</label>
-                  <div className="relative">
-                    <select 
-                      required 
-                      value={formReceiver} 
-                      onChange={e => setFormReceiver(e.target.value)} 
-                      disabled={!isFormEditable}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-[#004b8d] focus:bg-white focus:ring-4 focus:ring-[#004b8d]/10 transition-all outline-none text-base font-medium appearance-none cursor-pointer disabled:opacity-80"
-                    >
-                      <option value="" disabled>인계받을 직원을 선택하세요</option>
-                      {activeEmployees.map(emp => (
-                        <option key={emp.empId} value={emp.name}>
-                          {emp.name} {emp.mainWorkplace || emp.department}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
-                  </div>
-                </div>
-
-                <div className="space-y-1.5 flex flex-col min-w-0">
-                  <label className="block text-base font-bold text-gray-700">주근무지</label>
-                  <div className="relative">
-                    <select 
-                      required 
-                      value={formWorkplace} 
-                      onChange={e => setFormWorkplace(e.target.value)} 
-                      disabled={!isFormEditable}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-[#004b8d] focus:bg-white focus:ring-4 focus:ring-[#004b8d]/10 transition-all outline-none text-base font-medium appearance-none cursor-pointer disabled:opacity-80"
-                    >
-                      <option value="" disabled>주근무지를 선택하세요</option>
-                      {workplaces.filter(w => w.id !== '전체').map(workplace => (
-                        <option key={workplace.id} value={workplace.name}>
-                          {workplace.floor} - {workplace.name}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
-                  </div>
-                </div>
-                
-                <div className="space-y-1.5">
-                  <label className="block text-base font-bold text-gray-700">내용</label>
-                  {isFormEditable ? (
-                    <textarea 
-                      value={formContent} 
-                      onChange={e => setFormContent(e.target.value)} 
-                      placeholder="인계할 내용을 상세히 적어주세요..." 
-                      rows={8} 
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-[#004b8d] focus:bg-white focus:ring-4 focus:ring-[#004b8d]/10 transition-all outline-none resize-none text-base font-medium leading-relaxed" 
-                      required 
-                    />
-                  ) : (
-                    <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-base font-medium text-gray-700 leading-relaxed min-h-[160px] whitespace-pre-wrap">
-                      {formContent}
-                    </div>
-                  )}
-                </div>
-
-                {isFormEditable && (
-                  <div className="bg-[#ff7a00]/5 rounded-xl p-3 text-base text-[#cc6200] border border-[#ff7a00]/10 flex gap-2">
-                    <AlertCircle className="w-5 h-5 shrink-0" />
-                    <p className="font-bold">등록 후 대상자가 직접 서명하여 확인해야 합니다.</p>
+            <div className="flex-1 overflow-y-auto p-5 space-y-4 custom-scrollbar">
+              <div className="space-y-1.5 shrink-0">
+                <label className="block text-xs font-bold text-gray-400">제목</label>
+                {isFormEditable ? (
+                  <input
+                    type="text"
+                    value={formTitle}
+                    onChange={e => setFormTitle(e.target.value)}
+                    placeholder="예: 야간 당직 특이사항"
+                    className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:border-[#004b8d] focus:bg-white focus:ring-4 focus:ring-[#004b8d]/10 transition-all outline-none text-base font-medium"
+                    required
+                  />
+                ) : (
+                  <div className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-base font-medium text-gray-900">
+                    {formTitle}
                   </div>
                 )}
-                
-                <div className="flex justify-end gap-3 pt-3 mt-2 border-t border-gray-100 shrink-0">
-                  {isFormEditable ? (
-                    <>
-                      <button type="button" onClick={() => setHandoverDrawerMode(null)} className="px-5 py-2.5 text-base font-bold text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all">취소</button>
-                      <button type="submit" className="px-5 py-2.5 text-base font-bold text-white bg-[#004b8d] rounded-xl hover:bg-[#003c71] transition-all shadow-md">
-                        {handoverDrawerMode === 'create' ? '등록하기' : '수정 완료'}
-                      </button>
-                    </>
-                  ) : (
-                    <button type="button" onClick={() => setHandoverDrawerMode(null)} className="px-5 py-2.5 text-base font-bold text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all">닫기</button>
-                  )}
-                </div>
-             </form>
+              </div>
 
-             {handoverDrawerMode === 'edit' && currentHandover && (
+              <div className="space-y-1.5 flex flex-col min-w-0">
+                <label className="block text-xs font-bold text-gray-400">인수자 이름</label>
+                <div className="relative">
+                  <select
+                    required
+                    value={formReceiver}
+                    onChange={e => setFormReceiver(e.target.value)}
+                    disabled={!isFormEditable}
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:border-[#004b8d] focus:bg-white focus:ring-4 focus:ring-[#004b8d]/10 transition-all outline-none text-sm font-medium appearance-none cursor-pointer disabled:opacity-80 pr-8"
+                  >
+                    <option value="" disabled>직원 선택</option>
+                    {activeEmployees.map(emp => (
+                      <option key={emp.empId} value={emp.name}>
+                        {emp.name} {emp.mainWorkplace || emp.department}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                </div>
+              </div>
+
+              <div className="space-y-1.5 flex flex-col flex-1 min-h-0 w-full">
+                <label className="block text-xs font-bold text-gray-400 shrink-0">내용</label>
+                {isFormEditable ? (
+                  <textarea
+                    value={formContent}
+                    onChange={e => setFormContent(e.target.value)}
+                    placeholder="인계할 내용을 상세히 적어주세요..."
+                    className="w-full flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-[#004b8d] focus:bg-white focus:ring-4 focus:ring-[#004b8d]/10 transition-all outline-none resize-none text-base font-medium leading-relaxed min-h-[160px]"
+                    required
+                  />
+                ) : (
+                  <div className="w-full flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-base font-medium text-gray-700 leading-relaxed min-h-[160px] whitespace-pre-wrap overflow-y-auto">
+                    {formContent}
+                  </div>
+                )}
+              </div>
+
+              {isFormEditable && (
+                <div className="bg-[#ff7a00]/5 rounded-xl p-3 text-base text-[#cc6200] border border-[#ff7a00]/10 flex gap-2 shrink-0">
+                  <AlertCircle className="w-5 h-5 shrink-0" />
+                  <p className="font-bold">등록 후 대상자가 직접 서명하여 확인해야 합니다.</p>
+                </div>
+              )}
+
+              {/* 원래 폼 전송 버튼 제거 (최하단 고정바로 이동) */}
+
+              {handoverDrawerMode === 'edit' && currentHandover && (
                 <div className="border-t border-gray-100 pt-4 mt-2 shrink-0">
                   <h5 className="font-bold text-gray-900 mb-2 flex items-center gap-2 text-lg">
                     <span>댓글</span>
@@ -469,36 +411,51 @@ export default function Handovers() {
                     ))}
                     {(!currentHandover.comments || currentHandover.comments.length === 0) && (
                       <div className="text-center py-4 bg-gray-50 rounded-xl border border-gray-100 border-dashed">
-                        <p className="text-base text-gray-400">등록된 댓글이 없습니다.<br/>첫 댓글을 남겨보세요!</p>
+                        <p className="text-base text-gray-400">등록된 댓글이 없습니다.<br />첫 댓글을 남겨보세요!</p>
                       </div>
                     )}
                   </div>
                   <div className="flex gap-2">
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       id="handover-comment-input"
-                      value={commentInput} 
-                      onChange={e => setCommentInput(e.target.value)} 
+                      value={commentInput}
+                      onChange={e => setCommentInput(e.target.value)}
                       onKeyDown={e => {
                         if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
                           e.preventDefault();
                           handleCommentSubmit(currentHandover.id);
                         }
                       }}
-                      placeholder="댓글을 입력하세요..." 
+                      placeholder="댓글을 입력하세요..."
                       className="flex-1 border border-gray-200 rounded-xl px-3.5 py-2.5 text-base focus:border-[#004b8d] focus:ring-2 focus:ring-[#004b8d]/20 outline-none transition-all bg-gray-50 focus:bg-white"
                     />
-                    <button 
+                    <button
                       type="button"
-                      onClick={() => handleCommentSubmit(currentHandover.id)} 
+                      onClick={() => handleCommentSubmit(currentHandover.id)}
                       className="px-5 py-2.5 bg-[#004b8d] text-white text-base font-bold rounded-xl hover:bg-[#003c71] transition-all shadow-md active:scale-95 whitespace-nowrap"
                     >
                       등록
                     </button>
                   </div>
                 </div>
-             )}
-          </div>
+              )}
+            </div>
+
+            {/* 3. 최하단 고정 버튼 영역 */}
+            <div className="px-5 py-3 border-t border-gray-100 bg-white flex justify-end gap-2.5 shrink-0">
+              {isFormEditable ? (
+                <>
+                  <button type="button" onClick={() => setHandoverDrawerMode(null)} className="h-9 px-4 text-sm font-bold text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all">취소</button>
+                  <button type="submit" className="h-9 px-4 text-sm font-bold text-white bg-[#004b8d] rounded-xl hover:bg-[#003c71] transition-all shadow-md">
+                    {handoverDrawerMode === 'create' ? '등록하기' : '수정 완료'}
+                  </button>
+                </>
+              ) : (
+                <button type="button" onClick={() => setHandoverDrawerMode(null)} className="h-9 px-4 text-sm font-bold text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all">닫기</button>
+              )}
+            </div>
+          </form>
         </div>
       </div>
     );
@@ -506,14 +463,14 @@ export default function Handovers() {
 
   const renderCard = (h: Handover) => {
     const isHighlighted = h.id === highlightedItemId || highlightedItemIds.includes(h.id);
-    const borderClass = isHighlighted 
-      ? 'alarm-highlight shadow-md shadow-orange-100' 
+    const borderClass = isHighlighted
+      ? 'alarm-highlight shadow-md shadow-orange-100'
       : (h.isSigned ? "border-gray-200" : "border-orange-300 border-[1.5px]");
 
     return (
-      <div 
-        key={h.id} 
-        id={`handover-${h.id}`} 
+      <div
+        key={h.id}
+        id={`handover-${h.id}`}
         onClick={() => {
           setHandoverDrawerMode('edit', h);
           if (!h.readBy?.includes(currentUser.name)) {
@@ -528,19 +485,7 @@ export default function Handovers() {
       >
         <div className="flex items-center justify-between gap-4 mb-3">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="px-2 py-0.5 rounded-md bg-orange-50 text-accent-600 text-xs font-bold whitespace-nowrap">{h.mainWorkplace || '미분류'}</span>
-            {(() => {
-              const { approvedNames, isFullyApproved, count, total } = getApprovalState(h);
-              if (isFullyApproved) {
-                return (
-                  <span className="px-1.5 py-0.5 rounded-md bg-green-50 text-green-600 text-[10px] font-bold whitespace-nowrap border border-green-200" title={`승인 부서장: ${approvedNames.join(', ')}`}>✓ 승인 완료 ({count}/{total})</span>
-                );
-              } else {
-                return (
-                  <span className="px-1.5 py-0.5 rounded-md bg-yellow-50 text-yellow-600 text-[10px] font-bold whitespace-nowrap border border-yellow-200" title={count > 0 ? `승인 부서장: ${approvedNames.join(', ')}` : '승인 대기 중'}>대기 ({count}/{total})</span>
-                );
-              }
-            })()}
+            <span className={`px-2 py-0.5 rounded-md text-xs font-bold whitespace-nowrap border ${getDeptColor(h.mainWorkplace || '')}`}>{h.mainWorkplace || '미분류'}</span>
             <div className="text-xs text-gray-400 font-medium whitespace-nowrap">{h.date}</div>
           </div>
           <div className="flex items-center gap-1 shrink-0">
@@ -549,19 +494,6 @@ export default function Handovers() {
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
             )}
-            {currentUser.isManager && (() => {
-              const { approvedNames } = getApprovalState(h);
-              const hasApproved = approvedNames.includes(currentUser.name);
-              return (
-                <button 
-                  onClick={(e) => handleApprove(h, e)} 
-                  className={`p-1.5 rounded-lg transition-colors ${hasApproved ? 'text-green-600 hover:text-orange-500 hover:bg-orange-50' : 'text-gray-400 hover:text-green-600 hover:bg-green-50'}`} 
-                  title={hasApproved ? '승인 취소' : '승인'}
-                >
-                  {hasApproved ? <ShieldOff className="w-3.5 h-3.5" /> : <ShieldCheck className="w-3.5 h-3.5" />}
-                </button>
-              );
-            })()}
           </div>
         </div>
         <div className="flex items-center gap-2 mb-3 text-sm font-medium text-gray-800">
@@ -569,7 +501,7 @@ export default function Handovers() {
           <ArrowRight className="w-4 h-4 text-gray-400" />
           <span className="px-2 py-1 bg-blue-50 text-primary-700 rounded-md">인수: {h.receiver}</span>
         </div>
-        
+
         {h.title && (
           <h3 className="text-sm font-bold text-gray-900 mb-1 flex items-center gap-2">
             {h.title}
@@ -636,7 +568,7 @@ export default function Handovers() {
 
         {/* 말풍선 인터랙션 바 */}
         <div className="flex items-center gap-4 mt-3 pt-3 border-t border-gray-50" onClick={e => e.stopPropagation()}>
-          <button 
+          <button
             onClick={(e) => handleCommentIconClick(h, e)}
             className="flex items-center gap-1.5 text-xs font-bold text-gray-400 hover:text-blue-500 transition-colors"
           >
@@ -653,10 +585,10 @@ export default function Handovers() {
               const authorComments = (h.comments || []).filter(c => c.author === h.sender);
               const otherComments = (h.comments || []).filter(c => c.author !== h.sender);
               const isExpanded = !!expandedReplies[h.id];
-              
+
               // 기본 노출할 목록: 확장 시 전체 노출, 미확장 시 작성자 댓글만 노출
               const visibleComments = isExpanded ? (h.comments || []) : authorComments;
-              
+
               return (
                 <div className="space-y-3 relative pl-4 border-l-2 border-gray-100 ml-2 mt-2">
                   {visibleComments.map((c) => {
@@ -665,12 +597,11 @@ export default function Handovers() {
                       <div key={c.id} className="relative flex items-start gap-2.5 text-xs">
                         {/* 연결용 왼쪽 수평 브랜치 라인 */}
                         <div className="absolute -left-[18px] top-3.5 w-2.5 h-0.5 bg-gray-100" />
-                        
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 ${
-                          isAuthorComment 
-                            ? 'bg-blue-50 text-[#004b8d] border border-blue-100' 
+
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 ${isAuthorComment
+                            ? 'bg-blue-50 text-[#004b8d] border border-blue-100'
                             : 'bg-gray-100 text-gray-600'
-                        }`}>
+                          }`}>
                           {c.author[0]}
                         </div>
                         <div className="flex-1 bg-gray-50/50 p-2 rounded-xl border border-gray-100/50">
@@ -713,37 +644,33 @@ export default function Handovers() {
   const isPinnedActive = isPinned && handoverDrawerMode !== null;
 
   return (
-    <div className={`fade-enter flex ${
-      isPinnedActive 
-        ? 'w-full max-w-none mx-0 pl-4 sm:pl-6 pr-0 py-0 flex-row gap-6 h-[calc(100vh-60px)] md:h-[calc(100vh-56px)]' 
+    <div className={`fade-enter flex ${isPinnedActive
+        ? 'w-full max-w-none mx-0 pl-4 sm:pl-6 pr-0 py-0 flex-row gap-6 h-[calc(100vh-60px)] md:h-[calc(100vh-56px)]'
         : 'p-4 sm:p-6 h-[calc(100vh-60px)] md:h-[calc(100vh-88px)] flex-col max-w-[1400px] mx-auto w-full'
-    }`}>
-      
+      }`}>
+
       <div className={`flex-1 min-w-0 flex flex-col ${isPinnedActive ? 'py-4 sm:py-6' : ''}`}>
         <div className="flex items-center gap-3 mb-4 shrink-0">
           <h2 className="text-base sm:text-lg font-bold text-gray-900 whitespace-nowrap">인수인계 내역</h2>
           <span className="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-bold rounded-full whitespace-nowrap">
             총 {filteredHandovers.length}건
           </span>
-          
+
           <div className="flex-1 min-w-0">
             <div className="flex gap-1 pb-1">
-              <button onClick={() => setCurrentRoom('전체')} className={`relative flex-1 flex items-center justify-center py-1.5 px-2 rounded-lg border transition-all cursor-pointer text-center overflow-hidden ${
-                currentRoom === '전체'
+              <button onClick={() => setCurrentRoom('전체')} className={`relative flex-1 flex items-center justify-center py-1.5 px-2 rounded-lg border transition-all cursor-pointer text-center overflow-hidden ${currentRoom === '전체'
                   ? "border-accent-500 bg-accent-50 shadow-sm shadow-orange-100/50"
                   : "border-gray-100 bg-white hover:bg-gray-50 hover:border-gray-200 shadow-sm"
-              }`}>
-                <span className={`text-xs sm:text-sm font-bold truncate leading-tight ${
-                  currentRoom === '전체'
+                }`}>
+                <span className={`text-xs sm:text-sm font-bold truncate leading-tight ${currentRoom === '전체'
                     ? "text-accent-600"
                     : "text-gray-600"
-                }`}>전체</span>
+                  }`}>전체</span>
               </button>
               {workplaces.filter(w => w.id !== '전체').map(workplace => {
                 const isActive = currentRoom === workplace.id;
-                const baseClass = `relative flex-1 flex flex-col py-1 px-1 rounded-lg border transition-all cursor-pointer text-center overflow-hidden justify-center items-center ${
-                  isActive ? "border-accent-500 bg-accent-50 shadow-sm shadow-orange-100/50" : "border-gray-100 bg-white hover:bg-gray-50 hover:border-gray-200 shadow-sm"
-                }`;
+                const baseClass = `relative flex-1 flex flex-col py-1 px-1 rounded-lg border transition-all cursor-pointer text-center overflow-hidden justify-center items-center ${isActive ? "border-accent-500 bg-accent-50 shadow-sm shadow-orange-100/50" : "border-gray-100 bg-white hover:bg-gray-50 hover:border-gray-200 shadow-sm"
+                  }`;
                 const floorText = isActive ? "text-accent-500" : "text-gray-400";
                 const labelText = isActive ? "text-accent-600 font-bold" : "text-gray-600 font-medium";
 
@@ -756,7 +683,7 @@ export default function Handovers() {
               })}
             </div>
           </div>
-          
+
           <div className="w-48 sm:w-56 shrink-0 relative">
             <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
               <Search className="w-3.5 h-3.5 text-gray-400" />
@@ -785,7 +712,7 @@ export default function Handovers() {
                       </span>
                     </h3>
                   </div>
-                  
+
                   <div className="flex-1 overflow-y-auto space-y-3 pr-1 custom-scrollbar">
                     {isLoading ? (
                       <div className="flex flex-col gap-3">

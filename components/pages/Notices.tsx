@@ -6,9 +6,9 @@ import { createPortal } from 'react-dom';
 import { formatDateTime } from '@/lib/utils';
 
 export default function Notices() {
-  const { 
-    notices, currentNoticeCategory, setCurrentNoticeCategory, noticeSearchQuery, setNoticeSearchQuery, 
-    currentUser, addNotice, editNotice, deleteNotice, 
+  const {
+    notices, currentNoticeCategory, setCurrentNoticeCategory, noticeSearchQuery, setNoticeSearchQuery,
+    currentUser, addNotice, editNotice, deleteNotice,
     highlightedItemId, setHighlightedItemId, highlightedItemIds, removeHighlightedItemId,
     noticeDrawerMode, selectedNotice, setNoticeDrawerMode,
     addComment, isLoading, markAsRead, workplaces, employees
@@ -20,7 +20,7 @@ export default function Notices() {
   const [isDragging, setIsDragging] = useState(false);
   const [expandedReplies, setExpandedReplies] = useState<Record<number, boolean>>({});
   const [commentInput, setCommentInput] = useState('');
-  
+
   // Sub-tab selection state for "검사실별 공지"
   const [subCategory, setSubCategory] = useState('전체');
 
@@ -73,27 +73,27 @@ export default function Notices() {
       if (drawer && drawer.contains(e.target as Node)) {
         return;
       }
-      
+
       const target = e.target as HTMLElement;
       if (
-        target.closest('[id^="notice-"]') || 
-        target.closest('button') || 
+        target.closest('[id^="notice-"]') ||
+        target.closest('button') ||
         target.closest('a') ||
         target.closest('#create-notice-btn')
       ) {
         return;
       }
-      
+
       setNoticeDrawerMode(null);
     };
 
     const timer = setTimeout(() => {
-      document.addEventListener('click', handleClickOutside);
+      document.addEventListener('mousedown', handleClickOutside);
     }, 0);
 
     return () => {
       clearTimeout(timer);
-      document.removeEventListener('click', handleClickOutside);
+      document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isPinned, noticeDrawerMode, setNoticeDrawerMode]);
 
@@ -144,12 +144,12 @@ export default function Notices() {
   const getUnreadEmployees = (n: Notice) => {
     const readUsers = n.readBy || [];
     const activeEmps = (employees || []).filter(e => !e.isRetired);
-    
+
     let targetEmps = activeEmps;
     if (n.targetDepartment) {
       targetEmps = activeEmps.filter(e => e.mainWorkplace === n.targetDepartment);
     }
-    
+
     return targetEmps.filter(e => !readUsers.includes(e.name)).map(e => e.name);
   };
 
@@ -183,8 +183,8 @@ export default function Notices() {
   const isAllActive = currentNoticeCategory === '전체';
 
   const allBaseClass = `w-full relative flex items-center justify-center py-2 sm:py-2.5 rounded-xl border transition-all cursor-pointer text-center overflow-hidden ${isAllActive
-      ? "border-accent-500 bg-accent-50 shadow-sm shadow-orange-100/50"
-      : "border-gray-100 bg-white hover:bg-gray-50 hover:border-gray-200 shadow-sm"
+    ? "border-accent-500 bg-accent-50 shadow-sm shadow-orange-100/50"
+    : "border-gray-100 bg-white hover:bg-gray-50 hover:border-gray-200 shadow-sm"
     }`;
   const allTextClass = isAllActive ? "text-accent-600 font-bold" : "text-gray-700 font-medium";
 
@@ -204,8 +204,8 @@ export default function Notices() {
         targetDepartment: formCategory === '검사실별 공지' ? formTargetDepartment : '',
       });
     } else if (noticeDrawerMode === 'edit' && selectedNotice) {
-      editNotice(selectedNotice.id, { 
-        title: formTitle, 
+      editNotice(selectedNotice.id, {
+        title: formTitle,
         content: formContent,
         category: formCategory,
         isImportant: formIsImportant,
@@ -252,12 +252,12 @@ export default function Notices() {
     if (!noticeDrawerMode) return null;
 
     return (
-      <div 
+      <div
         id="notice-drawer"
         style={{ width: isPinned ? '100%' : `${drawerWidth}px`, maxWidth: '100%' }}
         className={`bg-white flex flex-col h-full ${isPinned ? 'relative border-l border-gray-200' : 'fixed top-14 bottom-0 right-0 z-50 shadow-2xl border-l border-gray-100 rounded-l-3xl'}`}
       >
-        <div 
+        <div
           onMouseDown={handleMouseDown}
           className="absolute top-0 bottom-0 left-0 w-2.5 cursor-col-resize -translate-x-1/2 z-50 hover:bg-orange-500/25 active:bg-orange-500/40 transition-all flex items-center justify-center group"
           title="드래그하여 크기 조절"
@@ -265,180 +265,167 @@ export default function Notices() {
           <div className="w-1 h-8 rounded-full bg-gray-300 group-hover:bg-orange-50 group-active:bg-orange-600 transition-all opacity-0 group-hover:opacity-100" />
         </div>
 
-        <div className="w-full h-full flex flex-col overflow-hidden rounded-l-3xl">
-          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between shrink-0">
-            <h3 className="font-bold text-gray-900 text-xl">
-              {noticeDrawerMode === 'create' ? '새 공지사항 등록' : (isFormEditable ? '공지사항 수정' : '공지사항 상세')}
-            </h3>
-            <div className="flex items-center gap-2">
-              <button 
-                type="button" 
-                onClick={() => setIsPinned(!isPinned)} 
-                className={`hidden md:inline-flex p-1.5 rounded-lg transition-colors ${isPinned ? 'text-[#004b8d] bg-blue-50 hover:bg-blue-100' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
-                title={isPinned ? '고정 해제' : '우측 고정'}
-              >
-                <Pin className={`w-4 h-4 ${isPinned ? 'fill-current' : ''}`} />
-              </button>
-              <button type="button" onClick={() => setNoticeDrawerMode(null)} className="text-gray-400 hover:text-gray-600 transition-colors p-1.5 rounded-lg hover:bg-gray-100">✕</button>
+        <div className="w-full flex flex-col overflow-hidden rounded-l-3xl">
+          <form onSubmit={handleEditSubmit} className="w-full h-[calc(100vh-56px)] flex flex-col overflow-hidden bg-white">
+            <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between shrink-0">
+              <h3 className="font-bold text-gray-900 text-lg">
+                {noticeDrawerMode === 'create' ? '새 공지사항 등록' : (isFormEditable ? '공지사항 수정' : '공지사항 상세')}
+              </h3>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsPinned(!isPinned)}
+                  className={`hidden md:inline-flex p-1.5 rounded-lg transition-colors ${isPinned ? 'text-[#004b8d] bg-blue-50 hover:bg-blue-100' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
+                  title={isPinned ? '고정 해제' : '우측 고정'}
+                >
+                  <Pin className={`w-4 h-4 ${isPinned ? 'fill-current' : ''}`} />
+                </button>
+                <button type="button" onClick={() => setNoticeDrawerMode(null)} className="text-gray-400 hover:text-gray-600 transition-colors p-1.5 rounded-lg hover:bg-gray-100">✕</button>
+              </div>
             </div>
-          </div>
-          
-          <div className="p-5 flex flex-col flex-1 min-h-0 overflow-y-auto custom-scrollbar space-y-4">
-             <form onSubmit={handleEditSubmit} className="space-y-4">
-                <div className="flex flex-col gap-3 mb-1">
-                  <div className="relative w-fit">
-                    <select 
-                      value={formCategory} 
-                      onChange={e => setFormCategory(e.target.value)} 
-                      disabled={!isFormEditable}
-                      className="px-3.5 py-2 bg-blue-50 rounded-lg text-base font-bold text-blue-600 outline-none cursor-pointer border border-transparent hover:border-blue-300 focus:border-blue-500 transition-colors appearance-none text-center disabled:opacity-80 pr-8" 
-                      required
-                    >
-                      <option value="기능검사팀 공지">기능검사팀 공지</option>
-                      <option value="검사실별 공지">검사실별 공지</option>
-                      <option value="병원 공지">병원 공지</option>
-                      <option value="감염관리">감염관리</option>
-                      <option value="건의사항">건의사항</option>
-                    </select>
-                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-600 pointer-events-none" />
-                  </div>
 
-                  {formCategory === '검사실별 공지' && (
-                    <div className="space-y-1.5 flex flex-col min-w-0">
-                      <label className="block text-sm font-bold text-gray-700">대상 검사실</label>
-                      <div className="relative">
-                        <select 
-                          required 
-                          value={formTargetDepartment} 
-                          onChange={e => setFormTargetDepartment(e.target.value)} 
-                          disabled={!isFormEditable}
-                          className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:border-[#004b8d] focus:bg-white focus:ring-4 focus:ring-[#004b8d]/10 transition-all outline-none text-sm font-medium appearance-none cursor-pointer disabled:opacity-80 pr-8"
-                        >
-                          <option value="" disabled>대상 검사실을 선택하세요</option>
-                          {workplaces.filter(w => w.id !== '전체').map(workplace => (
-                            <option key={workplace.id} value={workplace.name}>
-                              {workplace.floor} - {workplace.name}
-                            </option>
-                          ))}
-                        </select>
-                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
-                      </div>
-                    </div>
-                  )}
+            <div className="flex-1 overflow-y-auto p-5 space-y-4 custom-scrollbar">
+              <div className="flex flex-col sm:flex-row gap-3 items-end mb-1 w-full">
+                <div className="relative w-full sm:w-fit min-w-[160px]">
+                  <select
+                    value={formCategory}
+                    onChange={e => setFormCategory(e.target.value)}
+                    disabled={!isFormEditable}
+                    className="w-full h-9 px-3 bg-blue-50 rounded-lg text-sm font-bold text-blue-600 outline-none cursor-pointer border border-transparent hover:border-blue-300 focus:border-blue-500 transition-all appearance-none text-center disabled:opacity-80 pr-8"
+                    required
+                  >
+                    <option value="기능검사팀 공지">기능검사팀 공지</option>
+                    <option value="검사실별 공지">검사실별 공지</option>
+                    <option value="병원 공지">병원 공지</option>
+                    <option value="감염관리">감염관리</option>
+                    <option value="건의사항">건의사항</option>
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-600 pointer-events-none" />
                 </div>
-                
-                {isFormEditable ? (
-                  <input 
-                    type="text" 
-                    value={formTitle} 
-                    onChange={e => setFormTitle(e.target.value)} 
-                    placeholder="공지 제목을 입력하세요" 
-                    className="w-full text-2xl font-bold text-gray-900 border-b border-dashed border-gray-200 hover:border-gray-300 focus:border-[#004b8d] outline-none bg-transparent placeholder-gray-300 transition-colors py-1" 
-                    required 
-                  />
-                ) : (
-                  <div className="w-full text-2xl font-bold text-gray-900 py-1 border-b border-gray-100 break-words">
-                    {formTitle}
-                  </div>
-                )}
-                
-                {isFormEditable ? (
-                  <textarea 
-                    value={formContent} 
-                    onChange={e => setFormContent(e.target.value)} 
-                    placeholder="자세한 공지 내용을 기록합니다..." 
-                    rows={5} 
-                    className="w-full bg-gray-50 p-4 rounded-xl text-lg text-gray-700 whitespace-pre-wrap leading-relaxed border border-gray-100 hover:border-gray-200 focus:border-[#004b8d] focus:bg-white outline-none resize-none placeholder-gray-400 transition-all shadow-inner" 
-                    required 
-                  />
-                ) : (
-                  <div className="w-full bg-gray-50 p-4 rounded-xl text-lg text-gray-700 whitespace-pre-wrap leading-relaxed border border-gray-100 min-h-[140px]">
-                    {formContent}
-                  </div>
-                )}
 
-                {/* 확인자 목록 및 미확인 직원 목록 (드로어 내 보기 모드일 때 렌더링) */}
-                {!isFormEditable && currentNotice && (
-                  <div className="space-y-2 bg-gray-50/50 p-3.5 rounded-xl border border-gray-100 text-sm">
+                {formCategory === '검사실별 공지' && (
+                  <div className="flex-1 flex flex-col min-w-0 w-full">
+                    <label className="block text-xs font-bold text-gray-400 mb-1">대상 검사실</label>
+                    <div className="relative w-full">
+                      <select
+                        required
+                        value={formTargetDepartment}
+                        onChange={e => setFormTargetDepartment(e.target.value)}
+                        disabled={!isFormEditable}
+                        className="w-full px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:border-[#004b8d] focus:bg-white focus:ring-4 focus:ring-[#004b8d]/10 transition-all outline-none text-sm font-medium appearance-none cursor-pointer disabled:opacity-80 pr-8"
+                      >
+                        <option value="" disabled>대상 검사실을 선택하세요</option>
+                        {workplaces.filter(w => w.id !== '전체').map(workplace => (
+                          <option key={workplace.id} value={workplace.name}>
+                            {workplace.floor} - {workplace.name}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {isFormEditable ? (
+                <input
+                  type="text"
+                  value={formTitle}
+                  onChange={e => setFormTitle(e.target.value)}
+                  placeholder="공지 제목을 입력하세요"
+                  className="w-full text-lg font-bold text-gray-900 border-b border-dashed border-gray-200 hover:border-gray-300 focus:border-[#004b8d] outline-none bg-transparent placeholder-gray-300 transition-colors py-1 shrink-0"
+                  required
+                />
+              ) : (
+                <div className="w-full text-lg font-bold text-gray-900 py-1 border-b border-gray-100 break-words shrink-0">
+                  {formTitle}
+                </div>
+              )}
+
+              {isFormEditable ? (
+                <textarea
+                  value={formContent}
+                  onChange={e => setFormContent(e.target.value)}
+                  placeholder="자세한 공지 내용을 기록합니다..."
+                  className="w-full flex-1 bg-gray-50 p-4 rounded-xl text-base text-gray-700 whitespace-pre-wrap leading-relaxed border border-gray-100 hover:border-gray-200 focus:border-[#004b8d] focus:bg-white outline-none resize-none placeholder-gray-400 transition-all shadow-inner min-h-[160px]"
+                  required
+                />
+              ) : (
+                <div className="w-full flex-1 bg-gray-50 p-4 rounded-xl text-base text-gray-700 whitespace-pre-wrap leading-relaxed border border-gray-100 min-h-[160px] overflow-y-auto">
+                  {formContent}
+                </div>
+              )}
+
+              {/* 확인자 목록 및 미확인 직원 목록 (드로어 내 보기 모드일 때 렌더링) */}
+              {!isFormEditable && currentNotice && (
+                <div className="space-y-2 bg-gray-50/50 p-3.5 rounded-xl border border-gray-100 text-sm shrink-0">
+                  <div className="flex flex-wrap gap-1.5 items-center">
+                    <span className="font-semibold text-gray-600">확인한 직원:</span>
+                    <span className="text-gray-500">
+                      {currentNotice.readBy && currentNotice.readBy.length > 0
+                        ? currentNotice.readBy.join(', ')
+                        : '없음'}
+                    </span>
+                  </div>
+                  {currentUser.isManager && (
                     <div className="flex flex-wrap gap-1.5 items-center">
-                      <span className="font-semibold text-gray-600">확인한 직원:</span>
-                      <span className="text-gray-500">
-                        {currentNotice.readBy && currentNotice.readBy.length > 0 
-                          ? currentNotice.readBy.join(', ') 
-                          : '없음'}
+                      <span className="font-semibold text-red-600">미확인 직원:</span>
+                      <span className="text-red-500">
+                        {getUnreadEmployees(currentNotice).length > 0
+                          ? getUnreadEmployees(currentNotice).join(', ')
+                          : '없음 (전원 확인 완료)'}
                       </span>
                     </div>
-                    {currentUser.isManager && (
-                      <div className="flex flex-wrap gap-1.5 items-center">
-                        <span className="font-semibold text-red-600">미확인 직원:</span>
-                        <span className="text-red-500">
-                          {getUnreadEmployees(currentNotice).length > 0 
-                            ? getUnreadEmployees(currentNotice).join(', ') 
-                            : '없음 (전원 확인 완료)'}
-                        </span>
+                  )}
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-center justify-between gap-3 mt-3 bg-gray-50/50 p-2.5 rounded-xl border border-gray-50 text-base shrink-0">
+                {isFormEditable ? (
+                  <label className="inline-flex items-center gap-2 cursor-pointer group">
+                    <div className="relative flex items-center justify-center">
+                      <input
+                        type="checkbox"
+                        checked={formIsImportant}
+                        onChange={e => setFormIsImportant(e.target.checked)}
+                        className="peer sr-only"
+                      />
+                      <div className={`w-5.5 h-5.5 rounded border transition-all bg-white shadow-sm flex items-center justify-center ${formIsImportant ? 'border-[#ff7a00]' : 'border-gray-300'} group-hover:border-[#ff7a00]/50`}>
+                        <Check className={`w-4 h-4 text-[#ff7a00] transition-all duration-200 ${formIsImportant ? 'opacity-100 scale-100' : 'opacity-0 scale-75'}`} strokeWidth={3} />
                       </div>
-                    )}
-                  </div>
+                    </div>
+                    <span className="text-base font-bold text-gray-700 flex items-center gap-1.5">
+                      <AlertCircle className="w-4.5 h-4.5 text-[#ff7a00]" />
+                      중요 공지로 등록
+                    </span>
+                  </label>
+                ) : (
+                  formIsImportant ? (
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 text-red-600 font-bold text-base border border-red-100">
+                      <AlertCircle className="w-4.5 h-4.5" />
+                      중요 공지사항
+                    </div>
+                  ) : (
+                    <div />
+                  )
                 )}
-                
-                <div className="flex flex-wrap items-center justify-between gap-3 mt-3 bg-gray-50/50 p-2.5 rounded-xl border border-gray-50 text-base">
-                  {isFormEditable ? (
-                    <label className="inline-flex items-center gap-2 cursor-pointer group">
-                      <div className="relative flex items-center justify-center">
-                        <input 
-                          type="checkbox" 
-                          checked={formIsImportant} 
-                          onChange={e => setFormIsImportant(e.target.checked)} 
-                          className="peer sr-only" 
-                        />
-                        <div className={`w-5.5 h-5.5 rounded border transition-all bg-white shadow-sm flex items-center justify-center ${formIsImportant ? 'border-[#ff7a00]' : 'border-gray-300'} group-hover:border-[#ff7a00]/50`}>
-                          <Check className={`w-4 h-4 text-[#ff7a00] transition-all duration-200 ${formIsImportant ? 'opacity-100 scale-100' : 'opacity-0 scale-75'}`} strokeWidth={3} />
-                        </div>
-                      </div>
-                      <span className="text-base font-bold text-gray-700 flex items-center gap-1.5">
-                        <AlertCircle className="w-4.5 h-4.5 text-[#ff7a00]"/> 
-                        중요 공지로 등록
-                      </span>
-                    </label>
-                  ) : (
-                    formIsImportant ? (
-                      <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 text-red-600 font-bold text-base border border-red-100">
-                        <AlertCircle className="w-4.5 h-4.5"/> 
-                        중요 공지사항
-                      </div>
-                    ) : (
-                      <div />
-                    )
-                  )}
 
-                  <div className="flex items-center gap-3 text-base text-gray-500 font-medium">
-                    <span className="flex items-center gap-1.5">
-                      <User className="w-4 h-4 text-gray-400" />
-                      {noticeDrawerMode === 'create' ? currentUser.name : currentNotice?.author}
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                      <Calendar className="w-4 h-4 text-gray-400" />
-                      {noticeDrawerMode === 'create' ? formatDateTime(new Date()) : currentNotice?.date}
-                    </span>
-                  </div>
+                <div className="flex items-center gap-3 text-base text-gray-500 font-medium">
+                  <span className="flex items-center gap-1.5">
+                    <User className="w-4 h-4 text-gray-400" />
+                    {noticeDrawerMode === 'create' ? currentUser.name : currentNotice?.author}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <Calendar className="w-4 h-4 text-gray-400" />
+                    {noticeDrawerMode === 'create' ? formatDateTime(new Date()) : currentNotice?.date}
+                  </span>
                 </div>
-                
-                <div className="flex justify-end gap-2.5 pt-3 mt-2 border-t border-gray-100 shrink-0">
-                  {isFormEditable ? (
-                    <>
-                      <button type="button" onClick={() => setNoticeDrawerMode(null)} className="px-5 py-2.5 text-base font-bold text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all">취소</button>
-                      <button type="submit" className="px-5 py-2.5 text-base font-bold text-white bg-[#004b8d] rounded-xl hover:bg-[#003c71] transition-all shadow-md">
-                        {noticeDrawerMode === 'create' ? '새 글 등록' : '수정 완료'}
-                      </button>
-                    </>
-                  ) : (
-                    <button type="button" onClick={() => setNoticeDrawerMode(null)} className="px-5 py-2.5 text-base font-bold text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all">닫기</button>
-                  )}
-                </div>
-             </form>
+              </div>
 
-             {noticeDrawerMode === 'edit' && currentNotice && (
-               <div className="border-t border-gray-100 pt-4 mt-2 space-y-4">
+              {/* 원래 폼 전송 버튼 제거 (최하단 고정바로 이동) */}
+
+              {noticeDrawerMode === 'edit' && currentNotice && (
+                <div className="border-t border-gray-100 pt-4 mt-2 space-y-4">
                   <h5 className="font-bold text-gray-900 mb-2 flex items-center gap-2 text-lg">
                     <span>댓글</span>
                     <span className="bg-gray-100 text-gray-600 px-2.5 py-0.5 rounded-full text-sm">
@@ -460,37 +447,52 @@ export default function Notices() {
                     ))}
                     {(!currentNotice.comments || currentNotice.comments.length === 0) && (
                       <div className="text-center py-4 bg-gray-50 rounded-xl border border-gray-100 border-dashed">
-                        <p className="text-base text-gray-400">등록된 댓글이 없습니다.<br/>첫 댓글을 남겨보세요!</p>
+                        <p className="text-base text-gray-400">등록된 댓글이 없습니다.<br />첫 댓글을 남겨보세요!</p>
                       </div>
                     )}
                   </div>
-                  
+
                   <div className="flex gap-2">
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       id="notice-comment-input"
-                      value={commentInput} 
-                      onChange={e => setCommentInput(e.target.value)} 
+                      value={commentInput}
+                      onChange={e => setCommentInput(e.target.value)}
                       onKeyDown={e => {
                         if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
                           e.preventDefault();
                           handleCommentSubmit(currentNotice.id);
                         }
                       }}
-                      placeholder="댓글을 입력하세요..." 
+                      placeholder="댓글을 입력하세요..."
                       className="flex-1 border border-gray-200 rounded-xl px-3.5 py-2.5 text-base focus:border-[#004b8d] focus:ring-2 focus:ring-[#004b8d]/20 outline-none transition-all bg-gray-50 focus:bg-white"
                     />
-                    <button 
+                    <button
                       type="button"
-                      onClick={() => handleCommentSubmit(currentNotice.id)} 
+                      onClick={() => handleCommentSubmit(currentNotice.id)}
                       className="px-5 py-2.5 bg-[#004b8d] text-base font-bold text-white rounded-xl hover:bg-[#003c71] transition-all shadow-md active:scale-95 whitespace-nowrap"
                     >
                       등록
                     </button>
                   </div>
-               </div>
-             )}
-          </div>
+                </div>
+              )}
+            </div>
+
+            {/* 3. 최하단 고정 버튼 영역 */}
+            <div className="px-5 py-3 border-t border-gray-100 bg-white flex justify-end gap-2.5 shrink-0">
+              {isFormEditable ? (
+                <>
+                  <button type="button" onClick={() => setNoticeDrawerMode(null)} className="h-9 px-4 text-sm font-bold text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all">취소</button>
+                  <button type="submit" className="h-9 px-4 text-sm font-bold text-white bg-[#004b8d] rounded-xl hover:bg-[#003c71] transition-all shadow-md">
+                    {noticeDrawerMode === 'create' ? '새 글 등록' : '수정 완료'}
+                  </button>
+                </>
+              ) : (
+                <button type="button" onClick={() => setNoticeDrawerMode(null)} className="h-9 px-4 text-sm font-bold text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all">닫기</button>
+              )}
+            </div>
+          </form>
         </div>
       </div>
     );
@@ -499,13 +501,12 @@ export default function Notices() {
   const isPinnedActive = isPinned && noticeDrawerMode !== null;
 
   return (
-    <div className={`fade-enter flex ${
-      isPinnedActive 
-        ? 'w-full max-w-none mx-0 pl-4 sm:pl-6 pr-0 py-0 flex-row gap-6 h-[calc(100vh-60px)] md:h-[calc(100vh-56px)]' 
-        : 'w-full p-4 sm:p-6 max-w-6xl mx-auto flex-col'
-    }`}>
+    <div className={`fade-enter flex ${isPinnedActive
+      ? 'w-full max-w-none mx-0 pl-4 sm:pl-6 pr-0 py-0 flex-row gap-6 h-[calc(100vh-60px)] md:h-[calc(100vh-56px)]'
+      : 'w-full p-4 sm:p-6 max-w-6xl mx-auto flex-col'
+      }`}>
       <div className={`flex-1 min-w-0 flex flex-col ${isPinnedActive ? 'py-4 sm:py-6 overflow-y-auto custom-scrollbar' : ''}`}>
-        
+
         <div id="notice-filter-container" className="mb-5 space-y-3">
           <div className="flex gap-2 mb-3">
             <div className="flex-1 grid grid-cols-2 gap-2">
@@ -525,7 +526,7 @@ export default function Notices() {
                 />
               </div>
             </div>
-            <button 
+            <button
               id="create-notice-btn"
               onClick={() => setNoticeDrawerMode('create')}
               className="shrink-0 px-4 flex items-center justify-center gap-2 bg-[#004b8d] hover:bg-[#003c71] text-white rounded-xl shadow-sm transition-all text-sm font-bold active:scale-95"
@@ -551,14 +552,13 @@ export default function Notices() {
 
           {/* "검사실별 공지" 하위의 서브 탭 바 렌더링 */}
           {currentNoticeCategory === '검사실별 공지' && (
-            <div className="flex gap-2 py-1 overflow-x-auto scroll-smooth no-scrollbar border-t border-gray-100 pt-3">
+            <div className="flex flex-wrap gap-2 py-1 border-t border-gray-100 pt-3">
               <button
                 onClick={() => setSubCategory('전체')}
-                className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${
-                  subCategory === '전체'
-                    ? 'border-[#004b8d] bg-blue-50 text-[#004b8d]'
-                    : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50 hover:border-gray-300'
-                }`}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${subCategory === '전체'
+                  ? 'border-[#004b8d] bg-blue-50 text-[#004b8d]'
+                  : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50 hover:border-gray-300'
+                  }`}
               >
                 전체보기
               </button>
@@ -566,11 +566,10 @@ export default function Notices() {
                 <button
                   key={w.id}
                   onClick={() => setSubCategory(w.name)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${
-                    subCategory === w.name
-                      ? 'border-[#004b8d] bg-blue-50 text-[#004b8d]'
-                      : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50 hover:border-gray-300'
-                  }`}
+                  className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${subCategory === w.name
+                    ? 'border-[#004b8d] bg-blue-50 text-[#004b8d]'
+                    : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50 hover:border-gray-300'
+                    }`}
                 >
                   {w.floor} - {w.name}
                 </button>
@@ -599,9 +598,9 @@ export default function Notices() {
             filteredNotices.map(n => {
               const isHighlighted = n.id === highlightedItemId || highlightedItemIds.includes(n.id);
               return (
-                <div 
-                  key={n.id} 
-                  id={`notice-${n.id}`} 
+                <div
+                  key={n.id}
+                  id={`notice-${n.id}`}
                   onClick={() => {
                     setNoticeDrawerMode('edit', n);
                     if (!n.readBy?.includes(currentUser.name)) {
@@ -612,11 +611,10 @@ export default function Notices() {
                     if (n.id === highlightedItemId) setHighlightedItemId(null);
                     if (highlightedItemIds.includes(n.id)) removeHighlightedItemId(n.id);
                   }}
-                  className={`bg-white rounded-2xl p-4 sm:p-5 shadow-sm border transition-all cursor-pointer ${
-                    isHighlighted 
-                      ? 'alarm-highlight shadow-md shadow-orange-100' 
-                      : 'border-gray-100 hover:shadow-md hover:border-gray-200'
-                  }`}
+                  className={`bg-white rounded-2xl p-4 sm:p-5 shadow-sm border transition-all cursor-pointer ${isHighlighted
+                    ? 'alarm-highlight shadow-md shadow-orange-100'
+                    : 'border-gray-100 hover:shadow-md hover:border-gray-200'
+                    }`}
                 >
                   <div className="flex items-start justify-between gap-4 mb-2">
                     <div className="flex items-center gap-2 flex-wrap min-w-0">
@@ -668,15 +666,15 @@ export default function Notices() {
                       )}
                     </div>
                   </div>
-                  <p className="text-gray-600 text-sm line-clamp-2 leading-relaxed mb-3">{n.content}</p>
+                  <p className="text-gray-600 text-sm leading-relaxed mb-3 whitespace-pre-wrap">{n.content}</p>
                   <div className="flex items-center gap-3 text-xs text-gray-400 font-medium">
                     <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />{n.date}</span>
                     <span className="flex items-center gap-1"><User className="w-3.5 h-3.5" />{n.author}</span>
                   </div>
 
                   {/* 확인 여부 및 말풍선 인터랙션 바 */}
-                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50" onClick={e => e.stopPropagation()}>
-                    <div className="flex items-center gap-4">
+                  <div className="flex flex-wrap items-center gap-4 mt-3 pt-3 border-t border-gray-100/50 text-xs text-gray-500" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center gap-3.5 shrink-0">
                       {!n.readBy?.includes(currentUser.name) ? (
                         <button
                           onClick={(e) => {
@@ -694,7 +692,7 @@ export default function Notices() {
                           확인완료
                         </span>
                       )}
-                      <button 
+                      <button
                         onClick={(e) => handleCommentIconClick(n, e)}
                         className="flex items-center gap-1.5 text-xs font-bold text-gray-400 hover:text-blue-500 transition-colors"
                       >
@@ -702,26 +700,29 @@ export default function Notices() {
                         <span>{n.comments?.length || 0}</span>
                       </button>
                     </div>
-                  </div>
+                    <div className="hidden sm:block text-gray-200">|</div>
 
-                  {/* 읽음 확인 명단 및 미확인 직원 목록 출력 */}
-                  <div className="mt-3.5 space-y-1.5 border-t border-gray-100/50 pt-2.5" onClick={e => e.stopPropagation()}>
-                    <div className="text-xs text-gray-500 flex flex-wrap gap-1.5 items-center">
-                      <span className="font-semibold text-gray-600">확인한 직원:</span>
-                      <span className="text-gray-500">
-                        {n.readBy && n.readBy.length > 0 ? n.readBy.join(', ') : '없음'}
-                      </span>
-                    </div>
-                    {currentUser.isManager && (
-                      <div className="text-xs text-red-500 flex flex-wrap gap-1.5 items-center">
-                        <span className="font-semibold text-red-600">미확인 직원:</span>
-                        <span className="text-red-500">
-                          {getUnreadEmployees(n).length > 0 
-                            ? getUnreadEmployees(n).join(', ') 
-                            : '없음 (전원 확인 완료)'}
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-gray-500 flex-1 min-w-0">
+                      <div className="flex items-center gap-1 truncate max-w-xs md:max-w-md" title={n.readBy && n.readBy.length > 0 ? n.readBy.join(', ') : '없음'}>
+                        <span className="font-bold text-gray-600 shrink-0">확인한 직원:</span>
+                        <span className="text-gray-500 truncate">
+                          {n.readBy && n.readBy.length > 0 ? n.readBy.join(', ') : '없음'}
                         </span>
                       </div>
-                    )}
+                      {currentUser.isManager && (
+                        <>
+                          <div className="text-gray-300">/</div>
+                          <div className="flex items-center gap-1 truncate max-w-xs md:max-w-md text-red-500" title={getUnreadEmployees(n).length > 0 ? getUnreadEmployees(n).join(', ') : '없음 (전원 확인 완료)'}>
+                            <span className="font-bold text-red-600 shrink-0">미확인 직원:</span>
+                            <span className="truncate">
+                              {getUnreadEmployees(n).length > 0
+                                ? getUnreadEmployees(n).join(', ')
+                                : '없음 (전원 확인 완료)'}
+                            </span>
+                          </div>
+                        </>
+                      )}
+                    </div>
                   </div>
 
                   {/* 스레드식 답글 목록 */}
@@ -732,10 +733,10 @@ export default function Notices() {
                         const authorComments = (n.comments || []).filter(c => c.author === n.author);
                         const otherComments = (n.comments || []).filter(c => c.author !== n.author);
                         const isExpanded = !!expandedReplies[n.id];
-                        
+
                         // 기본 노출할 목록: 확장 시 전체 노출, 미확장 시 작성자 댓글만 노출
                         const visibleComments = isExpanded ? (n.comments || []) : authorComments;
-                        
+
                         return (
                           <div className="space-y-3 relative pl-4 border-l-2 border-gray-100 ml-2 mt-2">
                             {visibleComments.map((c) => {
@@ -744,12 +745,11 @@ export default function Notices() {
                                 <div key={c.id} className="relative flex items-start gap-2.5 text-xs">
                                   {/* 연결용 왼쪽 수평 브랜치 라인 */}
                                   <div className="absolute -left-[18px] top-3.5 w-2.5 h-0.5 bg-gray-100" />
-                                  
-                                  <div className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 ${
-                                    isAuthorComment 
-                                      ? 'bg-blue-50 text-[#004b8d] border border-blue-100' 
-                                      : 'bg-gray-100 text-gray-600'
-                                  }`}>
+
+                                  <div className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 ${isAuthorComment
+                                    ? 'bg-blue-50 text-[#004b8d] border border-blue-100'
+                                    : 'bg-gray-100 text-gray-600'
+                                    }`}>
                                     {c.author[0]}
                                   </div>
                                   <div className="flex-1 bg-gray-50/50 p-2 rounded-xl border border-gray-100/50">

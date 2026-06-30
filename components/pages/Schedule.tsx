@@ -1533,9 +1533,19 @@ export default function Schedule() {
                 </tr>
               </thead>
               <tbody>
-                {scheduleData.employees.map((emp) => (
+                {(() => {
+                  const sortedEmployees = [...scheduleData.employees].sort((a, b) => {
+                    const aIsMe = String(a.empId) === String(currentUser?.employeeId);
+                    const bIsMe = String(b.empId) === String(currentUser?.employeeId);
+                    if (aIsMe && !bIsMe) return -1;
+                    if (!aIsMe && bIsMe) return 1;
+                    return 0;
+                  });
+                  return sortedEmployees.map((emp) => {
+                    const isMe = String(emp.empId) === String(currentUser?.employeeId);
+                    return (
                   <tr key={emp.empId} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
-                    <td className={`sticky left-0 z-10 border-r border-gray-200 px-2 py-2 text-left ${getDeptColor(emp.mainWorkplace || emp.department).split(' ').filter(c => c.startsWith('bg-')).join(' ')}`}>
+                    <td className={`sticky left-0 z-10 border-r border-gray-200 px-2 py-2 text-left ${isMe ? 'bg-blue-50' : getDeptColor(emp.mainWorkplace || emp.department).split(' ').filter(c => c.startsWith('bg-')).join(' ')}`}>
                       <div className="w-full">
                         <div className="flex items-center justify-center gap-2 w-full px-1">
                           <span className={`text-[10px] font-extrabold shrink-0 w-[45px] text-center ${getDeptTextColor(emp.mainWorkplace || emp.department)}`}>
@@ -1591,7 +1601,9 @@ export default function Schedule() {
                       );
                     })}
                   </tr>
-                ))}
+                    );
+                  });
+                })()}
               </tbody>
             </table>
           </div>
@@ -1698,14 +1710,23 @@ export default function Schedule() {
                   </tr>
                 </thead>
                 <tbody>
-                  {scheduleData.employees.map((emp) => {
-                    const blocks = getEmployeeBlocks(emp.empId);
-                    // 이번 행에서 이미 렌더링(표시)한 근무지명을 기억하기 위한 변수
-                    let hasRenderedDept = false;
+                  {(() => {
+                    const sortedEmployees = [...scheduleData.employees].sort((a, b) => {
+                      const aIsMe = String(a.empId) === String(currentUser?.employeeId);
+                      const bIsMe = String(b.empId) === String(currentUser?.employeeId);
+                      if (aIsMe && !bIsMe) return -1;
+                      if (!aIsMe && bIsMe) return 1;
+                      return 0;
+                    });
+                    return sortedEmployees.map((emp) => {
+                      const blocks = getEmployeeBlocks(emp.empId);
+                      const isMe = String(emp.empId) === String(currentUser?.employeeId);
+                      // 이번 행에서 이미 렌더링(표시)한 근무지명을 기억하기 위한 변수
+                      let hasRenderedDept = false;
 
-                    return (
-                      <tr key={emp.empId} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
-                        <td className={`sticky left-0 z-10 border-r border-gray-200 px-2 py-2 text-left ${getDeptColor(emp.mainWorkplace || emp.department).split(' ').filter(c => c.startsWith('bg-')).join(' ')}`}>
+                      return (
+                        <tr key={emp.empId} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
+                          <td className={`sticky left-0 z-10 border-r border-gray-200 px-2 py-2 text-left ${isMe ? 'bg-blue-50' : getDeptColor(emp.mainWorkplace || emp.department).split(' ').filter(c => c.startsWith('bg-')).join(' ')}`}>
                           <div className="w-full">
                             <div className="flex items-center justify-center gap-2 w-full px-1">
                               <span className={`text-[10px] font-extrabold shrink-0 w-[45px] text-center ${getDeptTextColor(emp.mainWorkplace || emp.department)}`}>
@@ -1981,8 +2002,9 @@ export default function Schedule() {
                           );
                         })}
                       </tr>
-                    );
-                  })}
+                      );
+                    });
+                  })()}
                   {/* 하단 빈 공간을 채우기 위한 더미 행 */}
                   <tr className="h-full">
                     <td colSpan={daysInMonth + 1} className="p-0 border-none bg-transparent"></td>
@@ -2006,6 +2028,16 @@ export default function Schedule() {
             '8F 면역', '4F 안과', '4F 수면', '3F 뇌파', '2F 소화',
             '2F 심기', '2F 심초', '1F 근전', '1F 호흡', 'B1 청력'
           ];
+          const myDept = currentUser?.mainWorkplace || currentUser?.department || '';
+          const sortedRoomOrder = [...ROOM_ORDER].sort((a, b) => {
+            const aKeyword = a.split(' ')[1] || ''; // '8F 면역' → '면역'
+            const bKeyword = b.split(' ')[1] || '';
+            const aIsMe = myDept && aKeyword && myDept.includes(aKeyword);
+            const bIsMe = myDept && bKeyword && myDept.includes(bKeyword);
+            if (aIsMe && !bIsMe) return -1;
+            if (!aIsMe && bIsMe) return 1;
+            return 0;
+          });
 
           const getWorkingEmployees = (roomName: string, day: number, period: 'am' | 'pm'): Employee[] => {
             const dateInfo = dateInfos[day - 1];
@@ -2246,7 +2278,7 @@ export default function Schedule() {
                   </tr>
                 </thead>
                 <tbody>
-                  {ROOM_ORDER.map(roomName => {
+                  {sortedRoomOrder.map(roomName => {
                     const roomDept = getRoomDept(roomName);
                     const amBlocks = getRoomPeriodBlocks(roomName, 'am');
                     const pmBlocks = getRoomPeriodBlocks(roomName, 'pm');
@@ -2255,7 +2287,7 @@ export default function Schedule() {
                       <React.Fragment key={roomName}>
                         {/* 오전(AM) 행 */}
                         <tr className="hover:bg-gray-50/50 transition-colors">
-                          <td rowSpan={2} className={`sticky left-0 z-10 border-r border-gray-200 border-b border-gray-100 p-1.5 align-middle ${getDeptColor(roomDept).split(' ').filter(c => c.startsWith('bg-')).join(' ')}`}>
+                          <td rowSpan={2} className={`sticky left-0 z-10 border-r border-gray-200 border-b border-gray-100 p-1.5 align-middle ${myDept && roomName.split(' ')[1] && myDept.includes(roomName.split(' ')[1]) ? 'bg-blue-50' : getDeptColor(roomDept).split(' ').filter(c => c.startsWith('bg-')).join(' ')}`}>
                             <div className={`flex flex-col items-center justify-center w-full h-full px-1 py-1.5 ${getDeptTextColor(roomDept)}`}>
                               <span className="text-[11px] font-bold opacity-80 mb-1 leading-none">{roomName.split(' ')[0]}</span>
                               <span className="font-extrabold text-[14px] leading-none">{roomName.split(' ')[1]}</span>
