@@ -123,7 +123,7 @@ function toDateInputValue(dateStr: string) {
 }
 
 export default function Equipment() {
-  const { equipmentIssues, equipmentSearchQuery, setEquipmentSearchQuery, currentUser, confirmEquipment, changeEquipmentStatus, editEquipment, deleteEquipment, approveEquipment, addEquipmentIssue, addComment, toggleLike, highlightedItemId, setHighlightedItemId, highlightedItemIds, removeHighlightedItemId, isLoading, employees, markAsRead } = useStore();
+  const { equipmentIssues, equipmentSearchQuery, setEquipmentSearchQuery, currentUser, confirmEquipment, changeEquipmentStatus, editEquipment, deleteEquipment, approveEquipment, addEquipmentIssue, addComment, highlightedItemId, setHighlightedItemId, highlightedItemIds, removeHighlightedItemId, isLoading, employees, markAsRead } = useStore();
 
   const userName = currentUser.name || '사용자';
 
@@ -591,19 +591,8 @@ export default function Equipment() {
           </div>
         </div>
 
-        {/* 하트 & 말풍선 인터랙션 바 */}
+        {/* 말풍선 인터랙션 바 */}
         <div className="flex items-center gap-4 mt-3 pt-3 border-t border-gray-50" onClick={e => e.stopPropagation()}>
-          <button 
-            onClick={() => toggleLike('equipment', eq.id, currentUser.name)}
-            className={`flex items-center gap-1.5 text-xs font-bold transition-all ${
-              eq.likes?.includes(currentUser.name) 
-                ? 'text-red-500 scale-110' 
-                : 'text-gray-400 hover:text-red-500'
-            }`}
-          >
-            <Heart className={`w-4 h-4 ${eq.likes?.includes(currentUser.name) ? 'fill-current' : ''}`} />
-            <span>{eq.likes?.length || 0}</span>
-          </button>
           <button 
             onClick={(e) => handleCommentIconClick(eq, e)}
             className="flex items-center gap-1.5 text-xs font-bold text-gray-400 hover:text-blue-500 transition-colors"
@@ -614,7 +603,7 @@ export default function Equipment() {
         </div>
 
         {/* 스레드식 답글 목록 */}
-        {((eq.comments && eq.comments.length > 0) || (eq.likes && eq.likes.length > 0)) && (
+        {(eq.comments && eq.comments.length > 0) && (
           <div className="mt-4 pt-3 border-t border-gray-100/50" onClick={e => e.stopPropagation()}>
             {/* 작성자 댓글 기본 노출 */}
             {(() => {

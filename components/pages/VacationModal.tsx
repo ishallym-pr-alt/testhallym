@@ -3,6 +3,15 @@
 import React, { useState } from 'react';
 import { useStore, Vacation } from '@/store/useStore';
 import { X, CheckCircle, XCircle, Pencil, Trash2 } from 'lucide-react';
+import DatePicker from 'react-datepicker';
+import "react-datepicker/dist/react-datepicker.css";
+
+const formatDateToString = (date: Date) => {
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
 
 export default function VacationModal({
   onClose,
@@ -15,7 +24,17 @@ export default function VacationModal({
   setWidth: (w: number) => void;
   setIsDragging?: (dragging: boolean) => void;
 }) {
-  const { currentUser, vacations, addVacation, updateVacationStatus, editVacation, deleteVacation } = useStore();
+  const { currentUser, vacations, employees: rawEmployees, addVacation, updateVacationStatus, editVacation, deleteVacation } = useStore();
+
+  // 퇴사하지 않은 자기 자신 제외한 직원 리스트
+  const availableEmployees = React.useMemo(() => {
+    return (rawEmployees || [])
+      .filter((emp: any) => {
+        const isRetired = emp.isRetired === true || String(emp.isRetired).toUpperCase() === 'TRUE';
+        return String(emp.empId).trim() !== String(currentUser.employeeId).trim() && !isRetired;
+      })
+      .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+  }, [rawEmployees, currentUser.employeeId]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -40,38 +59,63 @@ export default function VacationModal({
   };
   const [activeTab, setActiveTab] = useState<'form' | 'list'>('form');
 
-  // 신청 폼 상태
-  const [formDate, setFormDate] = useState('');
+  // 신청 폼 상태 (Range Picker)
+  const [dateRange, setDateRange] = useState<[Date | null, Date | null]>([null, null]);
+  const [startDate, endDate] = dateRange;
   const [formType, setFormType] = useState('종일연차');
   const [formReason, setFormReason] = useState('');
+  const [formHandoverEmpId, setFormHandoverEmpId] = useState('');
 
   // 수정 상태
   const [editingVac, setEditingVac] = useState<Vacation | null>(null);
   const [editDate, setEditDate] = useState('');
   const [editType, setEditType] = useState('종일연차');
   const [editReason, setEditReason] = useState('');
+  const [editHandoverEmpId, setEditHandoverEmpId] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formDate) {
-      alert('신청 일자를 선택해 주세요.');
+    if (!startDate) {
+      alert('신청 기간(시작일)을 선택해 주세요.');
       return;
     }
 
-    addVacation({
-      empId: currentUser.employeeId,
-      name: currentUser.name,
-      department: currentUser.department,
-      mainWorkplace: currentUser.mainWorkplace,
-      subWorkplace: currentUser.subWorkplace,
-      vacationDate: formDate,
-      vacationType: formType,
-      reason: formReason,
+    const datesToApply: string[] = [];
+    if (startDate && !endDate) {
+      datesToApply.push(formatDateToString(startDate));
+    } else if (startDate && endDate) {
+      let curr = new Date(startDate.getTime());
+      const last = new Date(endDate.getTime());
+      while (curr <= last) {
+        datesToApply.push(formatDateToString(curr));
+        curr.setDate(curr.getDate() + 1);
+      }
+    }
+
+    if (datesToApply.length === 0) {
+      alert('신청 기간을 선택해 주세요.');
+      return;
+    }
+
+    // 각 날짜별로 연차 신청
+    datesToApply.forEach((dateStr) => {
+      addVacation({
+        empId: currentUser.employeeId,
+        name: currentUser.name,
+        department: currentUser.department,
+        mainWorkplace: currentUser.mainWorkplace,
+        subWorkplace: currentUser.subWorkplace,
+        vacationDate: dateStr,
+        vacationType: formType,
+        reason: formReason,
+        handoverEmpId: formHandoverEmpId || '',
+      });
     });
 
-    alert('연차가 신청되었습니다.');
-    setFormDate('');
+    alert(`${datesToApply.length}건의 연차가 신청되었습니다.`);
+    setDateRange([null, null]);
     setFormReason('');
+    setFormHandoverEmpId('');
     setActiveTab('list');
   };
 
@@ -101,12 +145,18 @@ export default function VacationModal({
     setEditDate(v.vacationDate);
     setEditType(v.vacationType);
     setEditReason(v.reason);
+    setEditHandoverEmpId(v.handoverEmpId || '');
   };
 
   const handleEditVacSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingVac) return;
-    editVacation(editingVac.id, { vacationDate: editDate, vacationType: editType, reason: editReason });
+    editVacation(editingVac.id, { 
+      vacationDate: editDate, 
+      vacationType: editType, 
+      reason: editReason,
+      handoverEmpId: editHandoverEmpId || ''
+    });
     setEditingVac(null);
   };
 
@@ -117,13 +167,13 @@ export default function VacationModal({
   return (
     <>
       <div
-        className="fixed right-0 top-0 bottom-0 h-full bg-white border-l border-gray-200 shadow-[-10px_0_30px_rgba(0,0,0,0.1)] z-40 flex flex-col animate-slide-in-right"
-        style={{ width: `${width}px` }}
+        className="fixed right-0 top-0 bottom-0 h-full bg-white border-l border-gray-200 shadow-[-10px_0_30px_rgba(0,0,0,0.1)] z-40 flex flex-col animate-slide-in-right md:w-auto w-full"
+        style={{ width: typeof window !== 'undefined' && window.innerWidth >= 768 ? `${width}px` : '100%' }}
       >
         {/* 드래그 크기조절 핸들 (좌측 경계면) */}
         <div
           onMouseDown={handleMouseDown}
-          className="absolute left-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-primary-500/40 active:bg-primary-500 transition-colors z-50 flex items-center justify-center group"
+          className="absolute left-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-primary-500/40 active:bg-primary-500 transition-colors z-50 hidden md:flex items-center justify-center group"
         >
           <div className="w-[2px] h-8 bg-gray-300 group-hover:bg-primary-500 group-active:bg-primary-600 rounded-full transition-colors"></div>
         </div>
@@ -157,7 +207,7 @@ export default function VacationModal({
         </div>
 
         {/* 본문 영역 */}
-        <div className="flex-1 overflow-y-auto p-6 bg-white">
+        <div className={`flex-1 overflow-y-auto p-6 bg-white ${activeTab === 'form' ? 'pb-28 md:pb-6' : ''}`}>
           {activeTab === 'form' && (
             <div className="max-w-md mx-auto">
               <form onSubmit={handleSubmit} className="space-y-5">
@@ -172,12 +222,19 @@ export default function VacationModal({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1.5">신청 일자</label>
-                  <input
-                    type="date"
-                    value={formDate}
-                    onChange={(e) => setFormDate(e.target.value)}
-                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#004b8d] focus:ring-1 focus:ring-[#004b8d] outline-none transition-all"
+                  <label className="block text-sm font-bold text-gray-700 mb-1.5">신청 기간 (시작일 ~ 종료일)</label>
+                  <DatePicker
+                    selectsRange={true}
+                    startDate={startDate}
+                    endDate={endDate}
+                    onChange={(update) => {
+                      setDateRange(update as [Date | null, Date | null]);
+                    }}
+                    isClearable={true}
+                    dateFormat="yyyy-MM-dd"
+                    placeholderText="날짜 범위를 선택해 주세요"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#004b8d] focus:ring-1 focus:ring-[#004b8d] outline-none transition-all bg-white font-medium text-gray-700"
+                    wrapperClassName="w-full"
                   />
                 </div>
 
@@ -212,7 +269,23 @@ export default function VacationModal({
                   />
                 </div>
 
-                <div className="pt-2">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1.5">인수자 (대타 - 선택)</label>
+                  <select
+                    value={formHandoverEmpId}
+                    onChange={(e) => setFormHandoverEmpId(e.target.value)}
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#004b8d] focus:ring-1 focus:ring-[#004b8d] outline-none transition-all bg-white font-medium text-gray-700"
+                  >
+                    <option value="">선택 안 함</option>
+                    {availableEmployees.map((emp) => (
+                      <option key={emp.empId} value={emp.empId}>
+                        {emp.name} ({emp.mainWorkplace || emp.department})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-100 z-10 md:relative md:p-0 md:bg-transparent md:border-none md:shadow-none shadow-[0_-4px_12px_rgba(0,0,0,0.05)] pt-2 shrink-0">
                   <button
                     type="submit"
                     className="w-full py-3.5 bg-[#004b8d] text-white rounded-xl font-bold hover:bg-[#003c71] transition-colors shadow-lg shadow-[#004b8d]/20"
@@ -267,6 +340,16 @@ export default function VacationModal({
                       {v.reason && (
                         <div className="text-xs text-gray-500 bg-gray-50/80 rounded-lg p-2.5 leading-relaxed border border-gray-100/50 break-all">
                           {v.reason}
+                        </div>
+                      )}
+
+                      {/* 인수자 정보 */}
+                      {v.handoverEmpId && (
+                        <div className="text-xs text-gray-500 bg-blue-50/30 rounded-lg px-2.5 py-1.5 border border-blue-100/50 flex justify-between items-center">
+                          <span className="font-semibold text-gray-600">인수자(대타)</span>
+                          <span className="font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded text-[11px]">
+                            {rawEmployees.find(e => String(e.empId).trim() === String(v.handoverEmpId).trim())?.name || v.handoverEmpId}
+                          </span>
                         </div>
                       )}
 
@@ -360,6 +443,21 @@ export default function VacationModal({
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1.5">사유</label>
                   <textarea value={editReason} onChange={e => setEditReason(e.target.value)} rows={3} className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:border-[#004b8d] focus:ring-1 focus:ring-[#004b8d] outline-none transition-all resize-none" />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1.5">인수자 (대타 - 선택)</label>
+                  <select
+                    value={editHandoverEmpId}
+                    onChange={(e) => setEditHandoverEmpId(e.target.value)}
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 focus:border-[#004b8d] focus:ring-1 focus:ring-[#004b8d] outline-none transition-all bg-white font-medium text-gray-700"
+                  >
+                    <option value="">선택 안 함</option>
+                    {availableEmployees.map((emp) => (
+                      <option key={emp.empId} value={emp.empId}>
+                        {emp.name} ({emp.mainWorkplace || emp.department})
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div className="flex justify-end gap-3 pt-2">
                   <button type="button" onClick={() => setEditingVac(null)} className="px-5 py-2.5 text-sm font-bold text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all">취소</button>

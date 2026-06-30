@@ -14,13 +14,14 @@ export default function BottomNav() {
     { id: 'notices', label: '공지', icon: Megaphone },
     { id: 'handovers', label: '인수인계', icon: Repeat2 },
     { id: 'schedule', label: '근무표', icon: CalendarDays },
+    { id: 'calendar', label: '근무일정', icon: CalendarDays },
     { id: 'equipment', label: '장비', icon: MonitorCheck },
     { id: 'stats', label: '통계', icon: BarChart3 }
   ];
 
   return (
     <nav className="bottom-nav block md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
-      <div className="grid grid-cols-5 items-center h-16">
+      <div className="grid grid-cols-6 items-center h-16">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = currentPage === item.id;

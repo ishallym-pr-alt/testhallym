@@ -33,15 +33,6 @@ export async function GET() {
         comments = [];
       }
 
-      let likes: string[] = [];
-      try {
-        likes = typeof row.likes === 'string'
-          ? JSON.parse(row.likes)
-          : (row.likes || []);
-      } catch {
-        likes = [];
-      }
-
       let readBy: string[] = [];
       if (typeof row.readBy === 'string' && row.readBy.trim() !== '') {
         readBy = row.readBy.split(',').map((x: string) => x.trim()).filter(Boolean);
@@ -65,7 +56,6 @@ export async function GET() {
         category: row.category || '의료장비 고장',
         isApproved: String(row.isApproved).toUpperCase() === 'TRUE',
         comments,
-        likes,
         readBy,
       };
     });
@@ -97,7 +87,6 @@ export async function POST(req: Request) {
       mainWorkplace: body.mainWorkplace || '',
       category: body.category || '의료장비 고장',
       comments: body.comments || [],
-      likes: body.likes || [],
     });
 
     invalidateCache(CACHE_KEY);
@@ -128,7 +117,6 @@ export async function POST(req: Request) {
       category: body.category || '의료장비 고장',
       isApproved: false,
       comments: body.comments || [],
-      likes: body.likes || [],
     });
   } catch (error) {
     console.error('[API /equipment POST] Error:', error);
@@ -155,7 +143,6 @@ export async function PUT(req: Request) {
         room: body.room,
         status: body.status,
         comments: body.comments,
-        likes: body.likes,
       });
 
       if (result.subscriptions && body.comments && body.comments.length > 0) {

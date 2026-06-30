@@ -14,6 +14,7 @@ import Handovers from '@/components/pages/Handovers';
 import Equipment from '@/components/pages/Equipment';
 import Stats from '@/components/pages/Stats';
 import Schedule from '@/components/pages/Schedule';
+import WorkSchedule from '@/components/pages/WorkSchedule';
 import SyncManager from '@/components/SyncManager';
 
 export default function App() {
@@ -34,7 +35,7 @@ export default function App() {
       const page = params.get('page');
       const id = params.get('id');
 
-      if (page && ['notices', 'handovers', 'schedule', 'equipment', 'stats'].includes(page)) {
+      if (page && ['notices', 'handovers', 'schedule', 'calendar', 'equipment', 'stats'].includes(page)) {
         setCurrentPage(page as any);
         if (id) {
           const highlightedId = page === 'schedule' ? id : Number(id);
@@ -53,7 +54,7 @@ export default function App() {
       if (event.data) {
         if (event.data.type === 'NAVIGATE') {
           const { page, id } = event.data;
-          if (page && ['notices', 'handovers', 'schedule', 'equipment', 'stats'].includes(page)) {
+          if (page && ['notices', 'handovers', 'schedule', 'calendar', 'equipment', 'stats'].includes(page)) {
             setCurrentPage(page);
             if (id) {
               const highlightedId = page === 'schedule' ? id : Number(id);
@@ -103,6 +104,7 @@ export default function App() {
       case 'notices': return <Notices />;
       case 'handovers': return <Handovers />;
       case 'schedule': return <Schedule />;
+      case 'calendar': return <WorkSchedule />;
       case 'equipment': return <Equipment />;
       case 'stats': return <Stats />;
       default: return <Notices />;
@@ -110,14 +112,16 @@ export default function App() {
   };
 
   const isSchedule = currentPage === 'schedule';
+  const isCalendar = currentPage === 'calendar';
+  const isFullHeight = isSchedule || isCalendar;
 
   return (
     <div id="screen-main">
       <SyncManager />
       <Sidebar />
-      <main className={`md:ml-48 bg-gray-50 flex flex-col ${isSchedule ? 'h-[100dvh] overflow-hidden' : 'min-h-[100dvh] pb-32 md:pb-8'}`}>
+      <main className={`md:ml-48 bg-gray-50 flex flex-col ${isFullHeight ? 'h-[100dvh] overflow-hidden' : 'min-h-[100dvh] pb-32 md:pb-8'} ${isCalendar ? 'pb-16 md:pb-0' : ''}`}>
         <Header />
-        {isSchedule ? (
+        {isFullHeight ? (
           <div className="flex-1 overflow-hidden">{renderPage()}</div>
         ) : (
           <>

@@ -6,6 +6,7 @@ import * as XLSX from 'xlsx';
 import { useStore } from '@/store/useStore';
 import VacationModal from './VacationModal';
 import * as holidaysKr from '@hyunbinseo/holidays-kr';
+import PersonalCalendar from '@/components/ui/PersonalCalendar';
 
 const ROOM_NAME_MAP: Record<string, string> = {
   '면역': '면역', '근전도': '근전', '뇌파': '뇌파', '안과': '안과',
@@ -272,7 +273,30 @@ const MAP_FULL_TO_SHORT: Record<string, string> = {
 // 공휴일 로직은 Schedule 컴포넌트 내부에서 상태로 관리합니다.
 
 export default function Schedule() {
-  const { employees: rawEmployees, vacations, currentUser: rawCurrentUser, currentDepartment, addEmployee, updateEmployee, deleteEmployee, initializeData, globalVersion, highlightedItemId, setHighlightedItemId, highlightedItemIds, addHighlightedItemId, removeHighlightedItemId, highlightedItemTimestamp, setMyLastSavedScheduleVersion } = useStore();
+  const { 
+    scheduleYear: year, 
+    scheduleMonth: month, 
+    setScheduleYearMonth,
+    calendarMemos: memos,
+    loadCalendarMemos,
+    saveCalendarMemo,
+    employees: rawEmployees, 
+    vacations, 
+    currentUser: rawCurrentUser, 
+    currentDepartment, 
+    addEmployee, 
+    updateEmployee, 
+    deleteEmployee, 
+    initializeData, 
+    globalVersion, 
+    highlightedItemId, 
+    setHighlightedItemId, 
+    highlightedItemIds, 
+    addHighlightedItemId, 
+    removeHighlightedItemId, 
+    highlightedItemTimestamp, 
+    setMyLastSavedScheduleVersion 
+  } = useStore();
 
   const employees = useMemo(() => {
     const mapFullToShort: Record<string, string> = {
@@ -346,9 +370,6 @@ export default function Schedule() {
     return map;
   }, [vacations]);
 
-  const now = new Date();
-  const [year, setYear] = useState(now.getFullYear());
-  const [month, setMonth] = useState(now.getMonth() + 1);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -406,8 +427,122 @@ export default function Schedule() {
     return !c || ['OFF', 'NO', 'SO', '연차', '육휴', '휴직', '특휴', '태검'].includes(c);
   }, []);
 
-  const [viewMode, setViewMode] = useState<'code' | 'employee' | 'room' | 'calendar'>('code');
-  const [calendarEmpId, setCalendarEmpId] = useState<string>('all');
+  const [viewMode, setViewMode] = useState<'planned' | 'actual' | 'employee' | 'room' | 'calendar'>('actual');
+
+  // 초기 상태는 일단 빈 데이터로 시작
+  const [scheduleData, setScheduleData] = useState<ScheduleData>(() => {
+    const now = new Date();
+    return {
+      year: now.getFullYear(),
+      month: now.getMonth() + 1,
+      employees: [],
+      shifts: {},
+      supports: {},
+    };
+  });
+
+  const [originalDataStr, setOriginalDataStr] = useState<string>('');
+
+  // ── 실제 변동이 반영된 데이터 (Merged State) ──
+  const mergedScheduleData = useMemo(() => {
+    const mergedShifts = JSON.parse(JSON.stringify(scheduleData.shifts || {}));
+    const mergedSupports = JSON.parse(JSON.stringify(scheduleData.supports || {}));
+
+    const mapFullToShort: Record<string, string> = {
+      '면역치료실': '면역',
+      '면역치료': '면역',
+      '8F 면역치료': '면역',
+      '안과검사실': '안과',
+      '안과기능': '안과',
+      '4F 안과기능': '안과',
+      '수면다원검사실': '수면',
+      '수면다원': '수면',
+      '4F 수면다원': '수면',
+      '근전도실': '근전도',
+      '1F 근전도': '근전도',
+      '뇌파검사실': '뇌파',
+      '뇌파검사': '뇌파',
+      '3F 뇌파': '뇌파',
+      '소화기능검사실': '소화',
+      '소화기능': '소화',
+      '2F 소화기능': '소화',
+      '심장기능검사실': '심기능',
+      '심장기능': '심기능',
+      '2F 심장기능': '심기능',
+      '심장초음파실': '심초',
+      '심장초음파': '심초',
+      '2F 심장초음파': '심초',
+      '호흡기능검사실': '호흡',
+      '호흡기능': '호흡',
+      '1F 호흡기능': '호흡',
+      '청력기능검사실': '청력',
+      '청력검사': '청력',
+      'B1 청력': '청력'
+    };
+    
+    // 승인된 연차를 shifts 및 supports에 병합
+    vacations.forEach(v => {
+      if (v.status === '승인') {
+        try {
+          const vDate = new Date(v.vacationDate);
+          if (vDate.getFullYear() === scheduleData.year && (vDate.getMonth() + 1) === scheduleData.month) {
+            const day = vDate.getDate();
+            const empId = v.empId;
+            if (!mergedShifts[empId]) {
+              mergedShifts[empId] = {};
+            }
+            const type = v.vacationType;
+            let code = type;
+            if (type === '종일연차') code = '연차';
+            else if (type === '오전반차' || type === '오후반차') code = '반차';
+            else if (type === '육아휴직') code = '육휴';
+            else if (type === '휴직') code = '휴직';
+            mergedShifts[empId][day] = code;
+
+            // 인수자 대타 지원지 자동 배치
+            if (v.handoverEmpId) {
+              const handoverId = v.handoverEmpId;
+              const giver = scheduleData.employees.find(e => String(e.empId).trim() === String(v.empId).trim()) ||
+                           employees.find(e => String(e.empId).trim() === String(v.empId).trim());
+              if (giver) {
+                const giverWorkplaceFull = giver.mainWorkplace || giver.department || '';
+                const giverWorkplace = mapFullToShort[giverWorkplaceFull] || giverWorkplaceFull;
+
+                if (!mergedSupports[handoverId]) {
+                  mergedSupports[handoverId] = {};
+                }
+                if (!mergedSupports[handoverId][day]) {
+                  mergedSupports[handoverId][day] = { am: [], pm: [] };
+                }
+
+                const amList = Array.isArray(mergedSupports[handoverId][day].am) ? [...mergedSupports[handoverId][day].am] : [];
+                const pmList = Array.isArray(mergedSupports[handoverId][day].pm) ? [...mergedSupports[handoverId][day].pm] : [];
+
+                if (type === '종일연차') {
+                  if (!amList.includes(giverWorkplace)) amList.push(giverWorkplace);
+                  if (!pmList.includes(giverWorkplace)) pmList.push(giverWorkplace);
+                } else if (type === '오전반차') {
+                  if (!amList.includes(giverWorkplace)) amList.push(giverWorkplace);
+                } else if (type === '오후반차') {
+                  if (!pmList.includes(giverWorkplace)) pmList.push(giverWorkplace);
+                }
+
+                mergedSupports[handoverId][day] = { am: amList, pm: pmList };
+              }
+            }
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    });
+
+    return {
+      ...scheduleData,
+      shifts: mergedShifts,
+      supports: mergedSupports
+    };
+  }, [scheduleData, vacations, employees]);
 
   const DEPARTMENTS = ['면역', '근전도', '뇌파', '안과', '심기능', '심초', '청력', '소화', '호흡', '수면'];
   const DEPT_OPTIONS = ['기능검사실', '면역', '근전도', '뇌파', '안과', '심기능', '심초', '청력', '소화', '호흡', '수면', '육아휴직'];
@@ -457,38 +592,10 @@ export default function Schedule() {
 
   const [toast, setToast] = useState<string>('');
 
-  // ── 메모 기능 상태 ──
-  const [memos, setMemos] = useState<Record<string, string>>({});
-  const [showMemoModal, setShowMemoModal] = useState(false);
-  const [selectedMemoEmpId, setSelectedMemoEmpId] = useState('');
-  const [selectedMemoDay, setSelectedMemoDay] = useState<number | null>(null);
-  const [memoText, setMemoText] = useState('');
-
-  // 메모 로드
+  // memos are loaded from Zustand store
   useEffect(() => {
-    const saved = localStorage.getItem(`calendar_memos_${year}_${month}`);
-    if (saved) {
-      try { setMemos(JSON.parse(saved)); } catch (e) { }
-    } else {
-      setMemos({});
-    }
-  }, [year, month]);
-
-  // 메모 저장
-  const saveMemo = () => {
-    if (!selectedMemoEmpId || selectedMemoDay === null) return;
-    const key = `${selectedMemoEmpId}_${selectedMemoDay}`;
-    const newMemos = { ...memos };
-    if (memoText.trim()) {
-      newMemos[key] = memoText.trim();
-    } else {
-      delete newMemos[key];
-    }
-    setMemos(newMemos);
-    localStorage.setItem(`calendar_memos_${year}_${month}`, JSON.stringify(newMemos));
-    setShowMemoModal(false);
-    setToast('메모가 저장되었습니다.');
-  };
+    loadCalendarMemos(year, month);
+  }, [year, month, loadCalendarMemos]);
 
   useEffect(() => {
     if (toast) {
@@ -507,7 +614,7 @@ export default function Schedule() {
         if (type === 'am' || type === 'pm') {
           setViewMode('employee');
         } else if (type === 'shift') {
-          setViewMode('code');
+          setViewMode('actual');
         }
 
         // 2. 대상 엘리먼트가 렌더링되어 나타날 때까지 폴링 (최대 4초, 100ms 주기로 체크)
@@ -549,8 +656,8 @@ export default function Schedule() {
       (dow === 6)
     );
 
-    const amRaw = scheduleData.supports?.[empId]?.[day]?.am;
-    const pmRaw = scheduleData.supports?.[empId]?.[day]?.pm;
+    const amRaw = mergedScheduleData.supports?.[empId]?.[day]?.am;
+    const pmRaw = mergedScheduleData.supports?.[empId]?.[day]?.pm;
     const am = amRaw && amRaw.length > 0 ? [...amRaw] : [emp?.mainWorkplace || emp?.department || ''];
     const pm = isForceMorningOnly
       ? []
@@ -717,16 +824,9 @@ export default function Schedule() {
     });
   };
 
-  // 초기 상태는 일단 빈 데이터로 시작
-  const [scheduleData, setScheduleData] = useState<ScheduleData>(() => ({
-    year: now.getFullYear(),
-    month: now.getMonth() + 1,
-    employees: [],
-    shifts: {},
-    supports: {},
-  }));
 
-  const [originalDataStr, setOriginalDataStr] = useState<string>('');
+
+
 
   // 로컬 미저장 변경사항 추적: handlePopoverSave 후 API sync가 덮어씌우지 못하도록 보호
   const pendingLocalChanges = useRef<Record<string, Record<number, { am: string[]; pm: string[] }>> | null>(null);
@@ -1131,10 +1231,9 @@ export default function Schedule() {
     let newYear = year;
     if (newMonth > 12) { newMonth = 1; newYear++; }
     if (newMonth < 1) { newMonth = 12; newYear--; }
-    setYear(newYear);
-    setMonth(newMonth);
+    setScheduleYearMonth(newYear, newMonth);
     setFileName('');
-  }, [year, month]);
+  }, [year, month, setScheduleYearMonth]);
 
   // 엑셀 업로드 핸들러
   const handleFileUpload = useCallback((file: File) => {
@@ -1182,8 +1281,7 @@ export default function Schedule() {
           parsed.month = targetMonth;
 
           setScheduleData(parsed);
-          setYear(targetYear);
-          setMonth(targetMonth);
+          setScheduleYearMonth(targetYear, targetMonth);
           setFileName(file.name);
           setShowUploadModal(false);
 
@@ -1329,8 +1427,8 @@ export default function Schedule() {
 
         {/* 중앙: 뷰 전환 탭 */}
         <div className="flex items-center bg-gray-100 p-1 rounded-xl relative overflow-x-auto no-scrollbar order-3 w-full mt-2 md:order-none md:w-auto md:mt-0">
-          {(['code', 'employee', 'room', 'calendar'] as const).map(mode => {
-            const labels = { code: '코드 기준', employee: '직원기준', room: '검실기준', calendar: '개인캘린더' };
+          {(['planned', 'actual', 'employee', 'room', 'calendar'] as const).map(mode => {
+            const labels = { planned: '근무예정표', actual: '근무표', employee: '직원기준', room: '검실기준', calendar: '개인캘린더' };
             const isActive = viewMode === mode;
             return (
               <button
@@ -1410,7 +1508,7 @@ export default function Schedule() {
           }`}
         style={{ marginRight: showVacationModal ? `${vacationDrawerWidth}px` : 0 }}
       >
-        {viewMode === 'code' && (
+        {(viewMode === 'planned' || viewMode === 'actual') && (
           <div className="flex-1 overflow-auto relative bg-white">
             <table className="border-collapse table-fixed w-full min-w-[1000px] h-full text-center text-xs">
               <thead>
@@ -1453,13 +1551,42 @@ export default function Schedule() {
                       let cellBg = '';
                       if (dow === 6) cellBg = 'bg-blue-50/60';
                       if (dow === 0 || isHoliday) cellBg = 'bg-red-50/60';
-                      const shiftCode = scheduleData.shifts[emp.empId]?.[day] || '';
+                      
+                      const activeShifts = viewMode === 'planned' ? scheduleData.shifts : mergedScheduleData.shifts;
+                      const activeSupports = viewMode === 'planned' ? scheduleData.supports : mergedScheduleData.supports;
+                      const shiftCode = activeShifts[emp.empId]?.[day] || '';
+                      
+                      const daySupports = activeSupports?.[emp.empId]?.[day];
+                      const amSupports = daySupports?.am || [];
+                      const pmSupports = daySupports?.pm || [];
+                      const defaultDept = emp.mainWorkplace || emp.department || '';
+
+                      const amSupportList = amSupports.filter((s: string) => s && s !== defaultDept);
+                      const pmSupportList = pmSupports.filter((s: string) => s && s !== defaultDept);
+                      const hasSupport = amSupportList.length > 0 || pmSupportList.length > 0;
+
                       return (
                         <td
                           key={day}
-                          className={`border-r border-gray-100 px-0.5 py-1.5 ${cellBg} align-middle`}
+                          className={`border-r border-gray-100 px-0.5 py-1.5 ${cellBg} align-middle cursor-pointer`}
+                          onClick={(e) => {
+                            // planned 뷰에서도 근무코드 수정은 가능하도록 지원(단, 실제 뷰에서만 연차 등이 결합되어 보임)
+                            if (currentUser.isManager) {
+                              const empSupports = activeSupports?.[emp.empId] || {};
+                              const am = empSupports[day]?.am || [];
+                              const pm = empSupports[day]?.pm || [];
+                              openPopover(e, 'calendar', { empId: emp.empId, empName: emp.name, day, am, pm });
+                            }
+                          }}
                         >
-                          {renderShiftCell(shiftCode)}
+                          <div className="flex flex-col items-center justify-center gap-0.5 min-h-[26px]">
+                            {renderShiftCell(shiftCode)}
+                            {hasSupport && (
+                              <div className="text-[9px] scale-90 font-extrabold px-1 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 rounded leading-none whitespace-nowrap truncate max-w-[34px]" title={`지원: AM(${amSupports.join(',')}) PM(${pmSupports.join(',')})`}>
+                                {amSupportList.length > 0 ? amSupportList[0] : pmSupportList[0]}
+                              </div>
+                            )}
+                          </div>
                         </td>
                       );
                     })}
@@ -1486,10 +1613,10 @@ export default function Schedule() {
             let current: any = null;
 
             for (let day = 1; day <= daysInMonth; day++) {
-              const shiftCode = scheduleData.shifts[empId]?.[day] || '';
+              const shiftCode = mergedScheduleData.shifts[empId]?.[day] || '';
               const off = isFullOff(shiftCode);
-              const amRaw = scheduleData.supports?.[empId]?.[day]?.am;
-              const pmRaw = scheduleData.supports?.[empId]?.[day]?.pm;
+              const amRaw = mergedScheduleData.supports?.[empId]?.[day]?.am;
+              const pmRaw = mergedScheduleData.supports?.[empId]?.[day]?.pm;
               const empObj = scheduleData.employees.find(e => String(e.empId) === String(empId));
               const defaultRoom = getRoomName(empObj?.mainWorkplace || empObj?.department || '');
 
@@ -1504,12 +1631,12 @@ export default function Schedule() {
                 (dow === 6)
               );
 
-              const amSupports = amRaw && amRaw.length > 0 ? amRaw.map(r => getRoomName(r)) : [defaultRoom];
+              const amSupports = amRaw && amRaw.length > 0 ? amRaw.map((r: string) => getRoomName(r)) : [defaultRoom];
               const pmSupports = isForceMorningOnly
                 ? []
                 : (isDefaultMorningOnly && !(pmRaw && pmRaw.length > 0))
                   ? []
-                  : (pmRaw && pmRaw.length > 0 ? pmRaw.map(r => getRoomName(r)) : [defaultRoom]);
+                  : (pmRaw && pmRaw.length > 0 ? pmRaw.map((r: string) => getRoomName(r)) : [defaultRoom]);
               const isSplit = amSupports.length > 1 || pmSupports.length > 1 || amSupports[0] !== pmSupports[0] || pmSupports.length === 0;
 
               if (!current) {
@@ -1884,7 +2011,7 @@ export default function Schedule() {
             const dateInfo = dateInfos[day - 1];
             if (!dateInfo) return [];
             return scheduleData.employees.filter(emp => {
-              const shiftCode = scheduleData.shifts[emp.empId]?.[day] || '';
+              const shiftCode = mergedScheduleData.shifts[emp.empId]?.[day] || '';
               if (isFullOff(shiftCode)) return false;
 
               const isHoliday = dateInfo.dow === 0 || dateInfo.isHoliday;
@@ -1894,17 +2021,17 @@ export default function Schedule() {
 
               const isDefaultMorningOnly = ['M', 'M1', 'MX', 'H', 'HO', 'MO'].includes(shiftCode.toUpperCase().trim()) || (dateInfo.dow === 6);
               if (period === 'am') {
-                const amRaw = scheduleData.supports?.[emp.empId]?.[day]?.am;
+                const amRaw = mergedScheduleData.supports?.[emp.empId]?.[day]?.am;
                 const amSupports = amRaw && amRaw.length > 0 ? amRaw : [emp.mainWorkplace || emp.department];
-                return amSupports.some(dept => getFullRoomName(dept) === roomName);
+                return amSupports.some((dept: string) => getFullRoomName(dept) === roomName);
               } else {
-                const pmRaw = scheduleData.supports?.[emp.empId]?.[day]?.pm;
+                const pmRaw = mergedScheduleData.supports?.[emp.empId]?.[day]?.pm;
                 const pmSupports = isForceMorningOnly
                   ? []
                   : (isDefaultMorningOnly && !(pmRaw && pmRaw.length > 0))
                     ? []
                     : (pmRaw && pmRaw.length > 0 ? pmRaw : [emp.mainWorkplace || emp.department]);
-                return pmSupports.some(dept => getFullRoomName(dept) === roomName);
+                return pmSupports.some((dept: string) => getFullRoomName(dept) === roomName);
               }
             });
           };
@@ -1926,7 +2053,7 @@ export default function Schedule() {
 
               const shiftCodes: Record<string, string> = {};
               workingEmps.forEach(emp => {
-                shiftCodes[emp.empId] = scheduleData.shifts[emp.empId]?.[day] || '';
+                shiftCodes[emp.empId] = mergedScheduleData.shifts[emp.empId]?.[day] || '';
               });
 
               if (!current) {
@@ -2149,347 +2276,16 @@ export default function Schedule() {
           );
         })()}
 
-        {viewMode === 'calendar' && (() => {
-          const firstDay = new Date(year, month - 1, 1).getDay();
-          const totalCells = Math.ceil((daysInMonth + firstDay) / 7) * 7;
-          const cells = Array.from({ length: totalCells }, (_, i) => {
-            const d = i - firstDay + 1;
-            if (d > 0 && d <= daysInMonth) return dateInfos[d - 1];
-            return null;
-          });
-
-          const displayEmployees = calendarEmpId === 'all'
-            ? scheduleData.employees
-            : (() => {
-              const selectedEmp = scheduleData.employees.find(e => String(e.empId) === String(calendarEmpId));
-              if (!selectedEmp) return [];
-              const targetWorkplace = selectedEmp.mainWorkplace || selectedEmp.department;
-              return scheduleData.employees
-                .filter(e => (e.mainWorkplace || e.department) === targetWorkplace)
-                .sort((a, b) => {
-                  if (String(a.empId) === String(calendarEmpId)) return -1;
-                  if (String(b.empId) === String(calendarEmpId)) return 1;
-                  return 0;
-                });
-            })();
-
-          return (
-            <div className="flex-1 flex overflow-hidden bg-white relative">
-              {/* 왼쪽 직원 리스트 탭 */}
-              <div className="w-[150px] shrink-0 bg-white border-r border-gray-200 overflow-hidden flex flex-col z-10">
-                <div className="bg-gray-50 border-b border-gray-200 px-3 py-2 flex items-center justify-center shrink-0 h-[35px]">
-                  <h3 className="font-bold text-gray-500 text-[11px]">직원 정보</h3>
-                </div>
-                <div className="flex-1 overflow-y-auto p-1.5 space-y-1 no-scrollbar">
-                  <button
-                    onClick={() => setCalendarEmpId('all')}
-                    className={`w-full text-center px-3 py-2 rounded-lg text-[11px] font-bold transition-all ${calendarEmpId === 'all'
-                      ? 'bg-primary-50 text-primary-700 ring-1 ring-primary-200 shadow-sm'
-                      : 'text-gray-600 hover:bg-gray-50'
-                      }`}
-                  >
-                    전체 직원
-                  </button>
-                  {scheduleData.employees.map(emp => (
-                    <button
-                      key={emp.empId}
-                      onClick={() => setCalendarEmpId(emp.empId)}
-                      className={`w-full px-1.5 py-2 rounded-lg transition-all ${calendarEmpId === emp.empId
-                        ? 'bg-primary-50 ring-1 ring-primary-200 shadow-sm'
-                        : 'hover:bg-gray-50'
-                        }`}
-                    >
-                      <div className="grid grid-cols-[36px_1fr] gap-1 items-center w-full">
-                        <span className={`inline-block text-[9px] font-bold px-1 py-0.5 rounded border text-center truncate ${getDeptColor(emp.mainWorkplace || emp.department)}`}>{emp.mainWorkplace || emp.department}</span>
-                        <span className={`font-bold text-[11px] text-center truncate ${calendarEmpId === emp.empId ? 'text-primary-800' : 'text-gray-900'}`}>{emp.name}</span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* 메인 캘린더 영역 */}
-              <div className="flex-1 flex flex-col bg-white overflow-hidden relative">
-                {/* 요일 헤더 */}
-                <div className="grid grid-cols-7 border-b border-gray-200 bg-gray-50 shrink-0 h-[35px]">
-                  {DAY_NAMES.map((d, i) => {
-                    let dayBg = 'bg-gray-50';
-                    let textClass = 'text-gray-700';
-                    if (i === 0) { dayBg = 'bg-red-50/40'; textClass = 'text-red-600'; }
-                    else if (i === 6) { dayBg = 'bg-blue-50/40'; textClass = 'text-blue-700'; }
-                    return (
-                      <div key={d} className={`py-2 text-center text-[11px] font-bold border-r border-gray-200 flex items-center justify-center ${dayBg} ${textClass}`}>
-                        {d}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* 달력 날짜 본문 */}
-                <div className="flex-1 bg-gray-50 relative overflow-hidden">
-                  <div
-                    className="grid grid-cols-7 h-full w-full"
-                    style={{ gridTemplateRows: `repeat(${totalCells / 7}, minmax(0, 1fr))` }}
-                  >
-                    {cells.map((info, idx) => {
-                      if (!info) return <div key={`empty-${idx}`} className="border-r border-b border-gray-100 bg-white" />;
-
-                      let cellBg = 'bg-white border-t-2 border-t-transparent';
-                      let textCol = 'text-gray-700';
-                      if (info.dow === 6) {
-                        cellBg = 'bg-blue-50/30 border-t-2 border-t-blue-300/80';
-                        textCol = 'text-blue-700';
-                      }
-                      if (info.dow === 0 || info.isHoliday) {
-                        cellBg = 'bg-red-50/30 border-t-2 border-t-red-300/80';
-                        textCol = 'text-red-600';
-                      }
-
-                      return (
-                        <div
-                          key={info.day}
-                          className={`border-r border-b border-gray-100 ${cellBg} p-1.5 flex flex-col gap-1 overflow-hidden ${calendarEmpId !== 'all' ? 'cursor-pointer hover:bg-gray-100/50' : ''}`}
-                          onClick={() => {
-                            if (calendarEmpId !== 'all') {
-                              if (String(calendarEmpId) !== String(currentUser.employeeId)) {
-                                setToast('본인의 달력에만 메모를 입력할 수 있습니다.');
-                                return;
-                              }
-                              setSelectedMemoEmpId(calendarEmpId);
-                              setSelectedMemoDay(info.day);
-                              setMemoText(memos[`${calendarEmpId}_${info.day}`] || '');
-                              setShowMemoModal(true);
-                            }
-                          }}
-                        >
-                          <div className="flex items-center gap-1.5 shrink-0 mb-1.5 pointer-events-none">
-                            <span className={`text-sm font-black ${textCol}`}>{info.day}</span>
-                            {info.isHoliday && (
-                              <span
-                                className="text-[9px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-black whitespace-nowrap"
-                                title={info.holidayName!}
-                              >
-                                {info.holidayName}
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex-1 overflow-y-auto flex flex-col items-start gap-1 no-scrollbar min-h-0">
-                            <div className="flex flex-col items-stretch gap-1 w-fit">
-                              {displayEmployees.map(emp => {
-                                const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(info.day).padStart(2, '0')}`;
-                                const approvedVacation = approvedVacationsMap[`${emp.empId}_${dateStr}`];
-
-                                if (calendarEmpId === 'all') {
-                                  // 전체 직원 모드: 승인된 연차 내역이 있는 사람만 표시
-                                  if (!approvedVacation) return null;
-                                }
-
-                                const shift = scheduleData.shifts[emp.empId]?.[info.day] || '';
-                                const normalizedShift = shift?.toUpperCase().trim();
-
-                                // [개별 직원 모드 전용 필터 적용]
-                                if (calendarEmpId !== 'all') {
-                                  const upperShift = shift?.toUpperCase().trim();
-                                  const isOff = upperShift === 'OFF' || !upperShift;
-                                  const isHolidayOrSunday = info.dow === 0 || info.isHoliday;
-                                  const isSaturday = info.dow === 6;
-                                  const isWeekday = !isHolidayOrSunday && !isSaturday;
-
-                                  if (approvedVacation) {
-                                    // 연차/반차 표시
-                                  } else if (isHolidayOrSunday) {
-                                    // 일요일/공휴일은 OFF가 아닌 당직 등만 표시
-                                    if (isOff) return null;
-                                  } else if (isSaturday) {
-                                    // 토요일은 OFF가 아닌 토요 근무만 표시
-                                    if (isOff) return null;
-                                  } else if (isWeekday) {
-                                    // 평일은 오직 HO 근무만 표시 (D 및 OFF 제거)
-                                    if (upperShift !== 'HO') return null;
-                                  }
-                                }
-
-                                const off = isFullOff(shift);
-                                const isHoliday = info.dow === 0 || info.isHoliday;
-                                const isHolidayHo = isHoliday && normalizedShift === 'HO';
-                                const isSatM = info.dow === 6 && normalizedShift === 'M';
-                                const isForceMorningOnly = isHolidayHo || isSatM;
-
-                                const isDefaultMorningOnly = !off && (
-                                  ['M', 'M1', 'MX', 'H', 'HO', 'MO'].includes(normalizedShift) ||
-                                  (info.dow === 6)
-                                );
-
-                                const amRaw = scheduleData.supports?.[emp.empId]?.[info.day]?.am;
-                                const pmRaw = scheduleData.supports?.[emp.empId]?.[info.day]?.pm;
-                                const amSupports: string[] = amRaw && amRaw.length > 0 ? amRaw.map(r => getRoomName(r)) : [getRoomName(emp.mainWorkplace || emp.department)];
-                                const pmSupports: string[] = isForceMorningOnly
-                                  ? []
-                                  : (isDefaultMorningOnly && !(pmRaw && pmRaw.length > 0))
-                                    ? []
-                                    : (pmRaw && pmRaw.length > 0 ? pmRaw.map(r => getRoomName(r)) : [getRoomName(emp.mainWorkplace || emp.department)]);
-
-                                // 휴가 뱃지 스타일 정의
-                                let vacBadgeStyle = "";
-                                let vacLabel = "";
-                                if (approvedVacation) {
-                                  const vacType = approvedVacation.vacationType;
-                                  if (vacType === '종일연차') {
-                                    vacBadgeStyle = "bg-rose-50 text-rose-600 border-rose-100";
-                                    vacLabel = "연차";
-                                  } else if (vacType === '오전반차') {
-                                    vacBadgeStyle = "bg-sky-50 text-sky-600 border-sky-100";
-                                    vacLabel = "오전반";
-                                  } else if (vacType === '오후반차') {
-                                    vacBadgeStyle = "bg-sky-50 text-sky-600 border-sky-100";
-                                    vacLabel = "오후반";
-                                  } else {
-                                    vacBadgeStyle = "bg-rose-50 text-rose-600 border-rose-100";
-                                    vacLabel = vacType;
-                                  }
-                                }
-
-                                // 일반 근무 코드 배지 스타일
-                                let shiftBadgeStyle = "bg-gray-50 text-gray-400 border-gray-200";
-                                let showCode = shift || 'OFF';
-                                const upperShift = shift?.toUpperCase().trim();
-                                if (upperShift && SHIFT_CODES[upperShift]) {
-                                  const sInfo = SHIFT_CODES[upperShift];
-                                  shiftBadgeStyle = `${sInfo.bg} ${sInfo.color} ${sInfo.border}`;
-                                } else if (upperShift === 'OFF' || !upperShift) {
-                                  shiftBadgeStyle = "bg-gray-50 text-gray-400 border-gray-200";
-                                  showCode = 'OFF';
-                                } else {
-                                  shiftBadgeStyle = "bg-pink-50 text-pink-600 border-pink-100";
-                                }
-
-                                // 지원 여부 및 지원 근무지 구하기
-                                const origDept = emp.mainWorkplace || emp.department || '';
-                                const isAmSupport = amSupports.length > 0 && amSupports[0] !== getRoomName(origDept);
-                                const isPmSupport = pmSupports.length > 0 && pmSupports[0] !== getRoomName(origDept);
-                                const supportDept = isAmSupport
-                                  ? amSupports[0]
-                                  : (isPmSupport ? pmSupports[0] : null);
-
-                                const isSelf = calendarEmpId !== 'all' && String(emp.empId) === String(calendarEmpId);
-                                const cardClass = isSelf
-                                  ? "ring-1 ring-blue-200 border-blue-300 bg-blue-50 shadow-sm font-extrabold"
-                                  : "border-gray-100 bg-gray-50 hover:bg-gray-100/50 hover:border-gray-200";
-                                const memoContent = memos[`${emp.empId}_${info.day}`];
-
-                                return (
-                                  <div
-                                    key={emp.empId}
-                                    className={`flex flex-col gap-1 px-2 py-1.5 rounded-lg border text-[11px] transition-all cursor-pointer select-none ${cardClass}`}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      if (isSaving) {
-                                        setToast('저장 중에는 수정할 수 없습니다.');
-                                        return;
-                                      }
-                                      const { am, pm } = getPopoverSupports(emp.empId, info.day);
-                                      openPopover(e, 'calendar', { empId: emp.empId, empName: emp.name, day: info.day, am, pm });
-                                    }}
-                                  >
-                                    <div className="flex items-center justify-between gap-1 w-full">
-                                      {/* 왼쪽: 직원 이름 */}
-                                      <span className={`truncate leading-none ${isSelf ? 'text-blue-900 font-black text-xs' : 'text-gray-700 font-bold'}`}>
-                                        {emp.name}
-                                      </span>
-
-                                      {/* 오른쪽: 근무/휴가 배지 및 지원처 */}
-                                      <div className="flex items-center gap-1 shrink-0">
-                                        {approvedVacation ? (
-                                          <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black border leading-none shrink-0 ${vacBadgeStyle}`}>
-                                            {vacLabel}
-                                          </span>
-                                        ) : (
-                                          <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black border leading-none shrink-0 ${shiftBadgeStyle}`}>
-                                            {showCode}
-                                          </span>
-                                        )}
-
-                                        {/* 지원 근무지 노출 */}
-                                        {supportDept && (
-                                          <span className="text-[8px] bg-accent-50 text-accent-700 border border-accent-100 px-1 py-0.5 rounded-md font-bold shrink-0 leading-none">
-                                            지원: {supportDept}
-                                          </span>
-                                        )}
-                                      </div>
-                                    </div>
-
-                                  </div>
-                                );
-                              })}
-
-                              {/* 독립적인 메모 영역 (직원 카드가 필터링되어도 보임) */}
-                              {displayEmployees.map(emp => {
-                                const memoContent = memos[`${emp.empId}_${info.day}`];
-                                if (!memoContent) return null;
-                                return (
-                                  <div key={`memo-${emp.empId}`} className="mt-0.5 text-[10px] text-gray-600 bg-blue-50/60 px-1.5 py-1 rounded border border-blue-100 truncate w-full shadow-sm">
-                                    <span className="text-blue-500 font-bold mr-1">📝 {emp.name}:</span>
-                                    {memoContent}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-        })()}
+        {viewMode === 'calendar' && (
+          <PersonalCalendar
+            scheduleData={mergedScheduleData}
+            isSaving={isSaving}
+            openPopover={openPopover}
+            getPopoverSupports={getPopoverSupports}
+            showToast={setToast}
+          />
+        )}
       </div>
-
-      {/* ── 메모 입력 모달 ── */}
-      {showMemoModal && (
-        <>
-          <div className="fixed inset-0 bg-black/30 z-50" onClick={() => setShowMemoModal(false)} />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-                <h3 className="font-bold text-gray-900 text-sm flex items-center gap-2">
-                  <Edit2 className="w-4 h-4 text-blue-500" /> 메모 입력
-                </h3>
-                <button onClick={() => setShowMemoModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="p-5">
-                <p className="text-xs text-gray-500 mb-3 font-bold">
-                  {selectedMemoDay}일 - {scheduleData.employees.find(e => e.empId === selectedMemoEmpId)?.name}
-                </p>
-                <textarea
-                  autoFocus
-                  value={memoText}
-                  onChange={(e) => setMemoText(e.target.value)}
-                  placeholder="메모를 입력하세요..."
-                  className="w-full h-24 border border-gray-200 rounded-xl p-3 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none resize-none"
-                />
-                <div className="flex justify-end gap-2 mt-4">
-                  <button
-                    onClick={() => setShowMemoModal(false)}
-                    className="px-4 py-2 text-xs font-bold text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200"
-                  >
-                    취소
-                  </button>
-                  <button
-                    onClick={saveMemo}
-                    className="px-4 py-2 text-xs font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700"
-                  >
-                    저장
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
 
       {/* ── 엑셀 업로드 모달 ── */}
       {showUploadModal && (

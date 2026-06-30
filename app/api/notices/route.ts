@@ -25,15 +25,6 @@ export async function GET() {
         comments = [];
       }
 
-      let likes: string[] = [];
-      try {
-        likes = typeof row.likes === 'string'
-          ? JSON.parse(row.likes)
-          : (row.likes || []);
-      } catch {
-        likes = [];
-      }
-
       let readBy: string[] = [];
       if (typeof row.readBy === 'string' && row.readBy.trim() !== '') {
         readBy = row.readBy.split(',').map((x: string) => x.trim()).filter(Boolean);
@@ -50,8 +41,8 @@ export async function GET() {
         category: row.category || '',
         isImportant: String(row.isImportant).toUpperCase() === 'TRUE',
         comments,
-        likes,
         readBy,
+        targetDepartment: row.targetDepartment || '',
       };
     });
 
@@ -76,7 +67,7 @@ export async function POST(req: Request) {
       category: body.category || '',
       isImportant: body.isImportant || false,
       comments: body.comments || [],
-      likes: body.likes || [],
+      targetDepartment: body.targetDepartment || '',
     });
 
     invalidateCache(CACHE_KEY);
@@ -101,7 +92,7 @@ export async function POST(req: Request) {
       category: body.category || '',
       isImportant: body.isImportant || false,
       comments: body.comments || [],
-      likes: body.likes || [],
+      targetDepartment: body.targetDepartment || '',
     });
   } catch (error) {
     console.error('[API /notices POST] Error:', error);
@@ -121,8 +112,8 @@ export async function PUT(req: Request) {
         content: body.content,
         isImportant: body.isImportant,
         comments: body.comments,
-        likes: body.likes,
         category: body.category,
+        targetDepartment: body.targetDepartment,
       });
     } else if (action === 'markAsRead') {
       await gasPost('markAsRead', {

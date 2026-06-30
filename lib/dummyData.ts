@@ -14,8 +14,8 @@ export interface Notice {
   category: string; // 목적별 카테고리
   isImportant?: boolean;
   comments?: Comment[];
-  likes?: string[];
   readBy?: string[];
+  targetDepartment?: string;
 }
 
 export interface Handover {
@@ -31,7 +31,6 @@ export interface Handover {
   mainWorkplace?: string;
   isApproved?: string;
   comments?: Comment[];
-  likes?: string[];
   readBy?: string[];
 }
 
@@ -58,7 +57,6 @@ export interface EquipmentIssue {
   category: '의료장비 고장' | '연동프로그램' | '소모품';
   isApproved?: boolean;
   comments?: Comment[];
-  likes?: string[];
   readBy?: string[];
 }
 

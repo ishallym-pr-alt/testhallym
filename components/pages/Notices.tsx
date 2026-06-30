@@ -1,5 +1,5 @@
 import { useStore } from '@/store/useStore';
-import { Search, Calendar, User, Pencil, Trash2, Plus, Pin, AlertCircle, Check, Heart, MessageCircle } from 'lucide-react';
+import { Search, Calendar, User, Pencil, Trash2, Plus, Pin, AlertCircle, Check, MessageCircle, ChevronDown } from 'lucide-react';
 import { Notice } from '@/lib/dummyData';
 import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
@@ -11,7 +11,7 @@ export default function Notices() {
     currentUser, addNotice, editNotice, deleteNotice, 
     highlightedItemId, setHighlightedItemId, highlightedItemIds, removeHighlightedItemId,
     noticeDrawerMode, selectedNotice, setNoticeDrawerMode,
-    addComment, toggleLike, isLoading, markAsRead
+    addComment, isLoading, markAsRead, workplaces, employees
   } = useStore();
 
   const [mounted, setMounted] = useState(false);
@@ -20,6 +20,9 @@ export default function Notices() {
   const [isDragging, setIsDragging] = useState(false);
   const [expandedReplies, setExpandedReplies] = useState<Record<number, boolean>>({});
   const [commentInput, setCommentInput] = useState('');
+  
+  // Sub-tab selection state for "검사실별 공지"
+  const [subCategory, setSubCategory] = useState('전체');
 
   const currentNotice = useMemo(() => {
     if (!selectedNotice) return null;
@@ -31,10 +34,18 @@ export default function Notices() {
   const [formContent, setFormContent] = useState('');
   const [formCategory, setFormCategory] = useState('');
   const [formIsImportant, setFormIsImportant] = useState(false);
+  const [formTargetDepartment, setFormTargetDepartment] = useState('');
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Reset subcategory selection when switching main notice category
+  useEffect(() => {
+    if (currentNoticeCategory !== '검사실별 공지') {
+      setSubCategory('전체');
+    }
+  }, [currentNoticeCategory]);
 
   // Update form states when drawer opens
   useEffect(() => {
@@ -43,11 +54,13 @@ export default function Notices() {
       setFormContent('');
       setFormCategory('기능검사팀 공지');
       setFormIsImportant(false);
+      setFormTargetDepartment('');
     } else if (noticeDrawerMode === 'edit' && currentNotice) {
       setFormTitle(currentNotice.title);
       setFormContent(currentNotice.content);
       setFormCategory(currentNotice.category || '기능검사팀 공지');
       setFormIsImportant(currentNotice.isImportant || false);
+      setFormTargetDepartment(currentNotice.targetDepartment || '');
     }
   }, [noticeDrawerMode, currentNotice, currentUser.mainWorkplace]);
 
@@ -127,11 +140,27 @@ export default function Notices() {
     }
   }, [highlightedItemId, notices]);
 
+  // Calculate unread employees
+  const getUnreadEmployees = (n: Notice) => {
+    const readUsers = n.readBy || [];
+    const activeEmps = (employees || []).filter(e => !e.isRetired);
+    
+    let targetEmps = activeEmps;
+    if (n.targetDepartment) {
+      targetEmps = activeEmps.filter(e => e.mainWorkplace === n.targetDepartment);
+    }
+    
+    return targetEmps.filter(e => !readUsers.includes(e.name)).map(e => e.name);
+  };
+
   const filteredNotices = useMemo(() => {
     return notices
       .filter(n => {
         if (currentNoticeCategory !== '전체') {
           if (n.category !== currentNoticeCategory) return false;
+          if (currentNoticeCategory === '검사실별 공지' && subCategory !== '전체') {
+            if (n.targetDepartment !== subCategory) return false;
+          }
         }
         const query = noticeSearchQuery.trim().toLowerCase();
         if (!query) return true;
@@ -149,7 +178,7 @@ export default function Notices() {
         }
         return b.date.localeCompare(a.date);
       });
-  }, [notices, currentNoticeCategory, noticeSearchQuery]);
+  }, [notices, currentNoticeCategory, subCategory, noticeSearchQuery]);
 
   const isAllActive = currentNoticeCategory === '전체';
 
@@ -172,13 +201,15 @@ export default function Notices() {
         date: formatDateTime(new Date()),
         category: formCategory,
         isImportant: formIsImportant,
+        targetDepartment: formCategory === '검사실별 공지' ? formTargetDepartment : '',
       });
     } else if (noticeDrawerMode === 'edit' && selectedNotice) {
       editNotice(selectedNotice.id, { 
         title: formTitle, 
         content: formContent,
         category: formCategory,
-        isImportant: formIsImportant
+        isImportant: formIsImportant,
+        targetDepartment: formCategory === '검사실별 공지' ? formTargetDepartment : '',
       });
     }
     setNoticeDrawerMode(null);
@@ -254,20 +285,46 @@ export default function Notices() {
           
           <div className="p-5 flex flex-col flex-1 min-h-0 overflow-y-auto custom-scrollbar space-y-4">
              <form onSubmit={handleEditSubmit} className="space-y-4">
-                <div className="flex flex-wrap gap-2 mb-1">
-                  <select 
-                    value={formCategory} 
-                    onChange={e => setFormCategory(e.target.value)} 
-                    disabled={!isFormEditable}
-                    className="px-3.5 py-2 bg-blue-50 rounded-lg text-base font-bold text-blue-600 outline-none cursor-pointer border border-transparent hover:border-blue-300 focus:border-blue-500 transition-colors appearance-none text-center disabled:opacity-80" 
-                    required
-                  >
-                    <option value="기능검사팀 공지">기능검사팀 공지</option>
-                    <option value="검사실별 공지">검사실별 공지</option>
-                    <option value="병원 공지">병원 공지</option>
-                    <option value="감염관리">감염관리</option>
-                    <option value="건의사항">건의사항</option>
-                  </select>
+                <div className="flex flex-col gap-3 mb-1">
+                  <div className="relative w-fit">
+                    <select 
+                      value={formCategory} 
+                      onChange={e => setFormCategory(e.target.value)} 
+                      disabled={!isFormEditable}
+                      className="px-3.5 py-2 bg-blue-50 rounded-lg text-base font-bold text-blue-600 outline-none cursor-pointer border border-transparent hover:border-blue-300 focus:border-blue-500 transition-colors appearance-none text-center disabled:opacity-80 pr-8" 
+                      required
+                    >
+                      <option value="기능검사팀 공지">기능검사팀 공지</option>
+                      <option value="검사실별 공지">검사실별 공지</option>
+                      <option value="병원 공지">병원 공지</option>
+                      <option value="감염관리">감염관리</option>
+                      <option value="건의사항">건의사항</option>
+                    </select>
+                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-600 pointer-events-none" />
+                  </div>
+
+                  {formCategory === '검사실별 공지' && (
+                    <div className="space-y-1.5 flex flex-col min-w-0">
+                      <label className="block text-sm font-bold text-gray-700">대상 검사실</label>
+                      <div className="relative">
+                        <select 
+                          required 
+                          value={formTargetDepartment} 
+                          onChange={e => setFormTargetDepartment(e.target.value)} 
+                          disabled={!isFormEditable}
+                          className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:border-[#004b8d] focus:bg-white focus:ring-4 focus:ring-[#004b8d]/10 transition-all outline-none text-sm font-medium appearance-none cursor-pointer disabled:opacity-80 pr-8"
+                        >
+                          <option value="" disabled>대상 검사실을 선택하세요</option>
+                          {workplaces.filter(w => w.id !== '전체').map(workplace => (
+                            <option key={workplace.id} value={workplace.name}>
+                              {workplace.floor} - {workplace.name}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                      </div>
+                    </div>
+                  )}
                 </div>
                 
                 {isFormEditable ? (
@@ -297,6 +354,30 @@ export default function Notices() {
                 ) : (
                   <div className="w-full bg-gray-50 p-4 rounded-xl text-lg text-gray-700 whitespace-pre-wrap leading-relaxed border border-gray-100 min-h-[140px]">
                     {formContent}
+                  </div>
+                )}
+
+                {/* 확인자 목록 및 미확인 직원 목록 (드로어 내 보기 모드일 때 렌더링) */}
+                {!isFormEditable && currentNotice && (
+                  <div className="space-y-2 bg-gray-50/50 p-3.5 rounded-xl border border-gray-100 text-sm">
+                    <div className="flex flex-wrap gap-1.5 items-center">
+                      <span className="font-semibold text-gray-600">확인한 직원:</span>
+                      <span className="text-gray-500">
+                        {currentNotice.readBy && currentNotice.readBy.length > 0 
+                          ? currentNotice.readBy.join(', ') 
+                          : '없음'}
+                      </span>
+                    </div>
+                    {currentUser.isManager && (
+                      <div className="flex flex-wrap gap-1.5 items-center">
+                        <span className="font-semibold text-red-600">미확인 직원:</span>
+                        <span className="text-red-500">
+                          {getUnreadEmployees(currentNotice).length > 0 
+                            ? getUnreadEmployees(currentNotice).join(', ') 
+                            : '없음 (전원 확인 완료)'}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
                 
@@ -358,55 +439,55 @@ export default function Notices() {
 
              {noticeDrawerMode === 'edit' && currentNotice && (
                <div className="border-t border-gray-100 pt-4 mt-2 space-y-4">
-                 <h5 className="font-bold text-gray-900 mb-2 flex items-center gap-2 text-lg">
-                   <span>댓글</span>
-                   <span className="bg-gray-100 text-gray-600 px-2.5 py-0.5 rounded-full text-sm">
-                     {currentNotice.comments?.length || 0}
-                   </span>
-                 </h5>
-                 <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1.5 custom-scrollbar">
-                   {currentNotice.comments?.map(c => (
-                     <div key={c.id} className="bg-gray-50 p-3 rounded-xl border border-gray-100">
-                       <div className="flex justify-between items-center mb-1">
-                         <span className="font-bold text-sm text-gray-900 flex items-center gap-1.5">
-                           <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs text-gray-500 font-bold">{c.author[0]}</div>
-                           {c.author}
-                         </span>
-                         <span className="text-xs text-gray-400">{formatDateTime(c.date)}</span>
-                       </div>
-                       <p className="text-base text-gray-700 leading-relaxed pl-7.5 break-all">{c.content}</p>
-                     </div>
-                   ))}
-                   {(!currentNotice.comments || currentNotice.comments.length === 0) && (
-                     <div className="text-center py-4 bg-gray-50 rounded-xl border border-gray-100 border-dashed">
-                       <p className="text-base text-gray-400">등록된 댓글이 없습니다.<br/>첫 댓글을 남겨보세요!</p>
-                     </div>
-                   )}
-                 </div>
-                 
-                 <div className="flex gap-2">
-                   <input 
-                     type="text" 
-                     id="notice-comment-input"
-                     value={commentInput} 
-                     onChange={e => setCommentInput(e.target.value)} 
-                     onKeyDown={e => {
-                       if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
-                         e.preventDefault();
-                         handleCommentSubmit(currentNotice.id);
-                       }
-                     }}
-                     placeholder="댓글을 입력하세요..." 
-                     className="flex-1 border border-gray-200 rounded-xl px-3.5 py-2.5 text-base focus:border-[#004b8d] focus:ring-2 focus:ring-[#004b8d]/20 outline-none transition-all bg-gray-50 focus:bg-white"
-                   />
-                   <button 
-                     type="button"
-                     onClick={() => handleCommentSubmit(currentNotice.id)} 
-                     className="px-5 py-2.5 bg-[#004b8d] text-base font-bold text-white rounded-xl hover:bg-[#003c71] transition-all shadow-md active:scale-95 whitespace-nowrap"
-                   >
-                     등록
-                   </button>
-                 </div>
+                  <h5 className="font-bold text-gray-900 mb-2 flex items-center gap-2 text-lg">
+                    <span>댓글</span>
+                    <span className="bg-gray-100 text-gray-600 px-2.5 py-0.5 rounded-full text-sm">
+                      {currentNotice.comments?.length || 0}
+                    </span>
+                  </h5>
+                  <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1.5 custom-scrollbar">
+                    {currentNotice.comments?.map(c => (
+                      <div key={c.id} className="bg-gray-50 p-3 rounded-xl border border-gray-100">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="font-bold text-sm text-gray-900 flex items-center gap-1.5">
+                            <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs text-gray-500 font-bold">{c.author[0]}</div>
+                            {c.author}
+                          </span>
+                          <span className="text-xs text-gray-400">{formatDateTime(c.date)}</span>
+                        </div>
+                        <p className="text-base text-gray-700 leading-relaxed pl-7.5 break-all">{c.content}</p>
+                      </div>
+                    ))}
+                    {(!currentNotice.comments || currentNotice.comments.length === 0) && (
+                      <div className="text-center py-4 bg-gray-50 rounded-xl border border-gray-100 border-dashed">
+                        <p className="text-base text-gray-400">등록된 댓글이 없습니다.<br/>첫 댓글을 남겨보세요!</p>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <input 
+                      type="text" 
+                      id="notice-comment-input"
+                      value={commentInput} 
+                      onChange={e => setCommentInput(e.target.value)} 
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                          e.preventDefault();
+                          handleCommentSubmit(currentNotice.id);
+                        }
+                      }}
+                      placeholder="댓글을 입력하세요..." 
+                      className="flex-1 border border-gray-200 rounded-xl px-3.5 py-2.5 text-base focus:border-[#004b8d] focus:ring-2 focus:ring-[#004b8d]/20 outline-none transition-all bg-gray-50 focus:bg-white"
+                    />
+                    <button 
+                      type="button"
+                      onClick={() => handleCommentSubmit(currentNotice.id)} 
+                      className="px-5 py-2.5 bg-[#004b8d] text-base font-bold text-white rounded-xl hover:bg-[#003c71] transition-all shadow-md active:scale-95 whitespace-nowrap"
+                    >
+                      등록
+                    </button>
+                  </div>
                </div>
              )}
           </div>
@@ -425,7 +506,7 @@ export default function Notices() {
     }`}>
       <div className={`flex-1 min-w-0 flex flex-col ${isPinnedActive ? 'py-4 sm:py-6 overflow-y-auto custom-scrollbar' : ''}`}>
         
-        <div id="notice-filter-container" className="mb-5 space-y-2">
+        <div id="notice-filter-container" className="mb-5 space-y-3">
           <div className="flex gap-2 mb-3">
             <div className="flex-1 grid grid-cols-2 gap-2">
               <button onClick={() => setCurrentNoticeCategory('전체')} className={allBaseClass}>
@@ -467,6 +548,35 @@ export default function Notices() {
               );
             })}
           </div>
+
+          {/* "검사실별 공지" 하위의 서브 탭 바 렌더링 */}
+          {currentNoticeCategory === '검사실별 공지' && (
+            <div className="flex gap-2 py-1 overflow-x-auto scroll-smooth no-scrollbar border-t border-gray-100 pt-3">
+              <button
+                onClick={() => setSubCategory('전체')}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${
+                  subCategory === '전체'
+                    ? 'border-[#004b8d] bg-blue-50 text-[#004b8d]'
+                    : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50 hover:border-gray-300'
+                }`}
+              >
+                전체보기
+              </button>
+              {workplaces.filter(w => w.id !== '전체').map(w => (
+                <button
+                  key={w.id}
+                  onClick={() => setSubCategory(w.name)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${
+                    subCategory === w.name
+                      ? 'border-[#004b8d] bg-blue-50 text-[#004b8d]'
+                      : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50 hover:border-gray-300'
+                  }`}
+                >
+                  {w.floor} - {w.name}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="space-y-4 pb-12" id="notice-list-container">
@@ -509,7 +619,7 @@ export default function Notices() {
                   }`}
                 >
                   <div className="flex items-start justify-between gap-4 mb-2">
-                    <div className="flex items-center gap-2 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap min-w-0">
                       {(() => {
                         const getCategoryBadgeClass = (category: string) => {
                           switch (category) {
@@ -528,9 +638,16 @@ export default function Notices() {
                           }
                         };
                         return (
-                          <span className={`px-2 py-0.5 rounded-md border text-xs font-bold whitespace-nowrap ${getCategoryBadgeClass(n.category || '')}`}>
-                            {n.category || '기능검사팀 공지'}
-                          </span>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className={`px-2 py-0.5 rounded-md border text-xs font-bold whitespace-nowrap ${getCategoryBadgeClass(n.category || '')}`}>
+                              {n.category || '기능검사팀 공지'}
+                            </span>
+                            {n.category === '검사실별 공지' && n.targetDepartment && (
+                              <span className="px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200 text-xs font-bold whitespace-nowrap">
+                                🎯 {n.targetDepartment}
+                              </span>
+                            )}
+                          </div>
                         );
                       })()}
                       {n.isImportant && (
@@ -557,30 +674,58 @@ export default function Notices() {
                     <span className="flex items-center gap-1"><User className="w-3.5 h-3.5" />{n.author}</span>
                   </div>
 
-                  {/* 하트 & 말풍선 인터랙션 바 */}
-                  <div className="flex items-center gap-4 mt-3 pt-3 border-t border-gray-50" onClick={e => e.stopPropagation()}>
-                    <button 
-                      onClick={() => toggleLike('notice', n.id, currentUser.name)}
-                      className={`flex items-center gap-1.5 text-xs font-bold transition-all ${
-                        n.likes?.includes(currentUser.name) 
-                          ? 'text-red-500 scale-110' 
-                          : 'text-gray-400 hover:text-red-500'
-                      }`}
-                    >
-                      <Heart className={`w-4 h-4 ${n.likes?.includes(currentUser.name) ? 'fill-current' : ''}`} />
-                      <span>{n.likes?.length || 0}</span>
-                    </button>
-                    <button 
-                      onClick={(e) => handleCommentIconClick(n, e)}
-                      className="flex items-center gap-1.5 text-xs font-bold text-gray-400 hover:text-blue-500 transition-colors"
-                    >
-                      <MessageCircle className="w-4 h-4" />
-                      <span>{n.comments?.length || 0}</span>
-                    </button>
+                  {/* 확인 여부 및 말풍선 인터랙션 바 */}
+                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center gap-4">
+                      {!n.readBy?.includes(currentUser.name) ? (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            markAsRead('notice', n.id, currentUser.name);
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 text-xs font-bold transition-all flex items-center gap-1 active:scale-95 border border-blue-100"
+                        >
+                          <Check className="w-3.5 h-3.5" strokeWidth={3} />
+                          확인
+                        </button>
+                      ) : (
+                        <span className="text-xs text-gray-400 font-bold flex items-center gap-1">
+                          <Check className="w-3.5 h-3.5 text-gray-400" strokeWidth={3} />
+                          확인완료
+                        </span>
+                      )}
+                      <button 
+                        onClick={(e) => handleCommentIconClick(n, e)}
+                        className="flex items-center gap-1.5 text-xs font-bold text-gray-400 hover:text-blue-500 transition-colors"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                        <span>{n.comments?.length || 0}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 읽음 확인 명단 및 미확인 직원 목록 출력 */}
+                  <div className="mt-3.5 space-y-1.5 border-t border-gray-100/50 pt-2.5" onClick={e => e.stopPropagation()}>
+                    <div className="text-xs text-gray-500 flex flex-wrap gap-1.5 items-center">
+                      <span className="font-semibold text-gray-600">확인한 직원:</span>
+                      <span className="text-gray-500">
+                        {n.readBy && n.readBy.length > 0 ? n.readBy.join(', ') : '없음'}
+                      </span>
+                    </div>
+                    {currentUser.isManager && (
+                      <div className="text-xs text-red-500 flex flex-wrap gap-1.5 items-center">
+                        <span className="font-semibold text-red-600">미확인 직원:</span>
+                        <span className="text-red-500">
+                          {getUnreadEmployees(n).length > 0 
+                            ? getUnreadEmployees(n).join(', ') 
+                            : '없음 (전원 확인 완료)'}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* 스레드식 답글 목록 */}
-                  {((n.comments && n.comments.length > 0) || (n.likes && n.likes.length > 0)) && (
+                  {(n.comments && n.comments.length > 0) && (
                     <div className="mt-4 pt-3 border-t border-gray-100/50" onClick={e => e.stopPropagation()}>
                       {/* 작성자 댓글 기본 노출 */}
                       {(() => {

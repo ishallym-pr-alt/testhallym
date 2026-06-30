@@ -12,7 +12,7 @@ export default function Handovers() {
     highlightedItemId, setHighlightedItemId, highlightedItemIds, removeHighlightedItemId, 
     employees, currentDepartment, workplaces, currentRoom, setCurrentRoom,
     handoverDrawerMode, selectedHandover, setHandoverDrawerMode,
-    addComment, toggleLike, isLoading, markAsRead
+    addComment, isLoading, markAsRead
   } = useStore();
 
   const [mounted, setMounted] = useState(false);
@@ -634,19 +634,8 @@ export default function Handovers() {
           </div>
         )}
 
-        {/* 하트 & 말풍선 인터랙션 바 */}
+        {/* 말풍선 인터랙션 바 */}
         <div className="flex items-center gap-4 mt-3 pt-3 border-t border-gray-50" onClick={e => e.stopPropagation()}>
-          <button 
-            onClick={() => toggleLike('handover', h.id, currentUser.name)}
-            className={`flex items-center gap-1.5 text-xs font-bold transition-all ${
-              h.likes?.includes(currentUser.name) 
-                ? 'text-red-500 scale-110' 
-                : 'text-gray-400 hover:text-red-500'
-            }`}
-          >
-            <Heart className={`w-4 h-4 ${h.likes?.includes(currentUser.name) ? 'fill-current' : ''}`} />
-            <span>{h.likes?.length || 0}</span>
-          </button>
           <button 
             onClick={(e) => handleCommentIconClick(h, e)}
             className="flex items-center gap-1.5 text-xs font-bold text-gray-400 hover:text-blue-500 transition-colors"
@@ -657,7 +646,7 @@ export default function Handovers() {
         </div>
 
         {/* 스레드식 답글 목록 */}
-        {((h.comments && h.comments.length > 0) || (h.likes && h.likes.length > 0)) && (
+        {(h.comments && h.comments.length > 0) && (
           <div className="mt-4 pt-3 border-t border-gray-100/50" onClick={e => e.stopPropagation()}>
             {/* 작성자 댓글 기본 노출 */}
             {(() => {

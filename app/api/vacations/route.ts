@@ -37,6 +37,7 @@ export async function GET() {
         reason: String(row.reason || ''),
         status: (row.status || '대기') as '대기' | '승인' | '반려',
         createdAt: formatDateTime(row.createdAt),
+        handoverEmpId: String(row.handoverEmpId || ''),
       };
     });
 
@@ -64,6 +65,7 @@ export async function POST(request: Request) {
       reason: body.reason || '',
       status: '대기',
       createdAt: body.createdAt || formatDateTime(new Date()),
+      handoverEmpId: body.handoverEmpId || '',
     });
 
     // 연차 캐시 무효화
@@ -88,6 +90,7 @@ export async function PUT(request: Request) {
         vacationDate: body.vacationDate,
         vacationType: body.vacationType,
         reason: body.reason,
+        handoverEmpId: body.handoverEmpId || '',
       });
     } else {
       // 기존 승인/반려 로직

@@ -24,15 +24,6 @@ export async function GET() {
         comments = [];
       }
 
-      let likes: string[] = [];
-      try {
-        likes = typeof row.likes === 'string'
-          ? JSON.parse(row.likes)
-          : (row.likes || []);
-      } catch {
-        likes = [];
-      }
-
       let readBy: string[] = [];
       if (typeof row.readBy === 'string' && row.readBy.trim() !== '') {
         readBy = row.readBy.split(',').map((x: string) => x.trim()).filter(Boolean);
@@ -53,7 +44,6 @@ export async function GET() {
         mainWorkplace: row.mainWorkplace || '',
         isApproved: row.isApproved || '',
         comments,
-        likes,
         readBy,
       };
     });
@@ -80,7 +70,6 @@ export async function POST(req: Request) {
       title: body.title || '',
       mainWorkplace: body.mainWorkplace || '',
       comments: body.comments || [],
-      likes: body.likes || [],
     });
 
     invalidateCache(CACHE_KEY);
@@ -104,7 +93,6 @@ export async function POST(req: Request) {
       mainWorkplace: body.mainWorkplace || '',
       isApproved: '',
       comments: body.comments || [],
-      likes: body.likes || [],
     });
   } catch (error) {
     console.error('[API /handovers POST] Error:', error);
@@ -130,7 +118,6 @@ export async function PUT(req: Request) {
         title: body.title,
         content: body.content,
         comments: body.comments,
-        likes: body.likes,
       });
     } else if (action === 'markAsRead') {
       await gasPost('markAsRead', {

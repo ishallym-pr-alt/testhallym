@@ -63,7 +63,8 @@ function getHeaderMap(sheetTitle) {
       isImportant: '중요여부',
       comments: '댓글목록',
       likes: '좋아요목록',
-      readBy: '읽은사람목록'
+      readBy: '읽은사람목록',
+      targetDepartment: '대상부서'
     };
   } else if (sheetTitle === SHEETS.handovers) {
     map = {
@@ -141,7 +142,8 @@ function getHeaderMap(sheetTitle) {
       vacationType: '연차구분',
       reason: '사유',
       status: '상태',
-      createdAt: '신청일시'
+      createdAt: '신청일시',
+      handoverEmpId: '인수자사번'
     };
   } else if (sheetTitle === SHEETS.pushSubscriptions) {
     map = {
@@ -186,7 +188,7 @@ function getSheet(sheetTitle) {
   var keys = [];
 
   if (sheetTitle === SHEETS.notices) {
-    keys = ['id', 'title', 'content', 'date', 'author', 'category', 'isImportant', 'comments', 'likes', 'readBy'];
+    keys = ['id', 'title', 'content', 'date', 'author', 'category', 'isImportant', 'comments', 'likes', 'readBy', 'targetDepartment'];
   } else if (sheetTitle === SHEETS.handovers) {
     keys = ['id', 'sender', 'receiver', 'content', 'date', 'isSigned', 'signedEmpId', 'signedAt', 'title', 'mainWorkplace', 'isApproved', 'comments', 'likes', 'readBy'];
   } else if (sheetTitle === SHEETS.equipment) {
@@ -194,7 +196,7 @@ function getSheet(sheetTitle) {
   } else if (sheetTitle === SHEETS.employees) {
     keys = ['no', 'empId', 'name', 'position', 'department', 'mainWorkplace', 'subWorkplace', 'password', 'isManager', 'isRetired', 'attempts', 'lockUntil', 'lockCount'];
   } else if (sheetTitle === SHEETS.vacations) {
-    keys = ['id', 'empId', 'name', 'department', 'mainWorkplace', 'subWorkplace', 'vacationDate', 'vacationType', 'reason', 'status', 'createdAt'];
+    keys = ['id', 'empId', 'name', 'department', 'mainWorkplace', 'subWorkplace', 'vacationDate', 'vacationType', 'reason', 'status', 'createdAt', 'handoverEmpId'];
   } else if (sheetTitle === SHEETS.pushSubscriptions) {
     keys = ['empId', 'subscription'];
   } else if (sheetTitle === SHEETS.workplaces) {
@@ -718,6 +720,9 @@ function doPost(e) {
       rowData[headers.indexOf(map['isImportant'])] = data.isImportant ? 'TRUE' : 'FALSE';
       rowData[headers.indexOf(map['comments'])] = JSON.stringify(data.comments || []);
       rowData[headers.indexOf(map['likes'])] = JSON.stringify(data.likes || []);
+      if (headers.indexOf(map['targetDepartment']) !== -1) {
+        rowData[headers.indexOf(map['targetDepartment'])] = data.targetDepartment || '';
+      }
 
       sheet.appendRow(rowData);
       return makeJsonResponse({ success: true, id: rowData[headers.indexOf(map['id'])], subscriptions: getAllSubscriptions() });
@@ -737,6 +742,9 @@ function doPost(e) {
       }
       if (data.comments !== undefined) sheet.getRange(rowIndex, headers.indexOf(map['comments']) + 1).setValue(JSON.stringify(data.comments));
       if (data.likes !== undefined) sheet.getRange(rowIndex, headers.indexOf(map['likes']) + 1).setValue(JSON.stringify(data.likes));
+      if (data.targetDepartment !== undefined && headers.indexOf(map['targetDepartment']) !== -1) {
+        sheet.getRange(rowIndex, headers.indexOf(map['targetDepartment']) + 1).setValue(data.targetDepartment);
+      }
 
       // Update category if provided
       if (data.category !== undefined) {
@@ -1094,18 +1102,25 @@ function doPost(e) {
         }
       }
 
-      // 2. 기존 해당 연/월 데이터 제거
+      // 2. 기존 해당 연/월 및 입력된 사원들의 데이터만 제거하여 타 부서 데이터 보호
       if (scheduleLastRow >= 2) {
         var scheduleHeaders = scheduleSheet.getRange(1, 1, 1, scheduleSheet.getLastColumn()).getValues()[0];
         var yearCol = scheduleHeaders.indexOf(scheduleMap['year']) + 1;
         var monthCol = scheduleHeaders.indexOf(scheduleMap['month']) + 1;
+        var empIdCol = scheduleHeaders.indexOf(scheduleMap['empId']) + 1;
 
         var yearVals = scheduleSheet.getRange(2, yearCol, scheduleLastRow - 1, 1).getValues();
         var monthVals = scheduleSheet.getRange(2, monthCol, scheduleLastRow - 1, 1).getValues();
+        var empIdVals = scheduleSheet.getRange(2, empIdCol, scheduleLastRow - 1, 1).getValues();
+
+        var inputEmpIds = inputEmployees.map(function (e) { return String(e.empId).trim(); });
 
         // 역순 제거로 인덱스 꼬임 방지
         for (var i = yearVals.length - 1; i >= 0; i--) {
-          if (Number(yearVals[i][0]) === Number(year) && Number(monthVals[i][0]) === Number(month)) {
+          var y = Number(yearVals[i][0]);
+          var m = Number(monthVals[i][0]);
+          var id = String(empIdVals[i][0]).trim();
+          if (y === Number(year) && m === Number(month) && inputEmpIds.indexOf(id) !== -1) {
             scheduleSheet.deleteRow(i + 2);
           }
         }
@@ -1268,6 +1283,7 @@ function doPost(e) {
       rowData[headers.indexOf(map['reason'])] = data.reason || '';
       rowData[headers.indexOf(map['status'])] = '대기';
       rowData[headers.indexOf(map['createdAt'])] = data.createdAt || formatDateTime(new Date());
+      rowData[headers.indexOf(map['handoverEmpId'])] = data.handoverEmpId || '';
 
       sheet.appendRow(rowData);
       return makeJsonResponse({ success: true, id: rowData[headers.indexOf(map['id'])] });
@@ -1280,9 +1296,20 @@ function doPost(e) {
       if (rowIndex === -1) return makeJsonResponse({ error: 'Vacation not found: ' + data.id });
       var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
       var map = getHeaderMap(SHEETS.vacations);
+
+      var oldStatus = sheet.getRange(rowIndex, headers.indexOf(map['status']) + 1).getValue();
+      if (oldStatus === '승인') {
+        syncVacationSupportToSchedule(rowIndex, '대기'); // 일단 롤백
+      }
+
       if (data.vacationDate !== undefined) sheet.getRange(rowIndex, headers.indexOf(map['vacationDate']) + 1).setValue(data.vacationDate);
       if (data.vacationType !== undefined) sheet.getRange(rowIndex, headers.indexOf(map['vacationType']) + 1).setValue(data.vacationType);
       if (data.reason !== undefined) sheet.getRange(rowIndex, headers.indexOf(map['reason']) + 1).setValue(data.reason);
+      if (data.handoverEmpId !== undefined) sheet.getRange(rowIndex, headers.indexOf(map['handoverEmpId']) + 1).setValue(data.handoverEmpId);
+
+      if (oldStatus === '승인') {
+        syncVacationSupportToSchedule(rowIndex, '승인'); // 다시 세팅
+      }
       return makeJsonResponse({ success: true });
     }
 
@@ -1291,6 +1318,35 @@ function doPost(e) {
       var sheet = getSheet(SHEETS.vacations);
       var rowIndex = findRowIndex(sheet, 'id', data.id);
       if (rowIndex === -1) return makeJsonResponse({ error: 'Vacation not found: ' + data.id });
+
+      var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+      var map = getHeaderMap(SHEETS.vacations);
+      var oldStatus = sheet.getRange(rowIndex, headers.indexOf(map['status']) + 1).getValue();
+
+      if (oldStatus === '승인') {
+        // 인수자 supports 제거
+        syncVacationSupportToSchedule(rowIndex, '삭제');
+
+        // 인계자 shift 코드 제거
+        var empId = sheet.getRange(rowIndex, headers.indexOf(map['empId']) + 1).getValue();
+        var vacDateStr = sheet.getRange(rowIndex, headers.indexOf(map['vacationDate']) + 1).getValue();
+        var vacParts = String(vacDateStr).split('-');
+        if (vacParts.length === 3) {
+          var year = Number(vacParts[0]);
+          var month = Number(vacParts[1]);
+          var day = Number(vacParts[2]);
+
+          var schedSheet = getSheet(SHEETS.schedules);
+          var schedHeaders = schedSheet.getRange(1, 1, 1, schedSheet.getLastColumn()).getValues()[0];
+          var schedMap = getHeaderMap(SHEETS.schedules);
+          var schedRowIndex = findScheduleRowIndex(schedSheet, year, month, empId);
+          if (schedRowIndex !== -1) {
+            var colIndex = schedHeaders.indexOf(schedMap['day_' + day + '_shift']) + 1;
+            schedSheet.getRange(schedRowIndex, colIndex).setValue('');
+          }
+        }
+      }
+
       sheet.deleteRow(rowIndex);
       return makeJsonResponse({ success: true });
     }
@@ -1305,6 +1361,14 @@ function doPost(e) {
 
       var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
       var map = getHeaderMap(SHEETS.vacations);
+      var oldStatus = sheet.getRange(rowIndex, headers.indexOf(map['status']) + 1).getValue();
+
+      // 기존 승인 상태였다면 롤백 처리
+      if (oldStatus === '승인') {
+        syncVacationSupportToSchedule(rowIndex, '대기');
+      }
+
+      // 상태 업데이트
       sheet.getRange(rowIndex, headers.indexOf(map['status']) + 1).setValue(data.status);
 
       // 승인일 경우, 근무표 시트에 자동 연동
@@ -1341,6 +1405,29 @@ function doPost(e) {
 
           var colIndex = schedHeaders.indexOf(schedMap['day_' + day + '_shift']) + 1;
           schedSheet.getRange(schedRowIndex, colIndex).setValue(shiftCode);
+        }
+
+        // 인수자 supports 연동
+        syncVacationSupportToSchedule(rowIndex, '승인');
+      } else {
+        // 승인이 아닌 상태로 복원 시 인계자의 근무표 연차 코드도 제거
+        var empId = sheet.getRange(rowIndex, headers.indexOf(map['empId']) + 1).getValue();
+        var vacDateStr = sheet.getRange(rowIndex, headers.indexOf(map['vacationDate']) + 1).getValue();
+
+        var vacParts = String(vacDateStr).split('-');
+        if (vacParts.length === 3) {
+          var year = Number(vacParts[0]);
+          var month = Number(vacParts[1]);
+          var day = Number(vacParts[2]);
+
+          var schedSheet = getSheet(SHEETS.schedules);
+          var schedHeaders = schedSheet.getRange(1, 1, 1, schedSheet.getLastColumn()).getValues()[0];
+          var schedMap = getHeaderMap(SHEETS.schedules);
+          var schedRowIndex = findScheduleRowIndex(schedSheet, year, month, empId);
+          if (schedRowIndex !== -1) {
+            var colIndex = schedHeaders.indexOf(schedMap['day_' + day + '_shift']) + 1;
+            schedSheet.getRange(schedRowIndex, colIndex).setValue('');
+          }
         }
       }
 
@@ -1404,4 +1491,139 @@ function readSheetData(sheet) {
     data.push(rowObj);
   }
   return data;
+}
+
+/**
+ * 근무지 풀네임을 단축명(예: '면역', '안과')으로 변환합니다.
+ */
+function getShortWorkplace(full) {
+  if (!full) return '';
+  var map = {
+    '면역치료실': '면역', '면역치료': '면역', '8F 면역치료': '면역',
+    '안과검사실': '안과', '안과기능': '안과', '4F 안과기능': '안과',
+    '수면다원검사실': '수면', '수면다원': '수면', '4F 수면다원': '수면',
+    '근전도실': '근전도', '1F 근전도': '근전도',
+    '뇌파검사실': '뇌파', '뇌파검사': '뇌파', '3F 뇌파': '뇌파',
+    '소화기능검사실': '소화', '소화기능': '소화', '2F 소화기능': '소화',
+    '심장기능검사실': '심기능', '심장기능': '심기능', '2F 심장기능': '심기능',
+    '심장초음파실': '심초', '심장초음파': '심초', '2F 심장초음파': '심초',
+    '호흡기능검사실': '호흡', '호흡기능': '호흡', '1F 호흡기능': '호흡',
+    '청력기능검사실': '청력', '청력검사': '청력', 'B1 청력': '청력'
+  };
+  return map[full] || full;
+}
+
+/**
+ * 연차 승인/취소/반려 시 인수자(대타)의 supports(근무지 지원) 정보를 동기화합니다.
+ */
+function syncVacationSupportToSchedule(vacRowIndex, newStatus) {
+  try {
+    var vacSheet = getSheet(SHEETS.vacations);
+    var vacHeaders = vacSheet.getRange(1, 1, 1, vacSheet.getLastColumn()).getValues()[0];
+    var vacMap = getHeaderMap(SHEETS.vacations);
+
+    var handoverEmpId = String(vacSheet.getRange(vacRowIndex, vacHeaders.indexOf(vacMap['handoverEmpId']) + 1).getValue() || '').trim();
+    if (!handoverEmpId) return; // 인수자가 없으면 아무 작업도 하지 않음
+
+    var empId = String(vacSheet.getRange(vacRowIndex, vacHeaders.indexOf(vacMap['empId']) + 1).getValue() || '').trim();
+    var vacDateStr = String(vacSheet.getRange(vacRowIndex, vacHeaders.indexOf(vacMap['vacationDate']) + 1).getValue() || '').trim();
+    var vacType = String(vacSheet.getRange(vacRowIndex, vacHeaders.indexOf(vacMap['vacationType']) + 1).getValue() || '').trim();
+
+    var vacParts = vacDateStr.split('-');
+    if (vacParts.length !== 3) return;
+    var year = Number(vacParts[0]);
+    var month = Number(vacParts[1]);
+    var day = Number(vacParts[2]);
+
+    // 인계자의 원래 주근무지 가져오기
+    var empSheet = getSheet(SHEETS.employees);
+    var empHeaders = empSheet.getRange(1, 1, 1, empSheet.getLastColumn()).getValues()[0];
+    var empMap = getHeaderMap(SHEETS.employees);
+    var giverRowIdx = findRowIndex(empSheet, 'empId', empId);
+    var giverWorkplace = '';
+    if (giverRowIdx !== -1) {
+      var fullWorkplace = empSheet.getRange(giverRowIdx, empHeaders.indexOf(empMap['mainWorkplace']) + 1).getValue();
+      if (!fullWorkplace) {
+        fullWorkplace = empSheet.getRange(giverRowIdx, empHeaders.indexOf(empMap['department']) + 1).getValue();
+      }
+      giverWorkplace = getShortWorkplace(fullWorkplace);
+    }
+    if (!giverWorkplace) giverWorkplace = '기능검사'; // Fallback
+
+    var schedSheet = getSheet(SHEETS.schedules);
+    var schedHeaders = schedSheet.getRange(1, 1, 1, schedSheet.getLastColumn()).getValues()[0];
+    var schedMap = getHeaderMap(SHEETS.schedules);
+    var schedRowIndex = findScheduleRowIndex(schedSheet, year, month, handoverEmpId);
+
+    var isApprove = (newStatus === '승인');
+
+    if (isApprove) {
+      // 행이 없다면 행 신규 생성
+      if (schedRowIndex === -1) {
+        var schedRowData = new Array(schedHeaders.length).fill('');
+        schedRowData[schedHeaders.indexOf(schedMap['year'])] = String(year);
+        schedRowData[schedHeaders.indexOf(schedMap['month'])] = String(month);
+        schedRowData[schedHeaders.indexOf(schedMap['empId'])] = handoverEmpId;
+        schedSheet.appendRow(schedRowData);
+        schedRowIndex = schedSheet.getLastRow();
+      }
+
+      var amCol = schedHeaders.indexOf(schedMap['day_' + day + '_support_am']) + 1;
+      var pmCol = schedHeaders.indexOf(schedMap['day_' + day + '_support_pm']) + 1;
+
+      if (vacType === '종일연차' || vacType === '오전반차') {
+        var amVal = String(schedSheet.getRange(schedRowIndex, amCol).getValue() || '').trim();
+        var amArr = [];
+        try { if (amVal) amArr = JSON.parse(amVal); } catch (e) {}
+        if (!Array.isArray(amArr)) amArr = [];
+        if (amArr.indexOf(giverWorkplace) === -1) {
+          amArr.push(giverWorkplace);
+          schedSheet.getRange(schedRowIndex, amCol).setValue(JSON.stringify(amArr));
+        }
+      }
+      if (vacType === '종일연차' || vacType === '오후반차') {
+        var pmVal = String(schedSheet.getRange(schedRowIndex, pmCol).getValue() || '').trim();
+        var pmArr = [];
+        try { if (pmVal) pmArr = JSON.parse(pmVal); } catch (e) {}
+        if (!Array.isArray(pmArr)) pmArr = [];
+        if (pmArr.indexOf(giverWorkplace) === -1) {
+          pmArr.push(giverWorkplace);
+          schedSheet.getRange(schedRowIndex, pmCol).setValue(JSON.stringify(pmArr));
+        }
+      }
+    } else {
+      // 롤백 (제거)
+      if (schedRowIndex === -1) return;
+
+      var amCol = schedHeaders.indexOf(schedMap['day_' + day + '_support_am']) + 1;
+      var pmCol = schedHeaders.indexOf(schedMap['day_' + day + '_support_pm']) + 1;
+
+      if (vacType === '종일연차' || vacType === '오전반차') {
+        var amVal = String(schedSheet.getRange(schedRowIndex, amCol).getValue() || '').trim();
+        var amArr = [];
+        try { if (amVal) amArr = JSON.parse(amVal); } catch (e) {}
+        if (Array.isArray(amArr)) {
+          var idx = amArr.indexOf(giverWorkplace);
+          if (idx !== -1) {
+            amArr.splice(idx, 1);
+            schedSheet.getRange(schedRowIndex, amCol).setValue(amArr.length > 0 ? JSON.stringify(amArr) : '');
+          }
+        }
+      }
+      if (vacType === '종일연차' || vacType === '오후반차') {
+        var pmVal = String(schedSheet.getRange(schedRowIndex, pmCol).getValue() || '').trim();
+        var pmArr = [];
+        try { if (pmVal) pmArr = JSON.parse(pmVal); } catch (e) {}
+        if (Array.isArray(pmArr)) {
+          var idx = pmArr.indexOf(giverWorkplace);
+          if (idx !== -1) {
+            pmArr.splice(idx, 1);
+            schedSheet.getRange(schedRowIndex, pmCol).setValue(pmArr.length > 0 ? JSON.stringify(pmArr) : '');
+          }
+        }
+      }
+    }
+  } catch (error) {
+    Logger.log('syncVacationSupportToSchedule Error: ' + error.toString());
+  }
 }

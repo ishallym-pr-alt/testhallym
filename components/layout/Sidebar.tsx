@@ -14,6 +14,7 @@ export default function Sidebar() {
     { id: 'notices', label: '공지사항', icon: Megaphone },
     { id: 'handovers', label: '인수인계', icon: Repeat2 },
     { id: 'schedule', label: '근무표', icon: CalendarDays },
+    { id: 'calendar', label: '근무일정', icon: CalendarDays },
     { id: 'equipment', label: '의료장비', icon: MonitorCheck },
     { id: 'stats', label: '장비 통계', icon: BarChart3 }
   ];

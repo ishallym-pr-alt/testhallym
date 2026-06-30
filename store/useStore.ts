@@ -39,6 +39,7 @@ export interface Vacation {
   reason: string;
   status: '대기' | '승인' | '반려';
   createdAt: string;
+  handoverEmpId?: string; // 인수자(대타) 사번
 }
 
 export interface Workplace {
@@ -50,10 +51,15 @@ export interface Workplace {
 interface AppState {
   isLoggedIn: boolean;
   currentUser: User;
-  currentPage: 'notices' | 'handovers' | 'schedule' | 'equipment' | 'stats';
+  currentPage: 'notices' | 'handovers' | 'schedule' | 'equipment' | 'stats' | 'calendar';
   highlightedItemId: number | string | null;
   highlightedItemIds: (number | string)[];
   highlightedItemTimestamp: number;
+
+  // Calendar/Schedule Sync
+  scheduleYear: number;
+  scheduleMonth: number;
+  calendarMemos: Record<string, string>;
 
   // Data
   notices: Notice[];
@@ -118,7 +124,6 @@ interface AppState {
   confirmEquipment: (id: number) => void;
   changeEquipmentStatus: (id: number, newStatus: string) => void;
   addComment: (type: 'notice' | 'handover' | 'equipment', targetId: number, comment: any) => void;
-  toggleLike: (type: 'notice' | 'handover' | 'equipment', targetId: number, userName: string) => void;
   markAsRead: (category: 'notice' | 'handover' | 'equipment', id: number, userName: string) => void;
   addEmployee: (employee: Omit<Employee, 'no'>) => void;
   updateEmployee: (employeeId: string, updatedFields: Partial<Employee>) => void;
@@ -141,6 +146,10 @@ interface AppState {
 
   editVacation: (id: string, fields: Partial<Vacation>) => void;
   deleteVacation: (id: string) => void;
+
+  setScheduleYearMonth: (year: number, month: number) => void;
+  loadCalendarMemos: (year: number, month: number) => void;
+  saveCalendarMemo: (year: number, month: number, key: string, text: string) => void;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -148,6 +157,9 @@ export const useStore = create<AppState>((set, get) => ({
   currentUser: { employeeId: '', name: '', position: '', department: '', mainWorkplace: '', subWorkplace: '', isManager: false, isRetired: false },
   currentPage: 'notices',
   highlightedItemId: null,
+  scheduleYear: new Date().getFullYear(),
+  scheduleMonth: new Date().getMonth() + 1,
+  calendarMemos: {},
   highlightedItemIds: typeof window !== 'undefined' ? (() => {
     try {
       return JSON.parse(localStorage.getItem('highlighted_item_ids') || '[]');
@@ -451,22 +463,15 @@ export const useStore = create<AppState>((set, get) => ({
           const oldItem = oldData.find(item => item.id === newItem.id);
           if (oldItem) {
             const hasRecentComment = (oldItem as any)._commentMutatedAt && (Date.now() - (oldItem as any)._commentMutatedAt < 30000);
-            const hasRecentLike = (oldItem as any)._likeMutatedAt && (Date.now() - (oldItem as any)._likeMutatedAt < 30000);
             
             const comments = hasRecentComment && (oldItem.comments || []).length > (newItem.comments || []).length
               ? oldItem.comments
               : newItem.comments;
-              
-            const likes = hasRecentLike
-              ? oldItem.likes
-              : newItem.likes;
 
             return {
               ...newItem,
               comments,
-              likes,
-              _commentMutatedAt: (oldItem as any)._commentMutatedAt,
-              _likeMutatedAt: (oldItem as any)._likeMutatedAt
+              _commentMutatedAt: (oldItem as any)._commentMutatedAt
             };
           }
           return newItem;
@@ -499,22 +504,15 @@ export const useStore = create<AppState>((set, get) => ({
           const oldItem = oldData.find(item => item.id === newItem.id);
           if (oldItem) {
             const hasRecentComment = (oldItem as any)._commentMutatedAt && (Date.now() - (oldItem as any)._commentMutatedAt < 30000);
-            const hasRecentLike = (oldItem as any)._likeMutatedAt && (Date.now() - (oldItem as any)._likeMutatedAt < 30000);
             
             const comments = hasRecentComment && (oldItem.comments || []).length > (newItem.comments || []).length
               ? oldItem.comments
               : newItem.comments;
-              
-            const likes = hasRecentLike
-              ? oldItem.likes
-              : newItem.likes;
 
             return {
               ...newItem,
               comments,
-              likes,
-              _commentMutatedAt: (oldItem as any)._commentMutatedAt,
-              _likeMutatedAt: (oldItem as any)._likeMutatedAt
+              _commentMutatedAt: (oldItem as any)._commentMutatedAt
             };
           }
           return newItem;
@@ -556,22 +554,15 @@ export const useStore = create<AppState>((set, get) => ({
           const oldItem = oldData.find(item => item.id === newItem.id);
           if (oldItem) {
             const hasRecentComment = (oldItem as any)._commentMutatedAt && (Date.now() - (oldItem as any)._commentMutatedAt < 30000);
-            const hasRecentLike = (oldItem as any)._likeMutatedAt && (Date.now() - (oldItem as any)._likeMutatedAt < 30000);
             
             const comments = hasRecentComment && (oldItem.comments || []).length > (newItem.comments || []).length
               ? oldItem.comments
               : newItem.comments;
-              
-            const likes = hasRecentLike
-              ? oldItem.likes
-              : newItem.likes;
 
             return {
               ...newItem,
               comments,
-              likes,
-              _commentMutatedAt: (oldItem as any)._commentMutatedAt,
-              _likeMutatedAt: (oldItem as any)._likeMutatedAt
+              _commentMutatedAt: (oldItem as any)._commentMutatedAt
             };
           }
           return newItem;
@@ -966,88 +957,6 @@ export const useStore = create<AppState>((set, get) => ({
     }
   },
 
-  toggleLike: (type, targetId, userName) => {
-    if (type === 'equipment') {
-      const previousIssues = get().equipmentIssues;
-      const issue = previousIssues.find((eq) => eq.id === targetId);
-      if (!issue) return;
-
-      const currentLikes = issue.likes || [];
-      const updatedLikes = currentLikes.includes(userName)
-        ? currentLikes.filter((name) => name !== userName)
-        : [...currentLikes, userName];
-
-      set((state) => ({
-        equipmentIssues: state.equipmentIssues.map((eq) =>
-          eq.id === targetId ? { ...eq, likes: updatedLikes, _likeMutatedAt: Date.now() } : eq
-        ),
-      }));
-
-      fetch('/api/equipment', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: targetId, action: 'edit', likes: updatedLikes }),
-      }).catch(() => {
-        set({ equipmentIssues: previousIssues });
-        console.error('[Store] 장비 공감 실패 — 롤백합니다.');
-      });
-    } else if (type === 'notice') {
-      const previousNotices = get().notices;
-      const notice = previousNotices.find((n) => n.id === targetId);
-      if (!notice) return;
-
-      const currentLikes = notice.likes || [];
-      const updatedLikes = currentLikes.includes(userName)
-        ? currentLikes.filter((name) => name !== userName)
-        : [...currentLikes, userName];
-
-      set((state) => ({
-        notices: state.notices.map((n) =>
-          n.id === targetId ? { ...n, likes: updatedLikes, _likeMutatedAt: Date.now() } : n
-        ),
-        selectedNotice: state.selectedNotice && state.selectedNotice.id === targetId
-          ? { ...state.selectedNotice, likes: updatedLikes }
-          : state.selectedNotice
-      }));
-
-      fetch('/api/notices', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: targetId, action: 'edit', likes: updatedLikes }),
-      }).catch(() => {
-        set({ notices: previousNotices });
-        console.error('[Store] 공지 공감 실패 — 롤백합니다.');
-      });
-    } else if (type === 'handover') {
-      const previousHandovers = get().handovers;
-      const handover = previousHandovers.find((h) => h.id === targetId);
-      if (!handover) return;
-
-      const currentLikes = handover.likes || [];
-      const updatedLikes = currentLikes.includes(userName)
-        ? currentLikes.filter((name) => name !== userName)
-        : [...currentLikes, userName];
-
-      set((state) => ({
-        handovers: state.handovers.map((h) =>
-          h.id === targetId ? { ...h, likes: updatedLikes, _likeMutatedAt: Date.now() } : h
-        ),
-        selectedHandover: state.selectedHandover && state.selectedHandover.id === targetId
-          ? { ...state.selectedHandover, likes: updatedLikes }
-          : state.selectedHandover
-      }));
-
-      fetch('/api/handovers', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: targetId, action: 'edit', likes: updatedLikes }),
-      }).catch(() => {
-        set({ handovers: previousHandovers });
-        console.error('[Store] 인수인계 공감 실패 — 롤백합니다.');
-      });
-    }
-  },
-
   markAsRead: (category, id, userName) => {
     if (category === 'notice') {
       const prevNotices = get().notices;
@@ -1230,7 +1139,7 @@ export const useStore = create<AppState>((set, get) => ({
      연차 관리 (Vacations)
      ────────────────────────────────────────────── */
   addVacation: (vacation) => {
-    const tempId = String(Date.now());
+    const tempId = String(Date.now()) + '_' + Math.random().toString(36).substr(2, 9);
     const optimisticItem: Vacation = {
       id: tempId,
       ...vacation,
@@ -1298,5 +1207,39 @@ export const useStore = create<AppState>((set, get) => ({
       set({ vacations: prev });
       console.error('[Store] 연차 삭제 실패 — 롤백합니다.');
     });
+  },
+
+  setScheduleYearMonth: (year, month) => {
+    set({ scheduleYear: year, scheduleMonth: month });
+    get().loadCalendarMemos(year, month);
+  },
+
+  loadCalendarMemos: (year, month) => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(`calendar_memos_${year}_${month}`);
+      let memos = {};
+      if (saved) {
+        try { memos = JSON.parse(saved); } catch (e) {}
+      }
+      set({ calendarMemos: memos });
+    }
+  },
+
+  saveCalendarMemo: (year, month, key, text) => {
+    if (typeof window !== 'undefined') {
+      const storageKey = `calendar_memos_${year}_${month}`;
+      const saved = localStorage.getItem(storageKey);
+      let memos: Record<string, string> = {};
+      if (saved) {
+        try { memos = JSON.parse(saved); } catch (e) {}
+      }
+      if (text.trim()) {
+        memos[key] = text.trim();
+      } else {
+        delete memos[key];
+      }
+      localStorage.setItem(storageKey, JSON.stringify(memos));
+      set({ calendarMemos: memos });
+    }
   },
 }));

@@ -8,6 +8,7 @@ export default function Header() {
     notices: '공지사항',
     handovers: '인수인계',
     schedule: '근무표',
+    calendar: '근무일정',
     equipment: '의료장비',
     stats: '장비 통계',
   };
