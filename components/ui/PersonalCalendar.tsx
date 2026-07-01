@@ -523,147 +523,199 @@ export default function PersonalCalendar(props: PersonalCalendarProps) {
                     <div className="grid grid-cols-2 gap-1.5 w-full items-start">
                       {/* 1열: 근무/연차 영역 */}
                       <div className="flex flex-col gap-1 w-full">
-                        {displayEmployees.map(emp => {
+                        {(() => {
                           const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(info.day).padStart(2, '0')}`;
-                          const approvedVacation = approvedVacationsMap[`${emp.empId}_${dateStr}`];
-
-                          const shift = scheduleData.shifts[emp.empId]?.[info.day] || '';
-                          const normalizedShift = shift?.toUpperCase().trim();
-
-                          const off = isFullOff(shift);
-                          const isHolidayDay = info.dow === 0 || info.isHoliday;
-                          const isHolidayHo = isHolidayDay && normalizedShift === 'HO';
-                          const isSatM = info.dow === 6 && normalizedShift === 'M';
-                          const isForceMorningOnly = isHolidayHo || isSatM;
-
-                          const isDefaultMorningOnly = !off && (
-                            ['M', 'M1', 'MX', 'H', 'HO', 'MO'].includes(normalizedShift) ||
-                            (info.dow === 6)
+                          const dayVacations = (vacations || []).filter(v => v.status === '승인' && v.vacationDate === dateStr);
+                          
+                          // 묶음 박스로 렌더링된 직원 ID 리스트 수집
+                          const groupedEmpIds = dayVacations.flatMap(v => 
+                            [String(v.empId), v.handoverEmpId ? String(v.handoverEmpId) : ''].filter(Boolean)
                           );
-
-                          const amRaw = scheduleData.supports?.[emp.empId]?.[info.day]?.am;
-                          const pmRaw = scheduleData.supports?.[emp.empId]?.[info.day]?.pm;
-                          const amSupports: string[] = amRaw && amRaw.length > 0 ? amRaw.map((r: any) => getRoomName(r)) : [getRoomName(emp.mainWorkplace || emp.department)];
-                          const pmSupports: string[] = isForceMorningOnly
-                            ? []
-                            : (isDefaultMorningOnly && !(pmRaw && pmRaw.length > 0))
-                              ? []
-                              : (pmRaw && pmRaw.length > 0 ? pmRaw.map((r: any) => getRoomName(r)) : [getRoomName(emp.mainWorkplace || emp.department)]);
-
-                          const origDept = emp.mainWorkplace || emp.department || '';
-                          const isAmSupport = amSupports.length > 0 && amSupports[0] !== getRoomName(origDept);
-                          const isPmSupport = pmSupports.length > 0 && pmSupports[0] !== getRoomName(origDept);
-                          const supportDept = isAmSupport
-                            ? amSupports[0]
-                            : (isPmSupport ? pmSupports[0] : null);
-
-                          // 1. 전체 직원 모드인 경우: 연차 혹은 대타 지원 근무가 있는 날만 노출
-                          if (calendarEmpId === 'all') {
-                            if (!approvedVacation && !supportDept) return null;
-                          }
-
-                          // 2. 개별 직원 모드인 경우
-                          if (calendarEmpId !== 'all') {
-                            const upperShift = shift?.toUpperCase().trim();
-                            const isOff = upperShift === 'OFF' || !upperShift;
-                            const isHolidayOrSunday = info.dow === 0 || info.isHoliday;
-                            const isSaturday = info.dow === 6;
-                            const isWeekday = !isHolidayOrSunday && !isSaturday;
-
-                            if (approvedVacation || supportDept) {
-                              // Proceed to show
-                            } else if (isHolidayOrSunday) {
-                              if (isOff) return null;
-                            } else if (isSaturday) {
-                              if (isOff) return null;
-                            } else if (isWeekday) {
-                              if (upperShift !== 'HO') return null;
-                            }
-                          }
-
-                          // 휴가 뱃지 스타일 정의
-                          let vacBadgeStyle = "";
-                          let vacLabel = "";
-                          if (approvedVacation) {
-                            const vacType = approvedVacation.vacationType;
-                            if (vacType === '종일연차') {
-                              vacBadgeStyle = "bg-rose-50 text-rose-600 border-rose-100";
-                              vacLabel = "연차";
-                            } else if (vacType === '오전반차') {
-                              vacBadgeStyle = "bg-sky-50 text-sky-600 border-sky-100";
-                              vacLabel = "오전반";
-                            } else if (vacType === '오후반차') {
-                              vacBadgeStyle = "bg-sky-50 text-sky-600 border-sky-100";
-                              vacLabel = "오후반";
-                            } else {
-                              vacBadgeStyle = "bg-rose-50 text-rose-600 border-rose-100";
-                              vacLabel = vacType;
-                            }
-                          }
-
-                          // 일반 근무 코드 배지 스타일
-                          let shiftBadgeStyle = "bg-gray-50 text-gray-400 border-gray-200";
-                          let showCode = shift || 'OFF';
-                          const upperShift = shift?.toUpperCase().trim();
-                          if (upperShift && SHIFT_CODES[upperShift]) {
-                            const sInfo = SHIFT_CODES[upperShift];
-                            shiftBadgeStyle = `${sInfo.bg} ${sInfo.color} ${sInfo.border}`;
-                          } else if (upperShift === 'OFF' || !upperShift) {
-                            shiftBadgeStyle = "bg-gray-50 text-gray-400 border-gray-200";
-                            showCode = 'OFF';
-                          } else {
-                            shiftBadgeStyle = "bg-pink-50 text-pink-600 border-pink-100";
-                          }
-
-                          const isSelf = calendarEmpId !== 'all' && String(emp.empId) === String(currentUser.employeeId);
-                          const cardClass = isSelf
-                            ? "ring-1 ring-blue-200 border-blue-300 bg-blue-50 shadow-sm font-extrabold"
-                            : supportDept
-                              ? "ring-1 ring-orange-200 border-orange-300 bg-orange-50/70 shadow-sm font-extrabold"
-                              : "border-gray-100 bg-gray-50 hover:bg-gray-100/50 hover:border-gray-200";
 
                           return (
-                            <div
-                              key={emp.empId}
-                              className={`flex flex-col gap-0.5 px-1 py-1 rounded-md border text-[10px] sm:text-xs transition-all select-none min-w-0 ${cardClass} ${props.openPopover ? 'cursor-pointer' : 'cursor-default'}`}
-                              onClick={(e) => {
-                                if (!props.openPopover || !props.getPopoverSupports) return;
-                                e.stopPropagation();
-                                if (props.isSaving) {
-                                  const showMsg = props.showToast || alert;
-                                  showMsg('저장 중에는 수정할 수 없습니다.');
-                                  return;
+                            <>
+                              {/* 1. 연차-대타 묶음(Group) UI */}
+                              {dayVacations.map(v => {
+                                const vacEmp = (rawEmployees || []).find(e => String(e.empId) === String(v.empId));
+                                const normalizedVacEmp = vacEmp ? normalize(vacEmp) : null;
+                                const vacDept = normalizedVacEmp ? (normalizedVacEmp.mainWorkplace || normalizedVacEmp.department) : '';
+                                const vacName = normalizedVacEmp ? normalizedVacEmp.name : '';
+
+                                let displayVacType = v.vacationType;
+                                if (v.vacationType === '종일연차') displayVacType = '연차';
+                                else if (v.vacationType === '오전반차') displayVacType = '오전반';
+                                else if (v.vacationType === '오후반차') displayVacType = '오후반';
+
+                                const hasHandover = !!v.handoverEmpId;
+                                const hoverEmp = hasHandover ? (rawEmployees || []).find(e => String(e.empId) === String(v.handoverEmpId)) : null;
+                                const normalizedHoverEmp = hoverEmp ? normalize(hoverEmp) : null;
+                                const hoverDept = normalizedHoverEmp ? (normalizedHoverEmp.mainWorkplace || normalizedHoverEmp.department) : '';
+                                const hoverName = normalizedHoverEmp ? normalizedHoverEmp.name : '';
+
+                                return (
+                                  <div
+                                    key={`vac-group-${v.empId}-${v.vacationDate}`}
+                                    className="flex flex-col gap-[2px] p-1 bg-blue-50/40 border border-blue-200 rounded-md mb-1 w-full text-[10px] truncate"
+                                  >
+                                    <div className="truncate leading-tight font-medium text-blue-900">
+                                      [{vacDept}] {vacName} {displayVacType}
+                                    </div>
+                                    {hasHandover && (
+                                      <div className="truncate leading-tight font-medium text-blue-700">
+                                        ↳ [{hoverDept}] {hoverName} 지원
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+
+                              {/* 2. 일반 근무/오프 렌더링 로직 (중복 제거) */}
+                              {displayEmployees.map(emp => {
+                                if (groupedEmpIds.includes(String(emp.empId))) {
+                                  return null;
                                 }
-                                const { am, pm } = props.getPopoverSupports(emp.empId, info.day);
-                                props.openPopover(e, 'calendar', { empId: emp.empId, empName: emp.name, day: info.day, am, pm });
-                              }}
-                            >
-                              <div className="flex items-center justify-between gap-0.5 w-full min-w-0">
-                                <span className={`truncate leading-none ${isSelf ? 'text-blue-900 font-black text-[10px] sm:text-xs' : 'text-gray-700 font-bold'}`}>
-                                  {emp.name}
-                                </span>
 
-                                <div className="flex items-center gap-0.5 shrink-0">
-                                  {approvedVacation ? (
-                                    <span className={`px-1 py-0.5 rounded text-[8px] sm:text-[9px] font-black border leading-none shrink-0 ${vacBadgeStyle}`}>
-                                      {vacLabel}
-                                    </span>
-                                  ) : (
-                                    <span className={`px-1 py-0.5 rounded text-[8px] sm:text-[9px] font-black border leading-none shrink-0 ${shiftBadgeStyle}`}>
-                                      {showCode}
-                                    </span>
-                                  )}
+                                const approvedVacation = approvedVacationsMap[`${emp.empId}_${dateStr}`];
+                                const shift = scheduleData.shifts[emp.empId]?.[info.day] || '';
+                                const normalizedShift = shift?.toUpperCase().trim();
 
-                                  {supportDept && (
-                                    <span className="text-[8px] sm:text-[9px] bg-[#ff7a00] text-white px-1 py-0.5 rounded font-black shrink-0 leading-none shadow-sm">
-                                      {supportDept}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
+                                const off = isFullOff(shift);
+                                const isHolidayDay = info.dow === 0 || info.isHoliday;
+                                const isHolidayHo = isHolidayDay && normalizedShift === 'HO';
+                                const isSatM = info.dow === 6 && normalizedShift === 'M';
+                                const isForceMorningOnly = isHolidayHo || isSatM;
+
+                                const isDefaultMorningOnly = !off && (
+                                  ['M', 'M1', 'MX', 'H', 'HO', 'MO'].includes(normalizedShift) ||
+                                  (info.dow === 6)
+                                );
+
+                                const amRaw = scheduleData.supports?.[emp.empId]?.[info.day]?.am;
+                                const pmRaw = scheduleData.supports?.[emp.empId]?.[info.day]?.pm;
+                                const amSupports: string[] = amRaw && amRaw.length > 0 ? amRaw.map((r: any) => getRoomName(r)) : [getRoomName(emp.mainWorkplace || emp.department)];
+                                const pmSupports: string[] = isForceMorningOnly
+                                  ? []
+                                  : (isDefaultMorningOnly && !(pmRaw && pmRaw.length > 0))
+                                    ? []
+                                    : (pmRaw && pmRaw.length > 0 ? pmRaw.map((r: any) => getRoomName(r)) : [getRoomName(emp.mainWorkplace || emp.department)]);
+
+                                const origDept = emp.mainWorkplace || emp.department || '';
+                                const isAmSupport = amSupports.length > 0 && amSupports[0] !== getRoomName(origDept);
+                                const isPmSupport = pmSupports.length > 0 && pmSupports[0] !== getRoomName(origDept);
+                                const supportDept = isAmSupport
+                                  ? amSupports[0]
+                                  : (isPmSupport ? pmSupports[0] : null);
+
+                                // 1. 전체 직원 모드인 경우: 연차 혹은 대타 지원 근무가 있는 날만 노출
+                                if (calendarEmpId === 'all') {
+                                  if (!approvedVacation && !supportDept) return null;
+                                }
+
+                                // 2. 개별 직원 모드인 경우
+                                if (calendarEmpId !== 'all') {
+                                  const upperShift = shift?.toUpperCase().trim();
+                                  const isOff = upperShift === 'OFF' || !upperShift;
+                                  const isHolidayOrSunday = info.dow === 0 || info.isHoliday;
+                                  const isSaturday = info.dow === 6;
+                                  const isWeekday = !isHolidayOrSunday && !isSaturday;
+
+                                  if (approvedVacation || supportDept) {
+                                    // Proceed to show
+                                  } else if (isHolidayOrSunday) {
+                                    if (isOff) return null;
+                                  } else if (isSaturday) {
+                                    if (isOff) return null;
+                                  } else if (isWeekday) {
+                                    if (upperShift !== 'HO') return null;
+                                  }
+                                }
+
+                                // 휴가 뱃지 스타일 정의
+                                let vacBadgeStyle = "";
+                                let vacLabel = "";
+                                if (approvedVacation) {
+                                  const vacType = approvedVacation.vacationType;
+                                  if (vacType === '종일연차') {
+                                    vacBadgeStyle = "bg-rose-50 text-rose-600 border-rose-100";
+                                    vacLabel = "연차";
+                                  } else if (vacType === '오전반차') {
+                                    vacBadgeStyle = "bg-sky-50 text-sky-600 border-sky-100";
+                                    vacLabel = "오전반";
+                                  } else if (vacType === '오후반차') {
+                                    vacBadgeStyle = "bg-sky-50 text-sky-600 border-sky-100";
+                                    vacLabel = "오후반";
+                                  } else {
+                                    vacBadgeStyle = "bg-rose-50 text-rose-600 border-rose-100";
+                                    vacLabel = vacType;
+                                  }
+                                }
+
+                                // 일반 근무 코드 배지 스타일
+                                let shiftBadgeStyle = "bg-gray-50 text-gray-400 border-gray-200";
+                                let showCode = shift || 'OFF';
+                                const upperShift = shift?.toUpperCase().trim();
+                                if (upperShift && SHIFT_CODES[upperShift]) {
+                                  const sInfo = SHIFT_CODES[upperShift];
+                                  shiftBadgeStyle = `${sInfo.bg} ${sInfo.color} ${sInfo.border}`;
+                                } else if (upperShift === 'OFF' || !upperShift) {
+                                  shiftBadgeStyle = "bg-gray-50 text-gray-400 border-gray-200";
+                                  showCode = 'OFF';
+                                } else {
+                                  shiftBadgeStyle = "bg-pink-50 text-pink-600 border-pink-100";
+                                }
+
+                                const isSelf = calendarEmpId !== 'all' && String(emp.empId) === String(currentUser.employeeId);
+                                const cardClass = isSelf
+                                  ? "ring-1 ring-blue-200 border-blue-300 bg-blue-50 shadow-sm font-extrabold"
+                                  : supportDept
+                                    ? "ring-1 ring-orange-200 border-orange-300 bg-orange-50/70 shadow-sm font-extrabold"
+                                    : "border-gray-100 bg-gray-50 hover:bg-gray-100/50 hover:border-gray-200";
+
+                                return (
+                                  <div
+                                    key={emp.empId}
+                                    className={`flex flex-col gap-0.5 px-1 py-1 rounded-md border text-[10px] sm:text-xs transition-all select-none min-w-0 ${cardClass} ${props.openPopover ? 'cursor-pointer' : 'cursor-default'}`}
+                                    onClick={(e) => {
+                                      if (!props.openPopover || !props.getPopoverSupports) return;
+                                      e.stopPropagation();
+                                      if (props.isSaving) {
+                                        const showMsg = props.showToast || alert;
+                                        showMsg('저장 중에는 수정할 수 없습니다.');
+                                        return;
+                                      }
+                                      const { am, pm } = props.getPopoverSupports(emp.empId, info.day);
+                                      props.openPopover(e, 'calendar', { empId: emp.empId, empName: emp.name, day: info.day, am, pm });
+                                    }}
+                                  >
+                                    <div className="flex items-center justify-between gap-0.5 w-full min-w-0">
+                                      <span className={`truncate leading-none ${isSelf ? 'text-blue-900 font-black text-[10px] sm:text-xs' : 'text-gray-700 font-bold'}`}>
+                                        {emp.name}
+                                      </span>
+
+                                      <div className="flex items-center gap-0.5 shrink-0">
+                                        {approvedVacation ? (
+                                          <span className={`px-1 py-0.5 rounded text-[8px] sm:text-[9px] font-black border leading-none shrink-0 ${vacBadgeStyle}`}>
+                                            {vacLabel}
+                                          </span>
+                                        ) : (
+                                          <span className={`px-1 py-0.5 rounded text-[8px] sm:text-[9px] font-black border leading-none shrink-0 ${shiftBadgeStyle}`}>
+                                            {showCode}
+                                          </span>
+                                        )}
+
+                                        {supportDept && (
+                                          <span className="text-[8px] sm:text-[9px] bg-[#ff7a00] text-white px-1 py-0.5 rounded font-black shrink-0 leading-none shadow-sm">
+                                            {supportDept}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </>
                           );
-                        })}
+                        })()}
                       </div>
 
                       {/* 2열: 메모 영역 */}

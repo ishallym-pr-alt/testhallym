@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 import { gasGet, gasPost, getCache, setCache, invalidateCache, invalidateCacheByPrefix } from '@/lib/googleSheets';
 import { formatDateTime } from '@/lib/utils';
+import { updateVersion } from '@/lib/version';
 
 const CACHE_KEY = 'vacations';
 
@@ -71,7 +72,8 @@ export async function POST(request: Request) {
     // 연차 캐시 무효화
     invalidateCache(CACHE_KEY);
 
-    return NextResponse.json(result);
+    const newVersion = updateVersion();
+    return NextResponse.json({ ...result, version: newVersion });
   } catch (error: any) {
     console.error('[API /vacations POST] Error:', error);
     return NextResponse.json({ error: error.message || 'Failed to add vacation' }, { status: 500 });
@@ -106,7 +108,8 @@ export async function PUT(request: Request) {
     // 연차 캐시 무효화
     invalidateCache(CACHE_KEY);
 
-    return NextResponse.json({ success: true });
+    const newVersion = updateVersion();
+    return NextResponse.json({ success: true, version: newVersion });
   } catch (error: any) {
     console.error('[API /vacations PUT] Error:', error);
     return NextResponse.json({ error: error.message || 'Failed to update vacation' }, { status: 500 });
@@ -123,7 +126,8 @@ export async function DELETE(request: Request) {
     await gasPost('deleteVacation', { id });
 
     invalidateCache(CACHE_KEY);
-    return NextResponse.json({ success: true });
+    const newVersion = updateVersion();
+    return NextResponse.json({ success: true, version: newVersion });
   } catch (error: any) {
     console.error('[API /vacations DELETE] Error:', error);
     return NextResponse.json({ error: error.message || 'Failed to delete vacation' }, { status: 500 });

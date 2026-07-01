@@ -388,7 +388,7 @@ export default function Equipment() {
   };
 
   const filteredEquipment = useMemo(() => {
-    return equipmentIssues.filter(eq => {
+    return [...equipmentIssues].reverse().filter(eq => {
       const q = equipmentSearchQuery.trim().toLowerCase();
       if (!q) return true;
 

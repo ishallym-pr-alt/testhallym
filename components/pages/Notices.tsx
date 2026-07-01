@@ -155,7 +155,7 @@ export default function Notices() {
   };
 
   const filteredNotices = useMemo(() => {
-    return notices
+    return [...notices].reverse()
       .filter(n => {
         if (currentNoticeCategory !== '전체') {
           if (n.category !== currentNoticeCategory) return false;
@@ -174,10 +174,7 @@ export default function Notices() {
       .sort((a, b) => {
         const aImp = a.isImportant ? 1 : 0;
         const bImp = b.isImportant ? 1 : 0;
-        if (aImp !== bImp) {
-          return bImp - aImp;
-        }
-        return b.date.localeCompare(a.date);
+        return bImp - aImp;
       });
   }, [notices, currentNoticeCategory, subCategory, noticeSearchQuery]);
 

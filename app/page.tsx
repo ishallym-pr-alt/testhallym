@@ -18,7 +18,7 @@ import WorkSchedule from '@/components/pages/WorkSchedule';
 import SyncManager from '@/components/SyncManager';
 
 export default function App() {
-  const { isLoggedIn, currentPage, setCurrentPage, setHighlightedItemId, initializeData, syncData, restoreSession, globalVersion, setGlobalVersion } = useStore();
+  const { isLoggedIn, isDataLoaded, currentPage, setCurrentPage, setHighlightedItemId, initializeData, syncData, restoreSession, globalVersion, setGlobalVersion } = useStore();
 
   // 0. 최초 마운트 시 세션 복구
   useEffect(() => {
@@ -97,6 +97,17 @@ export default function App() {
 
   if (!isLoggedIn) {
     return <LoginScreen />;
+  }
+
+  if (!isDataLoaded) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-gray-50 z-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-4 border-t-[#004b8d] border-r-[#004b8d] border-b-gray-200 border-l-gray-200 rounded-full animate-spin"></div>
+          <p className="text-gray-600 font-medium">데이터를 불러오는 중입니다...</p>
+        </div>
+      </div>
+    );
   }
 
   const renderPage = () => {

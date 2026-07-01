@@ -7,6 +7,7 @@ export default function SyncManager() {
   const isLoggedIn = useStore((state) => state.isLoggedIn);
 
   const checkVersionAndSync = async () => {
+    if (useStore.getState().isGlobalSyncing) return; // 방어 코드: 이미 동기화 중이면 무시
     try {
       const res = await fetch(`/api/version?_t=${Date.now()}`);
       if (res.ok) {
@@ -32,22 +33,25 @@ export default function SyncManager() {
   useEffect(() => {
     if (!isLoggedIn) return;
 
-    // 5초 간격 폴링 루프
+    // 30초 간격 폴링 루프 (기존 5초에서 대폭 연장)
     const intervalId = setInterval(async () => {
-      if (document.visibilityState !== 'visible') return;
+      // 탭이 활성화되어 있지 않거나 숨겨져 있으면 즉시 리턴 (구글 서버 부하 방지)
+      if (document.hidden || document.visibilityState !== 'visible') return;
       await checkVersionAndSync();
-    }, 5000);
+    }, 30000);
 
-    // 윈도우 포커스 감지 시 즉시 1회 동기화 실행
-    const handleFocus = async () => {
-      await checkVersionAndSync();
+    // 화면 활성화(가려졌다가 다시 보임) 감지 시 즉시 1회 동기화 실행
+    const handleVisibilityChange = async () => {
+      if (!document.hidden && document.visibilityState === 'visible') {
+        await checkVersionAndSync();
+      }
     };
 
-    window.addEventListener('focus', handleFocus);
+    window.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       clearInterval(intervalId);
-      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [isLoggedIn]);
 

@@ -214,7 +214,7 @@ export const useStore = create<AppState>((set, get) => ({
           if (errData && errData.error) {
             errMsg = errData.error;
           }
-        } catch {}
+        } catch { }
         throw new Error(errMsg);
       }
       const result = await res.json();
@@ -298,7 +298,7 @@ export const useStore = create<AppState>((set, get) => ({
   setGlobalVersion: (version) => set({ globalVersion: version }),
   setMyLastSavedScheduleVersion: (version) => set({ myLastSavedScheduleVersion: version }),
   setIsMutating: (isMutating) => set({ isMutating }),
-  setCurrentPage: (page) => set({ 
+  setCurrentPage: (page) => set({
     currentPage: page,
     noticeDrawerMode: null,
     selectedNotice: null,
@@ -368,12 +368,12 @@ export const useStore = create<AppState>((set, get) => ({
     const cacheUpdates: Partial<AppState> = {};
     let hasCache = false;
 
-    if (cachedNotices) { try { cacheUpdates.notices = JSON.parse(cachedNotices); hasCache = true; } catch {} }
-    if (cachedHandovers) { try { cacheUpdates.handovers = JSON.parse(cachedHandovers); hasCache = true; } catch {} }
-    if (cachedEquipment) { try { cacheUpdates.equipmentIssues = JSON.parse(cachedEquipment); hasCache = true; } catch {} }
-    if (cachedEmployees) { try { cacheUpdates.employees = JSON.parse(cachedEmployees); hasCache = true; } catch {} }
-    if (cachedVacations) { try { cacheUpdates.vacations = JSON.parse(cachedVacations); hasCache = true; } catch {} }
-    if (cachedWorkplaces) { try { cacheUpdates.workplaces = JSON.parse(cachedWorkplaces); hasCache = true; } catch {} }
+    if (cachedNotices) { try { cacheUpdates.notices = JSON.parse(cachedNotices); hasCache = true; } catch { } }
+    if (cachedHandovers) { try { cacheUpdates.handovers = JSON.parse(cachedHandovers); hasCache = true; } catch { } }
+    if (cachedEquipment) { try { cacheUpdates.equipmentIssues = JSON.parse(cachedEquipment); hasCache = true; } catch { } }
+    if (cachedEmployees) { try { cacheUpdates.employees = JSON.parse(cachedEmployees); hasCache = true; } catch { } }
+    if (cachedVacations) { try { cacheUpdates.vacations = JSON.parse(cachedVacations); hasCache = true; } catch { } }
+    if (cachedWorkplaces) { try { cacheUpdates.workplaces = JSON.parse(cachedWorkplaces); hasCache = true; } catch { } }
 
     // 캐시가 있으면 UI에 즉시 로드하고, 스피너 로딩은 하지 않고 백그라운드 싱크로 처리
     if (hasCache) {
@@ -434,7 +434,7 @@ export const useStore = create<AppState>((set, get) => ({
 
   syncData: async () => {
     if (get().isMutating || get().isGlobalSyncing) return;
-    
+
     let stillSyncing = true;
     const timer = setTimeout(() => {
       if (stillSyncing) {
@@ -467,7 +467,7 @@ export const useStore = create<AppState>((set, get) => ({
           const oldItem = oldData.find(item => item.id === newItem.id);
           if (oldItem) {
             const hasRecentComment = (oldItem as any)._commentMutatedAt && (Date.now() - (oldItem as any)._commentMutatedAt < 30000);
-            
+
             const comments = hasRecentComment && (oldItem.comments || []).length > (newItem.comments || []).length
               ? oldItem.comments
               : newItem.comments;
@@ -491,7 +491,7 @@ export const useStore = create<AppState>((set, get) => ({
         if (JSON.stringify(oldData) !== JSON.stringify(mergedData)) {
           updates.notices = mergedData;
           localStorage.setItem('cached_notices', JSON.stringify(mergedData));
-          
+
           const updatedSelectedNotice = get().selectedNotice
             ? mergedData.find((item: Notice) => item.id === get().selectedNotice?.id) || null
             : null;
@@ -508,7 +508,7 @@ export const useStore = create<AppState>((set, get) => ({
           const oldItem = oldData.find(item => item.id === newItem.id);
           if (oldItem) {
             const hasRecentComment = (oldItem as any)._commentMutatedAt && (Date.now() - (oldItem as any)._commentMutatedAt < 30000);
-            
+
             const comments = hasRecentComment && (oldItem.comments || []).length > (newItem.comments || []).length
               ? oldItem.comments
               : newItem.comments;
@@ -526,11 +526,11 @@ export const useStore = create<AppState>((set, get) => ({
           const oldItem = oldData.find(item => item.id === newItem.id);
           const isSender = String(newItem.sender).trim() === String(currentUserName).trim();
           const isSigner = newItem.isSigned && String(newItem.signedEmpId).trim() === String(currentUserName).trim();
-          
+
           const activeManagers = get().employees.filter(e => e.isManager && !e.isRetired);
           const approvedNames = newItem.isApproved ? String(newItem.isApproved).split(',').map(x => x.trim()).filter(Boolean) : [];
           const isFullyApproved = activeManagers.length > 0 && activeManagers.every(m => approvedNames.includes(m.name));
-          
+
           const canSee = isFullyApproved || get().currentUser.isManager || isSender;
 
           if (canSee && (!oldItem || JSON.stringify(oldItem) !== JSON.stringify(newItem)) && !isSender && !isSigner) {
@@ -541,7 +541,7 @@ export const useStore = create<AppState>((set, get) => ({
         if (JSON.stringify(oldData) !== JSON.stringify(mergedData)) {
           updates.handovers = mergedData;
           localStorage.setItem('cached_handovers', JSON.stringify(mergedData));
-          
+
           const updatedSelectedHandover = get().selectedHandover
             ? mergedData.find((item: Handover) => item.id === get().selectedHandover?.id) || null
             : null;
@@ -558,7 +558,7 @@ export const useStore = create<AppState>((set, get) => ({
           const oldItem = oldData.find(item => item.id === newItem.id);
           if (oldItem) {
             const hasRecentComment = (oldItem as any)._commentMutatedAt && (Date.now() - (oldItem as any)._commentMutatedAt < 30000);
-            
+
             const comments = hasRecentComment && (oldItem.comments || []).length > (newItem.comments || []).length
               ? oldItem.comments
               : newItem.comments;
@@ -588,6 +588,9 @@ export const useStore = create<AppState>((set, get) => ({
 
       if (employeesRes.status === 'fulfilled' && employeesRes.value.ok) {
         const data = await employeesRes.value.json();
+
+
+
         const oldData = get().employees;
         if (JSON.stringify(oldData) !== JSON.stringify(data)) {
           updates.employees = data;
@@ -598,6 +601,43 @@ export const useStore = create<AppState>((set, get) => ({
       if (vacationsRes.status === 'fulfilled' && vacationsRes.value.ok) {
         const data = await vacationsRes.value.json();
         const oldData = get().vacations;
+        const currentUser = get().currentUser;
+        const isInitialSync = oldData.length === 0;
+
+        if (!isInitialSync) {
+          data.forEach((newItem: Vacation) => {
+            const oldItem = oldData.find(item => item.id === newItem.id);
+
+            let shouldHighlight = false;
+
+            // 1. [신청] 새 연차이면서 status가 대기이고 부서장일 때 (단, 신청자 본인 제외)
+            if (!oldItem && newItem.status === '대기' && currentUser.isManager === true && newItem.empId !== currentUser.employeeId) {
+              shouldHighlight = true;
+            }
+            // 2. [승인] 상태가 변경되어 승인 상태가 되었을 때
+            else if (oldItem && oldItem.status !== newItem.status && newItem.status === '승인') {
+              // 1. 작성자 본인에게는 내역 모달용 알림
+              if (newItem.empId === currentUser.employeeId) {
+                get().addHighlightedItemId(`vacation_${newItem.id}`);
+              }
+              // 2. 승인자를 제외한 모든 직원에게 근무일정(Work Schedule) 알림 전송
+              get().addHighlightedItemId(`workschedule_vacation_${newItem.id}`);
+            }
+            // 3. [되돌리기] 승인 상태였던 내 연차가 대기 상태가 되었을 때
+            else if (oldItem && oldItem.status === '승인' && newItem.status === '대기' && newItem.empId === currentUser.employeeId) {
+              shouldHighlight = true;
+            }
+            // 4. [반려] 상태가 변경되어 반려 상태가 된 내 연차일 때
+            else if (oldItem && oldItem.status !== newItem.status && newItem.status === '반려' && newItem.empId === currentUser.employeeId) {
+              shouldHighlight = true;
+            }
+
+            if (shouldHighlight) {
+              get().addHighlightedItemId(`vacation_${newItem.id}`);
+            }
+          });
+        }
+
         if (JSON.stringify(oldData) !== JSON.stringify(data)) {
           updates.vacations = data;
           localStorage.setItem('cached_vacations', JSON.stringify(data));
@@ -614,6 +654,32 @@ export const useStore = create<AppState>((set, get) => ({
       }
 
       set({ ...updates, isGlobalSyncing: false });
+
+      const updatedEmployees = get().employees;
+      const currentUser = get().currentUser;
+
+      if (currentUser && currentUser.employeeId && updatedEmployees && updatedEmployees.length > 0) {
+        const myNewInfo = updatedEmployees.find((e: any) => String(e.empId).trim() === String(currentUser.employeeId).trim());
+
+        if (myNewInfo) {
+          if (
+            currentUser.isManager !== myNewInfo.isManager ||
+            currentUser.department !== myNewInfo.department ||
+            currentUser.mainWorkplace !== myNewInfo.mainWorkplace ||
+            currentUser.subWorkplace !== myNewInfo.subWorkplace
+          ) {
+            const updatedUser = {
+              ...currentUser,
+              isManager: myNewInfo.isManager,
+              department: myNewInfo.department,
+              mainWorkplace: myNewInfo.mainWorkplace,
+              subWorkplace: myNewInfo.subWorkplace,
+            };
+            set({ currentUser: updatedUser });
+            localStorage.setItem('logged_in_user', JSON.stringify(updatedUser));
+          }
+        }
+      }
     } catch (error) {
       stillSyncing = false;
       clearTimeout(timer);
@@ -687,7 +753,7 @@ export const useStore = create<AppState>((set, get) => ({
             const verData = await verRes.json();
             set({ globalVersion: verData.version });
           }
-        } catch (e) {}
+        } catch (e) { }
       })
       .catch((err) => {
         set({ notices: prev, ...(isCurrentSelected ? { selectedNotice, noticeDrawerMode: 'edit' } : {}) });
@@ -785,7 +851,7 @@ export const useStore = create<AppState>((set, get) => ({
             const verData = await verRes.json();
             set({ globalVersion: verData.version });
           }
-        } catch (e) {}
+        } catch (e) { }
       })
       .catch((err) => {
         set({ handovers: prev, ...(isCurrentSelected ? { selectedHandover, handoverDrawerMode: 'edit' } : {}) });
@@ -979,7 +1045,7 @@ export const useStore = create<AppState>((set, get) => ({
       const prevNotices = get().notices;
       const target = prevNotices.find(n => n.id === id);
       if (!target || (target.readBy && target.readBy.includes(userName))) return;
-      
+
       const newReadBy = [...(target.readBy || []), userName];
       set(state => ({
         notices: state.notices.map(n => n.id === id ? { ...n, readBy: newReadBy } : n),
@@ -998,7 +1064,7 @@ export const useStore = create<AppState>((set, get) => ({
       const prevHandovers = get().handovers;
       const target = prevHandovers.find(h => h.id === id);
       if (!target || (target.readBy && target.readBy.includes(userName))) return;
-      
+
       const newReadBy = [...(target.readBy || []), userName];
       set(state => ({
         handovers: state.handovers.map(h => h.id === id ? { ...h, readBy: newReadBy } : h),
@@ -1017,7 +1083,7 @@ export const useStore = create<AppState>((set, get) => ({
       const prevEquipments = get().equipmentIssues;
       const target = prevEquipments.find(eq => eq.id === id);
       if (!target || (target.readBy && target.readBy.includes(userName))) return;
-      
+
       const newReadBy = [...(target.readBy || []), userName];
       set(state => ({
         equipmentIssues: state.equipmentIssues.map(eq => eq.id === id ? { ...eq, readBy: newReadBy } : eq)
@@ -1065,7 +1131,7 @@ export const useStore = create<AppState>((set, get) => ({
             const verData = await verRes.json();
             set({ globalVersion: verData.version });
           }
-        } catch (e) {}
+        } catch (e) { }
       })
       .catch((err) => {
         set({ equipmentIssues: prev });
@@ -1184,6 +1250,9 @@ export const useStore = create<AppState>((set, get) => ({
       set((state) => ({
         vacations: state.vacations.map(v => v.id === tempId ? { ...optimisticItem, id: String(saved.id) } : v),
       }));
+      if (saved.version) {
+        set({ globalVersion: saved.version });
+      }
     }).catch(() => {
       set({ vacations: previousVacations });
       console.error('[Store] 연차 신청 실패 — 롤백합니다.');
@@ -1202,6 +1271,9 @@ export const useStore = create<AppState>((set, get) => ({
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, status }),
+    }).then(async (res) => {
+      const data = await res.json();
+      if (data.version) set({ globalVersion: data.version });
     }).catch(() => {
       set({ vacations: previousVacations });
       console.error('[Store] 연차 상태 변경 실패 — 롤백합니다.');
@@ -1218,6 +1290,9 @@ export const useStore = create<AppState>((set, get) => ({
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'edit', id, ...fields }),
+    }).then(async (res) => {
+      const data = await res.json();
+      if (data.version) set({ globalVersion: data.version });
     }).catch(() => {
       set({ vacations: prev });
       console.error('[Store] 연차 수정 실패 — 롤백합니다.');
@@ -1230,7 +1305,10 @@ export const useStore = create<AppState>((set, get) => ({
     set((state) => ({
       vacations: state.vacations.filter(v => v.id !== id),
     }));
-    fetch(`/api/vacations?id=${id}`, { method: 'DELETE' }).catch(() => {
+    fetch(`/api/vacations?id=${id}`, { method: 'DELETE' }).then(async (res) => {
+      const data = await res.json();
+      if (data.version) set({ globalVersion: data.version });
+    }).catch(() => {
       set({ vacations: prev });
       console.error('[Store] 연차 삭제 실패 — 롤백합니다.');
     }).finally(() => setTimeout(() => set({ isMutating: false }), 2000)); // replaced
@@ -1246,7 +1324,7 @@ export const useStore = create<AppState>((set, get) => ({
       const saved = localStorage.getItem(`calendar_memos_${year}_${month}`);
       let memos = {};
       if (saved) {
-        try { memos = JSON.parse(saved); } catch (e) {}
+        try { memos = JSON.parse(saved); } catch (e) { }
       }
       set({ calendarMemos: memos });
     }
@@ -1258,7 +1336,7 @@ export const useStore = create<AppState>((set, get) => ({
       const saved = localStorage.getItem(storageKey);
       let memos: Record<string, string> = {};
       if (saved) {
-        try { memos = JSON.parse(saved); } catch (e) {}
+        try { memos = JSON.parse(saved); } catch (e) { }
       }
       if (text.trim()) {
         memos[key] = text.trim();

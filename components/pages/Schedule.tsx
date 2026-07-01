@@ -298,6 +298,8 @@ export default function Schedule() {
     setMyLastSavedScheduleVersion 
   } = useStore();
 
+  const hasVacationAlarm = highlightedItemIds.some(id => typeof id === 'string' && id.startsWith('vacation_'));
+
   const employees = useMemo(() => {
     const mapFullToShort: Record<string, string> = {
       '면역치료실': '면역',
@@ -369,6 +371,9 @@ export default function Schedule() {
     });
     return map;
   }, [vacations]);
+
+  const pendingVacationsCount = currentUser?.isManager ? vacations.filter(v => v.status === '대기').length : 0;
+  const vacationAlarmCount = highlightedItemIds.filter(id => typeof id === 'string' && id.startsWith('vacation_')).length + pendingVacationsCount;
 
   const [isSyncing, setIsSyncing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -1408,7 +1413,7 @@ export default function Schedule() {
       {/* ── 상단 컨트롤 바 ── */}
       <div className="shrink-0 bg-white border-b border-gray-100 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
         {/* 좌측: 월 네비게이션 */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 md:flex-1 md:justify-start">
           <div className="flex items-center gap-1">
             <button onClick={() => changeMonth(-1)} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
               <ChevronLeft className="w-4 h-4 text-gray-500" />
@@ -1426,7 +1431,7 @@ export default function Schedule() {
         </div>
 
         {/* 중앙: 뷰 전환 탭 */}
-        <div className="flex items-center bg-gray-100 p-1 rounded-xl relative overflow-x-auto no-scrollbar order-3 w-full mt-2 md:order-none md:w-auto md:mt-0">
+        <div className="flex items-center justify-center bg-gray-100 p-1 rounded-xl relative overflow-x-auto no-scrollbar order-3 w-full mt-2 md:order-none md:w-auto md:mt-0 shrink-0">
           {(['planned', 'actual', 'employee', 'room', 'calendar'] as const).map(mode => {
             const labels = { planned: '근무예정표', actual: '근무표', employee: '직원기준', room: '검실기준', calendar: '개인캘린더' };
             const isActive = viewMode === mode;
@@ -1444,7 +1449,7 @@ export default function Schedule() {
         </div>
 
         {/* 우측: 액션 버튼 */}
-        <div className="flex items-center gap-2 order-2 md:order-none">
+        <div className="flex items-center gap-2 justify-end order-2 md:order-none md:flex-1">
           <button
             onClick={() => setShowLegend(!showLegend)}
             disabled={isSaving}
@@ -1473,9 +1478,14 @@ export default function Schedule() {
           <button
             onClick={() => setShowVacationModal(true)}
             disabled={isSaving}
-            className="px-3 py-1.5 bg-blue-500 text-white text-xs font-bold rounded-lg flex items-center gap-1 hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="relative px-3 py-1.5 bg-blue-500 text-white text-xs font-bold rounded-lg flex items-center gap-1 hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <CalendarDays className="w-3.5 h-3.5" /> 연차 신청 / 내역
+            {vacationAlarmCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center animate-pulse border-2 border-white shadow-sm">
+                {vacationAlarmCount}
+              </span>
+            )}
           </button>
           {viewMode === 'planned' && (
             <button

@@ -156,7 +156,7 @@ export default function Handovers() {
   }, [highlightedItemId, handovers]);
 
   const filteredHandovers = useMemo(() => {
-    return handovers.filter(h => {
+    return [...handovers].reverse().filter(h => {
       // 근무지 필터링
       if (currentRoom !== '전체' && currentRoom !== 'All') {
         const selectedWorkplace = workplaces.find(w => w.id === currentRoom);

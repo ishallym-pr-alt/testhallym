@@ -2,13 +2,19 @@ import { useStore } from '@/store/useStore';
 import { Megaphone, Repeat2, CalendarDays, MonitorCheck, BarChart3, User, LogOut } from 'lucide-react';
 
 export default function Sidebar() {
-  const { currentPage, setCurrentPage, currentUser, logout, notices, handovers, equipmentIssues } = useStore();
+  const { currentPage, setCurrentPage, currentUser, logout, notices, handovers, equipmentIssues, highlightedItemIds, vacations } = useStore();
 
   const unreadCounts: Record<string, number> = {
     notices: notices.filter(n => !n.readBy?.includes(currentUser.name)).length,
     handovers: handovers.filter(h => !h.readBy?.includes(currentUser.name)).length,
     equipment: equipmentIssues.filter(eq => !eq.readBy?.includes(currentUser.name)).length,
   };
+
+  const pendingVacationsCount = currentUser.isManager ? vacations.filter(v => v.status === '대기').length : 0;
+
+  const scheduleAlarmCount = highlightedItemIds.filter(id => 
+    typeof id === 'string' && (id.startsWith('vacation_') || id.includes('_shift') || id.includes('_am') || id.includes('_pm'))
+  ).length + pendingVacationsCount;
 
   const navItems = [
     { id: 'notices', label: '공지사항', icon: Megaphone },
@@ -53,7 +59,11 @@ export default function Sidebar() {
                   {unreadCounts[item.id] > 99 ? '99+' : unreadCounts[item.id]}
                 </span>
               )}
-
+              {item.id === 'schedule' && scheduleAlarmCount > 0 && (
+                <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center animate-pulse">
+                  {scheduleAlarmCount}
+                </span>
+              )}
             </button>
           );
         })}

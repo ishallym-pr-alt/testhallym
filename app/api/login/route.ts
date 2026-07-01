@@ -8,17 +8,17 @@ const MAX_REQUESTS_PER_WINDOW = 5; // 최대 5회
 function checkRateLimit(ip: string): boolean {
   const now = Date.now();
   const timestamps = ipRequests.get(ip) || [];
-  
+
   // 1초 이내의 요청 타임스탬프만 필터링
   const recent = timestamps.filter(t => now - t < RATE_LIMIT_WINDOW_MS);
-  
+
   if (recent.length >= MAX_REQUESTS_PER_WINDOW) {
     return true;
   }
-  
+
   recent.push(now);
   ipRequests.set(ip, recent);
-  
+
   // 메모리 누수 방지를 위한 주기적 정리 (저장된 IP가 많을 때만 수행)
   if (ipRequests.size > 500) {
     ipRequests.forEach((list, key) => {
@@ -30,7 +30,7 @@ function checkRateLimit(ip: string): boolean {
       }
     });
   }
-  
+
   return false;
 }
 
@@ -50,11 +50,11 @@ export async function POST(request: Request) {
 
     const { empId, password } = await request.json();
     const gasUrl = process.env.GAS_WEB_APP_URL;
-    
+
     if (!gasUrl) {
       return NextResponse.json({ error: 'GAS_WEB_APP_URL이 설정되지 않았습니다.' }, { status: 500 });
     }
-    
+
     const response = await fetch(gasUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -64,14 +64,17 @@ export async function POST(request: Request) {
       }),
       cache: 'no-store'
     });
-    
+
     if (!response.ok) {
-      throw new Error('GAS 웹앱 응답 실패');
+      const errorText = await response.text();
+      console.error('GAS Error Response:', response.status, errorText);
+      throw new Error(`GAS 웹앱 응답 실패: ${response.status} ${response.statusText}`);
     }
-    
+
     const result = await response.json();
     return NextResponse.json(result);
   } catch (error: any) {
+    console.error('Login API Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

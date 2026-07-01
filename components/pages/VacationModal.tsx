@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useStore, Vacation } from '@/store/useStore';
-import { X, CheckCircle, XCircle, Pencil, Trash2 } from 'lucide-react';
+import { X, CheckCircle, XCircle, Pencil, Trash2, ChevronDown } from 'lucide-react';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 
@@ -24,7 +24,10 @@ export default function VacationModal({
   setWidth: (w: number) => void;
   setIsDragging?: (dragging: boolean) => void;
 }) {
-  const { currentUser, vacations, employees: rawEmployees, addVacation, updateVacationStatus, editVacation, deleteVacation } = useStore();
+  const { currentUser, vacations, employees: rawEmployees, addVacation, updateVacationStatus, editVacation, deleteVacation, highlightedItemIds, removeHighlightedItemId } = useStore();
+
+  const pendingVacationsCount = currentUser.isManager ? vacations.filter(v => v.status === '대기').length : 0;
+  const vacationAlarmCount = highlightedItemIds.filter(id => typeof id === 'string' && id.startsWith('vacation_')).length + pendingVacationsCount;
 
   // 퇴사하지 않은 자기 자신 제외한 직원 리스트
   const availableEmployees = React.useMemo(() => {
@@ -58,6 +61,32 @@ export default function VacationModal({
     document.addEventListener('mouseup', handleMouseUp);
   };
   const [activeTab, setActiveTab] = useState<'form' | 'list'>('form');
+  const [showExcelVacations, setShowExcelVacations] = useState(false);
+  const [dateFilter, setDateFilter] = useState<'all' | 'current_next'>('current_next');
+
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth() + 1;
+
+  const filteredByDate = vacations.filter(v => {
+    if (dateFilter === 'all') return true;
+    
+    // v.vacationDate가 "2026-07-01" 또는 Date 객체 형태일 때 연/월 추출
+    const d = new Date(v.vacationDate);
+    const vYear = d.getFullYear();
+    const vMonth = d.getMonth() + 1; // 0~11 이므로 +1
+    
+    // 현재 월(7월)과 다음 월(8월) 구하기 (12월일 때 연도 넘어가는 예외 처리 포함)
+    const nextYear = currentMonth === 12 ? currentYear + 1 : currentYear;
+    const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1;
+    
+    const isCurrentMonth = (vYear === currentYear && vMonth === currentMonth);
+    const isNextMonth = (vYear === nextYear && vMonth === nextMonth);
+    
+    return isCurrentMonth || isNextMonth;
+  });
+
+  const normalVacations = filteredByDate.filter(v => v.reason !== '엑셀 업로드 자동 승인');
+  const excelVacations = filteredByDate.filter(v => v.reason === '엑셀 업로드 자동 승인');
 
   // 신청 폼 상태 (Range Picker)
   const [dateRange, setDateRange] = useState<[Date | null, Date | null]>([null, null]);
@@ -164,6 +193,119 @@ export default function VacationModal({
     if (confirm('정말로 삭제하시겠습니까?')) deleteVacation(v.id);
   };
 
+  const renderVacationCard = (v: Vacation) => {
+    const isHighlighted = highlightedItemIds.includes(`vacation_${v.id}`) || (currentUser.isManager && v.status === '대기');
+    let statusColor = 'text-orange-500';
+    if (v.status === '승인') statusColor = 'text-green-600';
+    if (v.status === '반려') statusColor = 'text-red-500';
+
+    const isTypeFull = v.vacationType === '종일연차';
+    const typeBg = isTypeFull ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100';
+
+    return (
+      <div
+        key={v.id}
+        className={`rounded-xl p-4 shadow-sm hover:shadow-md transition-all flex flex-col gap-2.5 relative animate-fade-in ${
+          isHighlighted ? 'ring-2 ring-orange-400 bg-orange-50/30' : 'border border-gray-100 bg-white'
+        }`}
+        onMouseEnter={() => {
+          if (highlightedItemIds.includes(`vacation_${v.id}`)) {
+            removeHighlightedItemId(`vacation_${v.id}`);
+          }
+        }}
+      >
+        {/* 헤더: 일자 및 상태 배지 */}
+        <div className="flex justify-between items-center">
+          <span className="text-xs font-bold text-gray-400">{v.vacationDate}</span>
+          <span className={`inline-flex items-center gap-1 font-bold text-xs ${statusColor}`}>
+            {v.status === '승인' && <CheckCircle className="w-3.5 h-3.5" />}
+            {v.status === '반려' && <XCircle className="w-3.5 h-3.5" />}
+            {v.status}
+          </span>
+        </div>
+
+        {/* 본문: 신청자 정보 및 연차 구분 */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="font-extrabold text-sm text-gray-800 truncate">{v.name}</span>
+            <span className="text-[10px] px-1.5 py-0.5 bg-gray-50 border border-gray-200 text-gray-500 rounded font-bold shrink-0">
+              {v.mainWorkplace || v.department}
+            </span>
+          </div>
+          <span className={`inline-block px-2 py-0.5 rounded border text-[11px] font-bold shrink-0 ${typeBg}`}>
+            {v.vacationType}
+          </span>
+        </div>
+
+        {/* 사유 */}
+        {v.reason && (
+          <div className="text-xs text-gray-500 bg-gray-50/80 rounded-lg p-2.5 leading-relaxed border border-gray-100/50 break-all">
+            {v.reason}
+          </div>
+        )}
+
+        {/* 인수자 정보 */}
+        {v.handoverEmpId && (
+          <div className="text-xs text-gray-500 bg-blue-50/30 rounded-lg px-2.5 py-1.5 border border-blue-100/50 flex justify-between items-center">
+            <span className="font-semibold text-gray-600">인수자(대타)</span>
+            <span className="font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded text-[11px]">
+              {rawEmployees.find(e => String(e.empId).trim() === String(v.handoverEmpId).trim())?.name || v.handoverEmpId}
+            </span>
+          </div>
+        )}
+
+        {/* 관리/액션 영역 */}
+        <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-gray-50">
+          {/* 부서장 결재 (대기 상태일 때) */}
+          {currentUser.isManager && v.status === '대기' && (
+            <>
+              <button
+                onClick={() => handleApprove(v.id)}
+                className="px-3 py-1.5 bg-green-50 text-green-700 hover:bg-green-100 rounded-lg text-xs font-bold border border-green-200 transition-colors"
+              >
+                승인
+              </button>
+              <button
+                onClick={() => handleReject(v.id)}
+                className="px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-xs font-bold border border-red-200 transition-colors"
+              >
+                반려
+              </button>
+            </>
+          )}
+          {/* 부서장 결재 취소 */}
+          {currentUser.isManager && v.status !== '대기' && (
+            <button
+              onClick={() => handleRevert(v.id)}
+              className="px-3 py-1.5 bg-orange-50 text-orange-600 hover:bg-orange-100 rounded-lg text-xs font-bold border border-orange-200 transition-colors"
+            >
+              되돌리기
+            </button>
+          )}
+          {/* 작성자 본인 수정/삭제 (대기 상태일 때만) */}
+          {canEditVac(v) && (
+            <button
+              onClick={() => handleEditVac(v)}
+              className="p-1.5 text-gray-400 hover:text-[#004b8d] rounded-lg hover:bg-blue-50 transition-colors border border-transparent hover:border-blue-100"
+              title="수정"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+          )}
+          {canDeleteVac(v) && (
+            <button
+              onClick={() => handleDeleteVac(v)}
+              className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors border border-transparent hover:border-red-100"
+              title="삭제"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <>
       <div
@@ -202,7 +344,12 @@ export default function VacationModal({
             className={`px-4 py-3 text-sm font-bold border-b-2 transition-colors ${activeTab === 'list' ? 'border-[#004b8d] text-[#004b8d]' : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
           >
-            신청 내역 조회
+            <span className="relative">
+              신청 내역 조회
+              {vacationAlarmCount > 0 && (
+                <span className="absolute -top-1 -right-2 w-2 h-2 bg-red-500 rounded-full border border-white animate-pulse" />
+              )}
+            </span>
           </button>
         </div>
 
@@ -299,114 +446,52 @@ export default function VacationModal({
 
           {activeTab === 'list' && (
             <div className="space-y-4">
-              {vacations.length > 0 ? (
-                vacations.map((v) => {
-                  let statusColor = 'text-orange-500';
-                  if (v.status === '승인') statusColor = 'text-green-600';
-                  if (v.status === '반려') statusColor = 'text-red-500';
+              <div className="flex gap-2 mb-4 bg-gray-100 p-1 rounded-lg w-fit text-xs font-medium">
+                <button
+                  onClick={() => setDateFilter('current_next')}
+                  className={`px-3 py-1.5 rounded-md transition-colors ${dateFilter === 'current_next' ? 'bg-white text-gray-800 shadow-sm font-bold' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  이번 달/다음 달 보기
+                </button>
+                <button
+                  onClick={() => setDateFilter('all')}
+                  className={`px-3 py-1.5 rounded-md transition-colors ${dateFilter === 'all' ? 'bg-white text-gray-800 shadow-sm font-bold' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  전체보기
+                </button>
+              </div>
 
-                  const isTypeFull = v.vacationType === '종일연차';
-                  const typeBg = isTypeFull ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100';
-
-                  return (
-                    <div
-                      key={v.id}
-                      className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm hover:shadow-md transition-all flex flex-col gap-2.5 relative animate-fade-in"
-                    >
-                      {/* 헤더: 일자 및 상태 배지 */}
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs font-bold text-gray-400">{v.vacationDate}</span>
-                        <span className={`inline-flex items-center gap-1 font-bold text-xs ${statusColor}`}>
-                          {v.status === '승인' && <CheckCircle className="w-3.5 h-3.5" />}
-                          {v.status === '반려' && <XCircle className="w-3.5 h-3.5" />}
-                          {v.status}
-                        </span>
-                      </div>
-
-                      {/* 본문: 신청자 정보 및 연차 구분 */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <span className="font-extrabold text-sm text-gray-800 truncate">{v.name}</span>
-                          <span className="text-[10px] px-1.5 py-0.5 bg-gray-50 border border-gray-200 text-gray-500 rounded font-bold shrink-0">
-                            {v.mainWorkplace || v.department}
-                          </span>
-                        </div>
-                        <span className={`inline-block px-2 py-0.5 rounded border text-[11px] font-bold shrink-0 ${typeBg}`}>
-                          {v.vacationType}
-                        </span>
-                      </div>
-
-                      {/* 사유 */}
-                      {v.reason && (
-                        <div className="text-xs text-gray-500 bg-gray-50/80 rounded-lg p-2.5 leading-relaxed border border-gray-100/50 break-all">
-                          {v.reason}
-                        </div>
-                      )}
-
-                      {/* 인수자 정보 */}
-                      {v.handoverEmpId && (
-                        <div className="text-xs text-gray-500 bg-blue-50/30 rounded-lg px-2.5 py-1.5 border border-blue-100/50 flex justify-between items-center">
-                          <span className="font-semibold text-gray-600">인수자(대타)</span>
-                          <span className="font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded text-[11px]">
-                            {rawEmployees.find(e => String(e.empId).trim() === String(v.handoverEmpId).trim())?.name || v.handoverEmpId}
-                          </span>
-                        </div>
-                      )}
-
-                      {/* 관리/액션 영역 */}
-                      <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-gray-50">
-                        {/* 부서장 결재 (대기 상태일 때) */}
-                        {currentUser.isManager && v.status === '대기' && (
-                          <>
-                            <button
-                              onClick={() => handleApprove(v.id)}
-                              className="px-3 py-1.5 bg-green-50 text-green-700 hover:bg-green-100 rounded-lg text-xs font-bold border border-green-200 transition-colors"
-                            >
-                              승인
-                            </button>
-                            <button
-                              onClick={() => handleReject(v.id)}
-                              className="px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-xs font-bold border border-red-200 transition-colors"
-                            >
-                              반려
-                            </button>
-                          </>
-                        )}
-                        {/* 부서장 결재 취소 */}
-                        {currentUser.isManager && v.status !== '대기' && (
-                          <button
-                            onClick={() => handleRevert(v.id)}
-                            className="px-3 py-1.5 bg-orange-50 text-orange-600 hover:bg-orange-100 rounded-lg text-xs font-bold border border-orange-200 transition-colors"
-                          >
-                            되돌리기
-                          </button>
-                        )}
-                        {/* 작성자 본인 수정/삭제 (대기 상태일 때만) */}
-                        {canEditVac(v) && (
-                          <button
-                            onClick={() => handleEditVac(v)}
-                            className="p-1.5 text-gray-400 hover:text-[#004b8d] rounded-lg hover:bg-blue-50 transition-colors border border-transparent hover:border-blue-100"
-                            title="수정"
-                          >
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                        {canDeleteVac(v) && (
-                          <button
-                            onClick={() => handleDeleteVac(v)}
-                            className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors border border-transparent hover:border-red-100"
-                            title="삭제"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })
+              {normalVacations.length > 0 ? (
+                [...normalVacations].reverse().map(renderVacationCard)
               ) : (
-                <div className="text-center py-16 text-gray-400 bg-gray-50/50 rounded-2xl border border-dashed border-gray-200">
-                  신청된 연차 내역이 없습니다.
+                excelVacations.length === 0 && (
+                  <div className="text-center py-16 text-gray-400 bg-gray-50/50 rounded-2xl border border-dashed border-gray-200">
+                    신청된 연차 내역이 없습니다.
+                  </div>
+                )
+              )}
+
+              {excelVacations.length > 0 && (
+                <div className="mt-6 pt-4 border-t border-gray-200">
+                  <button
+                    onClick={() => setShowExcelVacations(!showExcelVacations)}
+                    className="w-full flex items-center justify-between p-3.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-gray-700 text-sm">엑셀 업로드 자동 승인 내역</span>
+                      <span className="px-2 py-0.5 bg-gray-200 text-gray-600 rounded-full text-xs font-bold">
+                        {excelVacations.length}
+                      </span>
+                    </div>
+                    <ChevronDown
+                      className={`w-5 h-5 text-gray-500 transition-transform ${showExcelVacations ? 'rotate-180' : ''}`}
+                    />
+                  </button>
+                  {showExcelVacations && (
+                    <div className="mt-4 space-y-4 p-4 bg-gray-50/50 rounded-xl border border-gray-100">
+                      {[...excelVacations].reverse().map(renderVacationCard)}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
