@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { Analytics } from "@vercel/analytics/next";
 
 export const metadata: Metadata = {
   title: "한림병원 직원용 포탈",
@@ -21,6 +22,7 @@ export default function RootLayout({
       </head>
       <body className="bg-gray-50 overflow-x-hidden">
         {children}
+        <Analytics />
       </body>
     </html>
   );
