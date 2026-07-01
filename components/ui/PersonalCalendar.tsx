@@ -206,6 +206,8 @@ export default function PersonalCalendar(props: PersonalCalendarProps) {
             let code = type;
             if (type === '종일연차') code = '연차';
             else if (type === '오전반차' || type === '오후반차') code = '반차';
+            else if (type === '토요일 오전 MO' || type === '토요일 오후 MO') code = 'MO';
+            else if (type === '대체 오전 HO' || type === '대체 오후 HO') code = 'HO';
             else if (type === '육아휴직') code = '육휴';
             else if (type === '휴직') code = '휴직';
             mergedShifts[empId][day] = code;
@@ -232,9 +234,9 @@ export default function PersonalCalendar(props: PersonalCalendarProps) {
                 if (type === '종일연차') {
                   if (!amList.includes(giverWorkplace)) amList.push(giverWorkplace);
                   if (!pmList.includes(giverWorkplace)) pmList.push(giverWorkplace);
-                } else if (type === '오전반차') {
+                } else if (type === '오전반차' || type === '토요일 오전 MO' || type === '대체 오전 HO') {
                   if (!amList.includes(giverWorkplace)) amList.push(giverWorkplace);
-                } else if (type === '오후반차') {
+                } else if (type === '오후반차' || type === '토요일 오후 MO' || type === '대체 오후 HO') {
                   if (!pmList.includes(giverWorkplace)) pmList.push(giverWorkplace);
                 }
 
@@ -545,6 +547,10 @@ export default function PersonalCalendar(props: PersonalCalendarProps) {
                                 if (v.vacationType === '종일연차') displayVacType = '연차';
                                 else if (v.vacationType === '오전반차') displayVacType = '오전반';
                                 else if (v.vacationType === '오후반차') displayVacType = '오후반';
+                                else if (v.vacationType === '토요일 오전 MO') displayVacType = '오전MO';
+                                else if (v.vacationType === '토요일 오후 MO') displayVacType = '오후MO';
+                                else if (v.vacationType === '대체 오전 HO') displayVacType = '오전HO';
+                                else if (v.vacationType === '대체 오후 HO') displayVacType = '오후HO';
 
                                 const hasHandover = !!v.handoverEmpId;
                                 const hoverEmp = hasHandover ? (rawEmployees || []).find(e => String(e.empId) === String(v.handoverEmpId)) : null;
@@ -644,6 +650,12 @@ export default function PersonalCalendar(props: PersonalCalendarProps) {
                                   } else if (vacType === '오후반차') {
                                     vacBadgeStyle = "bg-sky-50 text-sky-600 border-sky-100";
                                     vacLabel = "오후반";
+                                  } else if (vacType.includes('MO')) {
+                                    vacBadgeStyle = "bg-purple-50 text-purple-700 border-purple-200";
+                                    vacLabel = vacType === '토요일 오전 MO' ? '오전MO' : '오후MO';
+                                  } else if (vacType.includes('HO')) {
+                                    vacBadgeStyle = "bg-indigo-50 text-indigo-700 border-indigo-200";
+                                    vacLabel = vacType === '대체 오전 HO' ? '오전HO' : '오후HO';
                                   } else {
                                     vacBadgeStyle = "bg-rose-50 text-rose-600 border-rose-100";
                                     vacLabel = vacType;

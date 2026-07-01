@@ -778,14 +778,14 @@ function doPost(e) {
       var sheet = getSheet(sheetName);
       var rowIndex = findRowIndex(sheet, 'id', data.id);
       if (rowIndex === -1) return makeJsonResponse({ error: 'Item not found: ' + data.id });
-      
+
       var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
       var map = getHeaderMap(sheetName);
       var readByColIndex = headers.indexOf(map['readBy']) + 1;
-      
+
       if (readByColIndex > 0) {
         var currentReadByStr = String(sheet.getRange(rowIndex, readByColIndex).getValue() || '');
-        var currentReadBy = currentReadByStr ? currentReadByStr.split(',').map(function(x) { return x.trim(); }).filter(Boolean) : [];
+        var currentReadBy = currentReadByStr ? currentReadByStr.split(',').map(function (x) { return x.trim(); }).filter(Boolean) : [];
         if (currentReadBy.indexOf(data.userName) === -1) {
           currentReadBy.push(data.userName);
           sheet.getRange(rowIndex, readByColIndex).setValue(currentReadBy.join(', '));
@@ -1172,8 +1172,8 @@ function doPost(e) {
         if (dateCol > 0 && reasonCol > 0) {
           var dVals = vacSheet.getRange(2, dateCol, vacLastRow - 1, 1).getValues();
           var rVals = vacSheet.getRange(2, reasonCol, vacLastRow - 1, 1).getValues();
-          var targetPrefix = year + '-' + String(month).padStart(2, '0'); 
-          
+          var targetPrefix = year + '-' + String(month).padStart(2, '0');
+
           for (var v = dVals.length - 1; v >= 0; v--) {
             var vacDate = dVals[v][0];
             var reason = String(rVals[v][0]).trim();
@@ -1183,7 +1183,7 @@ function doPost(e) {
             } else {
               vacDateStr = String(vacDate).trim();
             }
-            
+
             if (vacDateStr.startsWith(targetPrefix) && reason === '엑셀 업로드 자동 승인') {
               vacSheet.deleteRow(v + 2);
             }
@@ -1199,10 +1199,11 @@ function doPost(e) {
           var shiftVal = (shifts[emp.empId] && shifts[emp.empId][d]) || '';
           shiftVal = shiftVal.toString().trim();
 
-          if (shiftVal === '연차' || shiftVal === '반차' || shiftVal === '오전반차' || shiftVal === '오후반차') {
+          if (shiftVal === '연차' || shiftVal === '반차' || shiftVal === '오전반차' || shiftVal === '오후반차' || shiftVal === '토요일 오전 MO' || shiftVal === '토요일 오후 MO' || shiftVal === '대체 오전 HO' || shiftVal === '대체 오후 HO') {
             var dateStr = year + '-' + String(month).padStart(2, '0') + '-' + String(d).padStart(2, '0');
-            var vacType = shiftVal === '연차' ? '종일연차' : (shiftVal === '오전반차' ? '오전반차' : (shiftVal === '오후반차' ? '오후반차' : '오전반차'));
-            if (shiftVal === '반차') vacType = '오전반차';
+            var vacType = shiftVal;
+            if (shiftVal === '연차') vacType = '종일연차';
+            else if (shiftVal === '반차') vacType = '오전반차';
 
             var rowData = new Array(vacHeaders.length).fill('');
             rowData[vacHeaders.indexOf(vacMap['id'])] = String(Date.now() + Math.floor(Math.random() * 10000) + d);
@@ -1407,8 +1408,9 @@ function doPost(e) {
 
           var shiftCode = '';
           if (vacType === '종일연차') shiftCode = '연차';
-          else if (vacType === '오전반차') shiftCode = '반차';
-          else if (vacType === '오후반차') shiftCode = '반차';
+          else if (vacType === '오전반차' || vacType === '오후반차') shiftCode = '반차';
+          else if (vacType === '토요일 오전 MO' || vacType === '토요일 오후 MO') shiftCode = 'MO';
+          else if (vacType === '대체 오전 HO' || vacType === '대체 오후 HO') shiftCode = 'HO';
           else shiftCode = '연차';
 
           var colIndex = schedHeaders.indexOf(schedMap['day_' + day + '_shift']) + 1;
@@ -1579,20 +1581,20 @@ function syncVacationSupportToSchedule(vacRowIndex, newStatus) {
       var amCol = schedHeaders.indexOf(schedMap['day_' + day + '_support_am']) + 1;
       var pmCol = schedHeaders.indexOf(schedMap['day_' + day + '_support_pm']) + 1;
 
-      if (vacType === '종일연차' || vacType === '오전반차') {
+      if (vacType === '종일연차' || vacType === '오전반차' || vacType === '토요일 오전 MO' || vacType === '대체 오전 HO') {
         var amVal = String(schedSheet.getRange(schedRowIndex, amCol).getValue() || '').trim();
         var amArr = [];
-        try { if (amVal) amArr = JSON.parse(amVal); } catch (e) {}
+        try { if (amVal) amArr = JSON.parse(amVal); } catch (e) { }
         if (!Array.isArray(amArr)) amArr = [];
         if (amArr.indexOf(giverWorkplace) === -1) {
           amArr.push(giverWorkplace);
           schedSheet.getRange(schedRowIndex, amCol).setValue(JSON.stringify(amArr));
         }
       }
-      if (vacType === '종일연차' || vacType === '오후반차') {
+      if (vacType === '종일연차' || vacType === '오후반차' || vacType === '토요일 오후 MO' || vacType === '대체 오후 HO') {
         var pmVal = String(schedSheet.getRange(schedRowIndex, pmCol).getValue() || '').trim();
         var pmArr = [];
-        try { if (pmVal) pmArr = JSON.parse(pmVal); } catch (e) {}
+        try { if (pmVal) pmArr = JSON.parse(pmVal); } catch (e) { }
         if (!Array.isArray(pmArr)) pmArr = [];
         if (pmArr.indexOf(giverWorkplace) === -1) {
           pmArr.push(giverWorkplace);
@@ -1606,10 +1608,10 @@ function syncVacationSupportToSchedule(vacRowIndex, newStatus) {
       var amCol = schedHeaders.indexOf(schedMap['day_' + day + '_support_am']) + 1;
       var pmCol = schedHeaders.indexOf(schedMap['day_' + day + '_support_pm']) + 1;
 
-      if (vacType === '종일연차' || vacType === '오전반차') {
+      if (vacType === '종일연차' || vacType === '오전반차' || vacType === '토요일 오전 MO' || vacType === '대체 오전 HO') {
         var amVal = String(schedSheet.getRange(schedRowIndex, amCol).getValue() || '').trim();
         var amArr = [];
-        try { if (amVal) amArr = JSON.parse(amVal); } catch (e) {}
+        try { if (amVal) amArr = JSON.parse(amVal); } catch (e) { }
         if (Array.isArray(amArr)) {
           var idx = amArr.indexOf(giverWorkplace);
           if (idx !== -1) {
@@ -1618,10 +1620,10 @@ function syncVacationSupportToSchedule(vacRowIndex, newStatus) {
           }
         }
       }
-      if (vacType === '종일연차' || vacType === '오후반차') {
+      if (vacType === '종일연차' || vacType === '오후반차' || vacType === '토요일 오후 MO' || vacType === '대체 오후 HO') {
         var pmVal = String(schedSheet.getRange(schedRowIndex, pmCol).getValue() || '').trim();
         var pmArr = [];
-        try { if (pmVal) pmArr = JSON.parse(pmVal); } catch (e) {}
+        try { if (pmVal) pmArr = JSON.parse(pmVal); } catch (e) { }
         if (Array.isArray(pmArr)) {
           var idx = pmArr.indexOf(giverWorkplace);
           if (idx !== -1) {

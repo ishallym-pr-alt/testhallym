@@ -500,6 +500,8 @@ export default function Schedule() {
             let code = type;
             if (type === '종일연차') code = '연차';
             else if (type === '오전반차' || type === '오후반차') code = '반차';
+            else if (type === '토요일 오전 MO' || type === '토요일 오후 MO') code = 'MO';
+            else if (type === '대체 오전 HO' || type === '대체 오후 HO') code = 'HO';
             else if (type === '육아휴직') code = '육휴';
             else if (type === '휴직') code = '휴직';
             mergedShifts[empId][day] = code;
@@ -526,9 +528,9 @@ export default function Schedule() {
                 if (type === '종일연차') {
                   if (!amList.includes(giverWorkplace)) amList.push(giverWorkplace);
                   if (!pmList.includes(giverWorkplace)) pmList.push(giverWorkplace);
-                } else if (type === '오전반차') {
+                } else if (type === '오전반차' || type === '토요일 오전 MO' || type === '대체 오전 HO') {
                   if (!amList.includes(giverWorkplace)) amList.push(giverWorkplace);
-                } else if (type === '오후반차') {
+                } else if (type === '오후반차' || type === '토요일 오후 MO' || type === '대체 오후 HO') {
                   if (!pmList.includes(giverWorkplace)) pmList.push(giverWorkplace);
                 }
 

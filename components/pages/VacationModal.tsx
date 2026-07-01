@@ -200,7 +200,13 @@ export default function VacationModal({
     if (v.status === '반려') statusColor = 'text-red-500';
 
     const isTypeFull = v.vacationType === '종일연차';
-    const typeBg = isTypeFull ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100';
+    const isTypeMO = v.vacationType.includes('MO');
+    const isTypeHO = v.vacationType.includes('HO');
+    
+    let typeBg = 'bg-emerald-50 text-emerald-700 border-emerald-100';
+    if (isTypeFull) typeBg = 'bg-blue-50 text-blue-700 border-blue-100';
+    else if (isTypeMO) typeBg = 'bg-purple-50 text-purple-700 border-purple-100';
+    else if (isTypeHO) typeBg = 'bg-indigo-50 text-indigo-700 border-indigo-100';
 
     return (
       <div
@@ -387,9 +393,9 @@ export default function VacationModal({
 
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1.5">연차 구분</label>
-                  <div className="flex gap-3">
-                    {['종일연차', '오전반차', '오후반차'].map(type => (
-                      <label key={type} className={`flex-1 flex items-center justify-center p-3 border rounded-xl cursor-pointer transition-all ${formType === type ? 'border-[#004b8d] bg-blue-50 text-[#004b8d] font-bold' : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {['종일연차', '오전반차', '오후반차', '토요일 오전 MO', '토요일 오후 MO', '대체 오전 HO', '대체 오후 HO'].map(type => (
+                      <label key={type} className={`flex items-center justify-center p-3 border rounded-xl cursor-pointer transition-all text-center ${formType === type ? 'border-[#004b8d] bg-blue-50 text-[#004b8d] font-bold' : 'border-gray-200 text-gray-600 hover:bg-gray-50'
                         }`}>
                         <input
                           type="radio"
@@ -516,9 +522,9 @@ export default function VacationModal({
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1.5">연차 구분</label>
-                  <div className="flex gap-3">
-                    {['종일연차', '오전반차', '오후반차'].map(type => (
-                      <label key={type} className={`flex-1 flex items-center justify-center p-3 border rounded-xl cursor-pointer transition-all ${editType === type ? 'border-[#004b8d] bg-blue-50 text-[#004b8d] font-bold' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {['종일연차', '오전반차', '오후반차', '토요일 오전 MO', '토요일 오후 MO', '대체 오전 HO', '대체 오후 HO'].map(type => (
+                      <label key={type} className={`flex items-center justify-center p-3 border rounded-xl cursor-pointer transition-all text-center ${editType === type ? 'border-[#004b8d] bg-blue-50 text-[#004b8d] font-bold' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
                         <input type="radio" name="editVacType" value={type} checked={editType === type} onChange={() => setEditType(type)} className="hidden" />
                         <span className="text-sm">{type}</span>
                       </label>
