@@ -62,7 +62,8 @@ export default function Notices() {
       setFormIsImportant(currentNotice.isImportant || false);
       setFormTargetDepartment(currentNotice.targetDepartment || '');
     }
-  }, [noticeDrawerMode, currentNotice, currentUser.mainWorkplace]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [noticeDrawerMode]);
 
   // Handle click outside to close drawer
   useEffect(() => {

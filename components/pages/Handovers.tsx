@@ -57,7 +57,8 @@ export default function Handovers() {
       setFormContent(currentHandover.content);
       setFormReceiver(currentHandover.receiver);
     }
-  }, [handoverDrawerMode, currentHandover]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handoverDrawerMode]);
 
   // Handle click outside to close drawer
   useEffect(() => {

@@ -99,7 +99,7 @@ const normalize = (emp: any) => {
 };
 
 export default function PersonalCalendar(props: PersonalCalendarProps) {
-  const { scheduleYear: year, scheduleMonth: month, calendarMemos: memos, loadCalendarMemos, saveCalendarMemo, employees: rawEmployees, vacations, currentUser: rawCurrentUser } = useStore();
+  const { scheduleYear: year, scheduleMonth: month, calendarMemos: memos, loadCalendarMemos, saveCalendarMemo, employees: rawEmployees, vacations, currentUser: rawCurrentUser, globalVersion } = useStore();
 
   const [calendarEmpId, setCalendarEmpId] = useState<string>('all');
   const [localScheduleData, setLocalScheduleData] = useState<ScheduleData | null>(null);
@@ -326,7 +326,7 @@ export default function PersonalCalendar(props: PersonalCalendarProps) {
 
     fetchSchedule();
     return () => { isMounted = false; };
-  }, [year, month, props.scheduleData, employees]);
+  }, [year, month, props.scheduleData, employees, globalVersion]);
 
   const isFullOff = useCallback((code: string) => {
     const c = code?.toUpperCase().trim() || '';
@@ -357,7 +357,9 @@ export default function PersonalCalendar(props: PersonalCalendarProps) {
   const handleSaveMemo = () => {
     if (!selectedMemoEmpId || selectedMemoDay === null) return;
     const key = `${selectedMemoEmpId}_${selectedMemoDay}`;
-    saveCalendarMemo(year, month, key, memoText);
+    const existing = memos[key] || '';
+    const updated = existing ? `${existing}\n${memoText.trim()}` : memoText.trim();
+    saveCalendarMemo(year, month, key, updated);
     setShowMemoModal(false);
     setToast('메모가 저장되었습니다.');
   };
@@ -487,23 +489,24 @@ export default function PersonalCalendar(props: PersonalCalendarProps) {
                 cellBg = 'bg-orange-50/40 border-t-2 border-t-[#ff7a00]';
               }
 
+              const handleDateClick = () => {
+                const myEmpId = currentUser.employeeId;
+                if (!myEmpId) {
+                  const showMsg = props.showToast || alert;
+                  showMsg('로그인 정보가 없습니다.');
+                  return;
+                }
+                setSelectedMemoEmpId(myEmpId);
+                setSelectedMemoDay(info.day);
+                setMemoText('');
+                setShowMemoModal(true);
+              };
+
               return (
                 <div
                   key={info.day}
-                  className={`border-r border-b border-gray-100 ${cellBg} p-1.5 flex flex-col gap-1 overflow-hidden ${calendarEmpId !== 'all' ? 'cursor-pointer hover:bg-gray-100/50' : ''}`}
-                  onClick={() => {
-                    if (calendarEmpId !== 'all') {
-                      if (String(calendarEmpId) !== String(currentUser.employeeId)) {
-                        const showMsg = props.showToast || alert;
-                        showMsg('본인의 달력에만 메모를 입력할 수 있습니다.');
-                        return;
-                      }
-                      setSelectedMemoEmpId(calendarEmpId);
-                      setSelectedMemoDay(info.day);
-                      setMemoText(memos[`${calendarEmpId}_${info.day}`] || '');
-                      setShowMemoModal(true);
-                    }
-                  }}
+                  className={`border-r border-b border-gray-100 ${cellBg} p-1.5 flex flex-col gap-1 overflow-hidden cursor-pointer hover:bg-gray-100/50 transition-colors`}
+                  onClick={handleDateClick}
                 >
                   <div className="flex items-center gap-1.5 shrink-0 mb-1.5 pointer-events-none">
                     <span className={`text-sm font-black ${textCol}`}>{info.day}</span>
@@ -516,161 +519,181 @@ export default function PersonalCalendar(props: PersonalCalendarProps) {
                       </span>
                     )}
                   </div>
-                  <div className="flex-1 overflow-y-auto flex flex-col items-start gap-1 no-scrollbar min-h-0">
-                    <div className="flex flex-col items-stretch gap-1 w-full">
-                      {displayEmployees.map(emp => {
-                        const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(info.day).padStart(2, '0')}`;
-                        const approvedVacation = approvedVacationsMap[`${emp.empId}_${dateStr}`];
+                  <div className="flex-1 overflow-y-auto flex flex-col items-start gap-1 no-scrollbar min-h-0 w-full">
+                    <div className="grid grid-cols-2 gap-1.5 w-full items-start">
+                      {/* 1열: 근무/연차 영역 */}
+                      <div className="flex flex-col gap-1 w-full">
+                        {displayEmployees.map(emp => {
+                          const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(info.day).padStart(2, '0')}`;
+                          const approvedVacation = approvedVacationsMap[`${emp.empId}_${dateStr}`];
 
-                        const shift = scheduleData.shifts[emp.empId]?.[info.day] || '';
-                        const normalizedShift = shift?.toUpperCase().trim();
+                          const shift = scheduleData.shifts[emp.empId]?.[info.day] || '';
+                          const normalizedShift = shift?.toUpperCase().trim();
 
-                        const off = isFullOff(shift);
-                        const isHolidayDay = info.dow === 0 || info.isHoliday;
-                        const isHolidayHo = isHolidayDay && normalizedShift === 'HO';
-                        const isSatM = info.dow === 6 && normalizedShift === 'M';
-                        const isForceMorningOnly = isHolidayHo || isSatM;
+                          const off = isFullOff(shift);
+                          const isHolidayDay = info.dow === 0 || info.isHoliday;
+                          const isHolidayHo = isHolidayDay && normalizedShift === 'HO';
+                          const isSatM = info.dow === 6 && normalizedShift === 'M';
+                          const isForceMorningOnly = isHolidayHo || isSatM;
 
-                        const isDefaultMorningOnly = !off && (
-                          ['M', 'M1', 'MX', 'H', 'HO', 'MO'].includes(normalizedShift) ||
-                          (info.dow === 6)
-                        );
+                          const isDefaultMorningOnly = !off && (
+                            ['M', 'M1', 'MX', 'H', 'HO', 'MO'].includes(normalizedShift) ||
+                            (info.dow === 6)
+                          );
 
-                        const amRaw = scheduleData.supports?.[emp.empId]?.[info.day]?.am;
-                        const pmRaw = scheduleData.supports?.[emp.empId]?.[info.day]?.pm;
-                        const amSupports: string[] = amRaw && amRaw.length > 0 ? amRaw.map((r: any) => getRoomName(r)) : [getRoomName(emp.mainWorkplace || emp.department)];
-                        const pmSupports: string[] = isForceMorningOnly
-                          ? []
-                          : (isDefaultMorningOnly && !(pmRaw && pmRaw.length > 0))
+                          const amRaw = scheduleData.supports?.[emp.empId]?.[info.day]?.am;
+                          const pmRaw = scheduleData.supports?.[emp.empId]?.[info.day]?.pm;
+                          const amSupports: string[] = amRaw && amRaw.length > 0 ? amRaw.map((r: any) => getRoomName(r)) : [getRoomName(emp.mainWorkplace || emp.department)];
+                          const pmSupports: string[] = isForceMorningOnly
                             ? []
-                            : (pmRaw && pmRaw.length > 0 ? pmRaw.map((r: any) => getRoomName(r)) : [getRoomName(emp.mainWorkplace || emp.department)]);
+                            : (isDefaultMorningOnly && !(pmRaw && pmRaw.length > 0))
+                              ? []
+                              : (pmRaw && pmRaw.length > 0 ? pmRaw.map((r: any) => getRoomName(r)) : [getRoomName(emp.mainWorkplace || emp.department)]);
 
-                        const origDept = emp.mainWorkplace || emp.department || '';
-                        const isAmSupport = amSupports.length > 0 && amSupports[0] !== getRoomName(origDept);
-                        const isPmSupport = pmSupports.length > 0 && pmSupports[0] !== getRoomName(origDept);
-                        const supportDept = isAmSupport
-                          ? amSupports[0]
-                          : (isPmSupport ? pmSupports[0] : null);
+                          const origDept = emp.mainWorkplace || emp.department || '';
+                          const isAmSupport = amSupports.length > 0 && amSupports[0] !== getRoomName(origDept);
+                          const isPmSupport = pmSupports.length > 0 && pmSupports[0] !== getRoomName(origDept);
+                          const supportDept = isAmSupport
+                            ? amSupports[0]
+                            : (isPmSupport ? pmSupports[0] : null);
 
-                        // 1. 전체 직원 모드인 경우: 연차 혹은 대타 지원 근무가 있는 날만 노출
-                        if (calendarEmpId === 'all') {
-                          if (!approvedVacation && !supportDept) return null;
-                        }
+                          // 1. 전체 직원 모드인 경우: 연차 혹은 대타 지원 근무가 있는 날만 노출
+                          if (calendarEmpId === 'all') {
+                            if (!approvedVacation && !supportDept) return null;
+                          }
 
-                        // 2. 개별 직원 모드인 경우
-                        if (calendarEmpId !== 'all') {
+                          // 2. 개별 직원 모드인 경우
+                          if (calendarEmpId !== 'all') {
+                            const upperShift = shift?.toUpperCase().trim();
+                            const isOff = upperShift === 'OFF' || !upperShift;
+                            const isHolidayOrSunday = info.dow === 0 || info.isHoliday;
+                            const isSaturday = info.dow === 6;
+                            const isWeekday = !isHolidayOrSunday && !isSaturday;
+
+                            if (approvedVacation || supportDept) {
+                              // Proceed to show
+                            } else if (isHolidayOrSunday) {
+                              if (isOff) return null;
+                            } else if (isSaturday) {
+                              if (isOff) return null;
+                            } else if (isWeekday) {
+                              if (upperShift !== 'HO') return null;
+                            }
+                          }
+
+                          // 휴가 뱃지 스타일 정의
+                          let vacBadgeStyle = "";
+                          let vacLabel = "";
+                          if (approvedVacation) {
+                            const vacType = approvedVacation.vacationType;
+                            if (vacType === '종일연차') {
+                              vacBadgeStyle = "bg-rose-50 text-rose-600 border-rose-100";
+                              vacLabel = "연차";
+                            } else if (vacType === '오전반차') {
+                              vacBadgeStyle = "bg-sky-50 text-sky-600 border-sky-100";
+                              vacLabel = "오전반";
+                            } else if (vacType === '오후반차') {
+                              vacBadgeStyle = "bg-sky-50 text-sky-600 border-sky-100";
+                              vacLabel = "오후반";
+                            } else {
+                              vacBadgeStyle = "bg-rose-50 text-rose-600 border-rose-100";
+                              vacLabel = vacType;
+                            }
+                          }
+
+                          // 일반 근무 코드 배지 스타일
+                          let shiftBadgeStyle = "bg-gray-50 text-gray-400 border-gray-200";
+                          let showCode = shift || 'OFF';
                           const upperShift = shift?.toUpperCase().trim();
-                          const isOff = upperShift === 'OFF' || !upperShift;
-                          const isHolidayOrSunday = info.dow === 0 || info.isHoliday;
-                          const isSaturday = info.dow === 6;
-                          const isWeekday = !isHolidayOrSunday && !isSaturday;
-
-                          if (approvedVacation || supportDept) {
-                            // Proceed to show
-                          } else if (isHolidayOrSunday) {
-                            if (isOff) return null;
-                          } else if (isSaturday) {
-                            if (isOff) return null;
-                          } else if (isWeekday) {
-                            if (upperShift !== 'HO') return null;
-                          }
-                        }
-
-                        // 휴가 뱃지 스타일 정의
-                        let vacBadgeStyle = "";
-                        let vacLabel = "";
-                        if (approvedVacation) {
-                          const vacType = approvedVacation.vacationType;
-                          if (vacType === '종일연차') {
-                            vacBadgeStyle = "bg-rose-50 text-rose-600 border-rose-100";
-                            vacLabel = "연차";
-                          } else if (vacType === '오전반차') {
-                            vacBadgeStyle = "bg-sky-50 text-sky-600 border-sky-100";
-                            vacLabel = "오전반";
-                          } else if (vacType === '오후반차') {
-                            vacBadgeStyle = "bg-sky-50 text-sky-600 border-sky-100";
-                            vacLabel = "오후반";
+                          if (upperShift && SHIFT_CODES[upperShift]) {
+                            const sInfo = SHIFT_CODES[upperShift];
+                            shiftBadgeStyle = `${sInfo.bg} ${sInfo.color} ${sInfo.border}`;
+                          } else if (upperShift === 'OFF' || !upperShift) {
+                            shiftBadgeStyle = "bg-gray-50 text-gray-400 border-gray-200";
+                            showCode = 'OFF';
                           } else {
-                            vacBadgeStyle = "bg-rose-50 text-rose-600 border-rose-100";
-                            vacLabel = vacType;
+                            shiftBadgeStyle = "bg-pink-50 text-pink-600 border-pink-100";
                           }
-                        }
 
-                        // 일반 근무 코드 배지 스타일
-                        let shiftBadgeStyle = "bg-gray-50 text-gray-400 border-gray-200";
-                        let showCode = shift || 'OFF';
-                        const upperShift = shift?.toUpperCase().trim();
-                        if (upperShift && SHIFT_CODES[upperShift]) {
-                          const sInfo = SHIFT_CODES[upperShift];
-                          shiftBadgeStyle = `${sInfo.bg} ${sInfo.color} ${sInfo.border}`;
-                        } else if (upperShift === 'OFF' || !upperShift) {
-                          shiftBadgeStyle = "bg-gray-50 text-gray-400 border-gray-200";
-                          showCode = 'OFF';
-                        } else {
-                          shiftBadgeStyle = "bg-pink-50 text-pink-600 border-pink-100";
-                        }
+                          const isSelf = calendarEmpId !== 'all' && String(emp.empId) === String(currentUser.employeeId);
+                          const cardClass = isSelf
+                            ? "ring-1 ring-blue-200 border-blue-300 bg-blue-50 shadow-sm font-extrabold"
+                            : supportDept
+                              ? "ring-1 ring-orange-200 border-orange-300 bg-orange-50/70 shadow-sm font-extrabold"
+                              : "border-gray-100 bg-gray-50 hover:bg-gray-100/50 hover:border-gray-200";
 
-                        const isSelf = calendarEmpId !== 'all' && String(emp.empId) === String(currentUser.employeeId);
-                        const cardClass = isSelf
-                          ? "ring-1 ring-blue-200 border-blue-300 bg-blue-50 shadow-sm font-extrabold"
-                          : supportDept
-                            ? "ring-1 ring-orange-200 border-orange-300 bg-orange-50/70 shadow-sm font-extrabold"
-                            : "border-gray-100 bg-gray-50 hover:bg-gray-100/50 hover:border-gray-200";
+                          return (
+                            <div
+                              key={emp.empId}
+                              className={`flex flex-col gap-0.5 px-1 py-1 rounded-md border text-[10px] sm:text-xs transition-all select-none min-w-0 ${cardClass} ${props.openPopover ? 'cursor-pointer' : 'cursor-default'}`}
+                              onClick={(e) => {
+                                if (!props.openPopover || !props.getPopoverSupports) return;
+                                e.stopPropagation();
+                                if (props.isSaving) {
+                                  const showMsg = props.showToast || alert;
+                                  showMsg('저장 중에는 수정할 수 없습니다.');
+                                  return;
+                                }
+                                const { am, pm } = props.getPopoverSupports(emp.empId, info.day);
+                                props.openPopover(e, 'calendar', { empId: emp.empId, empName: emp.name, day: info.day, am, pm });
+                              }}
+                            >
+                              <div className="flex items-center justify-between gap-0.5 w-full min-w-0">
+                                <span className={`truncate leading-none ${isSelf ? 'text-blue-900 font-black text-[10px] sm:text-xs' : 'text-gray-700 font-bold'}`}>
+                                  {emp.name}
+                                </span>
 
-                        return (
-                          <div
-                            key={emp.empId}
-                            className={`flex flex-col gap-1 px-2 py-1.5 rounded-lg border text-[11px] transition-all select-none ${cardClass} ${props.openPopover ? 'cursor-pointer' : 'cursor-default'}`}
-                            onClick={(e) => {
-                              if (!props.openPopover || !props.getPopoverSupports) return;
-                              e.stopPropagation();
-                              if (props.isSaving) {
-                                const showMsg = props.showToast || alert;
-                                showMsg('저장 중에는 수정할 수 없습니다.');
-                                return;
-                              }
-                              const { am, pm } = props.getPopoverSupports(emp.empId, info.day);
-                              props.openPopover(e, 'calendar', { empId: emp.empId, empName: emp.name, day: info.day, am, pm });
-                            }}
-                          >
-                            <div className="flex items-center justify-between gap-1 w-full">
-                              <span className={`truncate leading-none ${isSelf ? 'text-blue-900 font-black text-xs' : 'text-gray-700 font-bold'}`}>
-                                {emp.name}
-                              </span>
+                                <div className="flex items-center gap-0.5 shrink-0">
+                                  {approvedVacation ? (
+                                    <span className={`px-1 py-0.5 rounded text-[8px] sm:text-[9px] font-black border leading-none shrink-0 ${vacBadgeStyle}`}>
+                                      {vacLabel}
+                                    </span>
+                                  ) : (
+                                    <span className={`px-1 py-0.5 rounded text-[8px] sm:text-[9px] font-black border leading-none shrink-0 ${shiftBadgeStyle}`}>
+                                      {showCode}
+                                    </span>
+                                  )}
 
-                              <div className="flex items-center gap-1 shrink-0">
-                                {approvedVacation ? (
-                                  <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black border leading-none shrink-0 ${vacBadgeStyle}`}>
-                                    {vacLabel}
-                                  </span>
-                                ) : (
-                                  <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black border leading-none shrink-0 ${shiftBadgeStyle}`}>
-                                    {showCode}
-                                  </span>
-                                )}
-
-                                {supportDept && (
-                                  <span className="text-[9px] bg-[#ff7a00] text-white px-1.5 py-0.5 rounded-md font-black shrink-0 leading-none shadow-sm">
-                                    지원: {supportDept}
-                                  </span>
-                                )}
+                                  {supportDept && (
+                                    <span className="text-[8px] sm:text-[9px] bg-[#ff7a00] text-white px-1 py-0.5 rounded font-black shrink-0 leading-none shadow-sm">
+                                      {supportDept}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
 
-                      {/* 독립적인 메모 영역 */}
-                      {displayEmployees.map(emp => {
-                        const memoContent = memos[`${emp.empId}_${info.day}`];
-                        if (!memoContent) return null;
-                        return (
-                          <div key={`memo-${emp.empId}`} className="mt-0.5 text-[10px] text-gray-600 bg-blue-50/60 px-1.5 py-1 rounded border border-blue-100 truncate w-full shadow-sm">
-                            <span className="text-blue-500 font-bold mr-1">📝 {emp.name}:</span>
-                            {memoContent}
-                          </div>
-                        );
-                      })}
+                      {/* 2열: 메모 영역 */}
+                      <div className="flex flex-col gap-1 w-full">
+                        {displayEmployees.map(emp => {
+                          const memoContent = memos[`${emp.empId}_${info.day}`];
+                          if (!memoContent) return null;
+                          return (
+                            <div
+                              key={`memo-${emp.empId}`}
+                              className="text-[10px] text-gray-600 bg-blue-50/60 px-1 py-1 rounded border border-blue-100 whitespace-pre-wrap break-all leading-normal w-full shadow-sm cursor-pointer hover:bg-blue-100/60 transition-colors"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (String(emp.empId) === String(currentUser.employeeId)) {
+                                  setSelectedMemoEmpId(emp.empId);
+                                  setSelectedMemoDay(info.day);
+                                  setMemoText('');
+                                  setShowMemoModal(true);
+                                } else {
+                                  const showMsg = props.showToast || alert;
+                                  showMsg('본인의 메모만 수정할 수 있습니다.');
+                                }
+                              }}
+                            >
+                              <span className="text-blue-500 font-bold mr-1">{emp.name}:</span>
+                              {memoContent}
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -685,7 +708,7 @@ export default function PersonalCalendar(props: PersonalCalendarProps) {
         <>
           <div className="fixed inset-0 bg-black/30 z-[60]" onClick={() => setShowMemoModal(false)} />
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-slide-up">
               <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
                 <h3 className="font-bold text-gray-900 text-sm flex items-center gap-2">
                   <Edit2 className="w-4 h-4 text-blue-500" /> 메모 입력
@@ -698,26 +721,64 @@ export default function PersonalCalendar(props: PersonalCalendarProps) {
                 <p className="text-xs text-gray-500 mb-3 font-bold">
                   {selectedMemoDay}일 - {currentDisplayEmployees.find(e => e.empId === selectedMemoEmpId)?.name}
                 </p>
+
+                {/* [기존 작성된 메모] 영역 */}
+                {(() => {
+                  const key = `${selectedMemoEmpId}_${selectedMemoDay}`;
+                  const existing = memos[key];
+                  if (!existing) return null;
+                  return (
+                    <div className="mb-4 bg-gray-50 border border-gray-100 rounded-xl p-3 max-h-24 overflow-y-auto no-scrollbar">
+                      <p className="text-[10px] font-bold text-gray-400 mb-1.5">[기존 작성된 메모]</p>
+                      <p className="text-xs text-gray-700 whitespace-pre-wrap break-all leading-relaxed">{existing}</p>
+                    </div>
+                  );
+                })()}
+
                 <textarea
                   autoFocus
                   value={memoText}
                   onChange={(e) => setMemoText(e.target.value)}
-                  placeholder="메모를 입력하세요..."
-                  className="w-full h-24 border border-gray-200 rounded-xl p-3 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none resize-none"
+                  placeholder="추가할 메모를 입력하세요..."
+                  className="w-full h-24 border border-gray-200 rounded-xl p-3 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none resize-none placeholder-gray-400"
                 />
-                <div className="flex justify-end gap-2 mt-4">
-                  <button
-                    onClick={() => setShowMemoModal(false)}
-                    className="px-4 py-2 text-xs font-bold text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200"
-                  >
-                    취소
-                  </button>
-                  <button
-                    onClick={handleSaveMemo}
-                    className="px-4 py-2 text-xs font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700"
-                  >
-                    저장
-                  </button>
+
+                <div className="flex items-center justify-between mt-4">
+                  {/* [초기화] 버튼 */}
+                  {(() => {
+                    const key = `${selectedMemoEmpId}_${selectedMemoDay}`;
+                    const hasExisting = !!memos[key];
+                    if (!hasExisting) return <div />;
+                    return (
+                      <button
+                        onClick={() => {
+                          if (confirm('해당 날짜의 메모를 전부 지우시겠습니까?')) {
+                            saveCalendarMemo(year, month, key, '');
+                            setShowMemoModal(false);
+                            setToast('메모가 삭제되었습니다.');
+                          }
+                        }}
+                        className="px-3 py-2 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                      >
+                        전체 비우기
+                      </button>
+                    );
+                  })()}
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setShowMemoModal(false)}
+                      className="px-4 py-2 text-xs font-bold text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200"
+                    >
+                      취소
+                    </button>
+                    <button
+                      onClick={handleSaveMemo}
+                      className="px-4 py-2 text-xs font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+                    >
+                      저장
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

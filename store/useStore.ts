@@ -72,6 +72,7 @@ interface AppState {
   // Loading & Error
   isDataLoaded: boolean;
   isLoading: boolean;
+  isMutating: boolean;
   isGlobalSyncing: boolean;
   globalVersion: number;
   myLastSavedScheduleVersion: number;
@@ -115,6 +116,7 @@ interface AppState {
   syncData: () => Promise<void>;
   setGlobalVersion: (version: number) => void;
   setMyLastSavedScheduleVersion: (version: number) => void;
+  setIsMutating: (isMutating: boolean) => void;
 
   // CRUD Actions (낙관적 업데이트 + 백그라운드 API 호출)
   signHandover: (id: number, employeeId: string) => void;
@@ -179,6 +181,7 @@ export const useStore = create<AppState>((set, get) => ({
 
   isDataLoaded: false,
   isLoading: false,
+  isMutating: false,
   isGlobalSyncing: false,
   globalVersion: 0,
   myLastSavedScheduleVersion: 0,
@@ -294,6 +297,7 @@ export const useStore = create<AppState>((set, get) => ({
   },
   setGlobalVersion: (version) => set({ globalVersion: version }),
   setMyLastSavedScheduleVersion: (version) => set({ myLastSavedScheduleVersion: version }),
+  setIsMutating: (isMutating) => set({ isMutating }),
   setCurrentPage: (page) => set({ 
     currentPage: page,
     noticeDrawerMode: null,
@@ -429,7 +433,7 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   syncData: async () => {
-    if (get().isGlobalSyncing) return;
+    if (get().isMutating || get().isGlobalSyncing) return;
     
     let stillSyncing = true;
     const timer = setTimeout(() => {
@@ -622,6 +626,7 @@ export const useStore = create<AppState>((set, get) => ({
      공지사항 (Notices)
      ────────────────────────────────────────────── */
   addNotice: (notice) => {
+    set({ isMutating: true });
     const tempId = Date.now();
     const optimisticItem: Notice = { id: tempId, ...notice };
     const previousNotices = get().notices;
@@ -643,10 +648,11 @@ export const useStore = create<AppState>((set, get) => ({
     }).catch(() => {
       set({ notices: previousNotices });
       console.error('[Store] 공지사항 등록 실패 — 롤백합니다.');
-    });
+    }).finally(() => setTimeout(() => set({ isMutating: false }), 2000)); // replaced
   },
 
   editNotice: (id, fields) => {
+    set({ isMutating: true });
     const prev = get().notices;
     set((state) => ({
       notices: state.notices.map(n => n.id === id ? { ...n, ...fields } : n),
@@ -658,10 +664,11 @@ export const useStore = create<AppState>((set, get) => ({
     }).catch(() => {
       set({ notices: prev });
       console.error('[Store] 공지사항 수정 실패 — 롤백합니다.');
-    });
+    }).finally(() => setTimeout(() => set({ isMutating: false }), 2000)); // replaced
   },
 
   deleteNotice: (id) => {
+    set({ isMutating: true });
     const prev = get().notices;
     const selectedNotice = get().selectedNotice;
     const isCurrentSelected = selectedNotice?.id === id;
@@ -685,7 +692,7 @@ export const useStore = create<AppState>((set, get) => ({
       .catch((err) => {
         set({ notices: prev, ...(isCurrentSelected ? { selectedNotice, noticeDrawerMode: 'edit' } : {}) });
         console.error('[Store] 공지사항 삭제 실패 — 롤백합니다.', err);
-      });
+      }).finally(() => setTimeout(() => set({ isMutating: false }), 2000)); // replaced
   },
 
 
@@ -694,6 +701,7 @@ export const useStore = create<AppState>((set, get) => ({
      인수인계 (Handovers)
      ────────────────────────────────────────────── */
   addHandover: (handover) => {
+    set({ isMutating: true });
     const tempId = Date.now();
     const optimisticItem: Handover = { id: tempId, ...handover };
     const previousHandovers = get().handovers;
@@ -713,10 +721,11 @@ export const useStore = create<AppState>((set, get) => ({
     }).catch(() => {
       set({ handovers: previousHandovers });
       console.error('[Store] 인수인계 등록 실패 — 롤백합니다.');
-    });
+    }).finally(() => setTimeout(() => set({ isMutating: false }), 2000)); // replaced
   },
 
   signHandover: (id, employeeId) => {
+    set({ isMutating: true });
     const signedAt = formatDateTime(new Date());
     const previousHandovers = get().handovers;
 
@@ -737,10 +746,11 @@ export const useStore = create<AppState>((set, get) => ({
     }).catch(() => {
       set({ handovers: previousHandovers });
       console.error('[Store] 인수인계 서명 실패 — 롤백합니다.');
-    });
+    }).finally(() => setTimeout(() => set({ isMutating: false }), 2000)); // replaced
   },
 
   editHandover: (id, fields) => {
+    set({ isMutating: true });
     const prev = get().handovers;
     set((state) => ({
       handovers: state.handovers.map(h => h.id === id ? { ...h, ...fields } : h),
@@ -752,10 +762,11 @@ export const useStore = create<AppState>((set, get) => ({
     }).catch(() => {
       set({ handovers: prev });
       console.error('[Store] 인수인계 수정 실패 — 롤백합니다.');
-    });
+    }).finally(() => setTimeout(() => set({ isMutating: false }), 2000)); // replaced
   },
 
   deleteHandover: (id) => {
+    set({ isMutating: true });
     const prev = get().handovers;
     const selectedHandover = get().selectedHandover;
     const isCurrentSelected = selectedHandover?.id === id;
@@ -779,10 +790,11 @@ export const useStore = create<AppState>((set, get) => ({
       .catch((err) => {
         set({ handovers: prev, ...(isCurrentSelected ? { selectedHandover, handoverDrawerMode: 'edit' } : {}) });
         console.error('[Store] 인수인계 삭제 실패 — 롤백합니다.', err);
-      });
+      }).finally(() => setTimeout(() => set({ isMutating: false }), 2000)); // replaced
   },
 
   approveHandover: (id, isApproved) => {
+    set({ isMutating: true });
     const prev = get().handovers;
     const handover = prev.find(h => h.id === id);
     const sender = handover ? handover.sender : '';
@@ -799,13 +811,14 @@ export const useStore = create<AppState>((set, get) => ({
     }).catch(() => {
       set({ handovers: prev });
       console.error('[Store] 인수인계 승인 처리 실패 — 롤백합니다.');
-    });
+    }).finally(() => setTimeout(() => set({ isMutating: false }), 2000)); // replaced
   },
 
   /* ──────────────────────────────────────────────
      장비 이슈 (Equipment Issues)
      ────────────────────────────────────────────── */
   addEquipmentIssue: (issue) => {
+    set({ isMutating: true });
     const tempId = Date.now();
     const currentUser = get().currentUser;
     const optimisticItem: EquipmentIssue = {
@@ -839,10 +852,11 @@ export const useStore = create<AppState>((set, get) => ({
     }).catch(() => {
       set({ equipmentIssues: previousIssues });
       console.error('[Store] 고장접수 등록 실패 — 롤백합니다.');
-    });
+    }).finally(() => setTimeout(() => set({ isMutating: false }), 2000)); // replaced
   },
 
   confirmEquipment: (id) => {
+    set({ isMutating: true });
     const userName = get().currentUser.name || '사용자';
     const previousIssues = get().equipmentIssues;
 
@@ -861,10 +875,11 @@ export const useStore = create<AppState>((set, get) => ({
     }).catch(() => {
       set({ equipmentIssues: previousIssues });
       console.error('[Store] 확인 처리 실패 — 롤백합니다.');
-    });
+    }).finally(() => setTimeout(() => set({ isMutating: false }), 2000)); // replaced
   },
 
   changeEquipmentStatus: (id, newStatus) => {
+    set({ isMutating: true });
     const previousIssues = get().equipmentIssues;
     const isCompleted = ['조치완료', '정상복구', '폐기'].includes(newStatus);
     const todayStr = isCompleted ? formatDateTime(new Date()) : '';
@@ -882,10 +897,11 @@ export const useStore = create<AppState>((set, get) => ({
     }).catch(() => {
       set({ equipmentIssues: previousIssues });
       console.error('[Store] 상태 변경 실패 — 롤백합니다.');
-    });
+    }).finally(() => setTimeout(() => set({ isMutating: false }), 2000)); // replaced
   },
 
   addComment: (type, targetId, comment) => {
+    set({ isMutating: true });
     const userEmpId = get().currentUser.employeeId;
 
     if (type === 'equipment') {
@@ -907,7 +923,7 @@ export const useStore = create<AppState>((set, get) => ({
       }).catch(() => {
         set({ equipmentIssues: previousIssues });
         console.error('[Store] 장비 댓글 추가 실패 — 롤백합니다.');
-      });
+      }).finally(() => setTimeout(() => set({ isMutating: false }), 2000)); // replaced
     } else if (type === 'notice') {
       const previousNotices = get().notices;
       const notice = previousNotices.find((n) => n.id === targetId);
@@ -930,7 +946,7 @@ export const useStore = create<AppState>((set, get) => ({
       }).catch(() => {
         set({ notices: previousNotices });
         console.error('[Store] 공지 댓글 추가 실패 — 롤백합니다.');
-      });
+      }).finally(() => setTimeout(() => set({ isMutating: false }), 2000)); // replaced
     } else if (type === 'handover') {
       const previousHandovers = get().handovers;
       const handover = previousHandovers.find((h) => h.id === targetId);
@@ -953,11 +969,12 @@ export const useStore = create<AppState>((set, get) => ({
       }).catch(() => {
         set({ handovers: previousHandovers });
         console.error('[Store] 인수인계 댓글 추가 실패 — 롤백합니다.');
-      });
+      }).finally(() => setTimeout(() => set({ isMutating: false }), 2000)); // replaced
     }
   },
 
   markAsRead: (category, id, userName) => {
+    set({ isMutating: true });
     if (category === 'notice') {
       const prevNotices = get().notices;
       const target = prevNotices.find(n => n.id === id);
@@ -976,7 +993,7 @@ export const useStore = create<AppState>((set, get) => ({
       }).catch(() => {
         set({ notices: prevNotices });
         console.error('[Store] 공지 읽음 처리 실패 — 롤백합니다.');
-      });
+      }).finally(() => setTimeout(() => set({ isMutating: false }), 2000)); // replaced
     } else if (category === 'handover') {
       const prevHandovers = get().handovers;
       const target = prevHandovers.find(h => h.id === id);
@@ -995,7 +1012,7 @@ export const useStore = create<AppState>((set, get) => ({
       }).catch(() => {
         set({ handovers: prevHandovers });
         console.error('[Store] 인수인계 읽음 처리 실패 — 롤백합니다.');
-      });
+      }).finally(() => setTimeout(() => set({ isMutating: false }), 2000)); // replaced
     } else if (category === 'equipment') {
       const prevEquipments = get().equipmentIssues;
       const target = prevEquipments.find(eq => eq.id === id);
@@ -1013,11 +1030,12 @@ export const useStore = create<AppState>((set, get) => ({
       }).catch(() => {
         set({ equipmentIssues: prevEquipments });
         console.error('[Store] 장비 읽음 처리 실패 — 롤백합니다.');
-      });
+      }).finally(() => setTimeout(() => set({ isMutating: false }), 2000)); // replaced
     }
   },
 
   editEquipment: (id, fields) => {
+    set({ isMutating: true });
     const prev = get().equipmentIssues;
     set((state) => ({
       equipmentIssues: state.equipmentIssues.map(eq => eq.id === id ? { ...eq, ...fields } : eq),
@@ -1029,10 +1047,11 @@ export const useStore = create<AppState>((set, get) => ({
     }).catch(() => {
       set({ equipmentIssues: prev });
       console.error('[Store] 장비 이슈 수정 실패 — 롤백합니다.');
-    });
+    }).finally(() => setTimeout(() => set({ isMutating: false }), 2000)); // replaced
   },
 
   deleteEquipment: (id) => {
+    set({ isMutating: true });
     const prev = get().equipmentIssues;
     set((state) => ({
       equipmentIssues: state.equipmentIssues.filter(eq => eq.id !== id),
@@ -1051,10 +1070,11 @@ export const useStore = create<AppState>((set, get) => ({
       .catch((err) => {
         set({ equipmentIssues: prev });
         console.error('[Store] 장비 이슈 삭제 실패 — 롤백합니다.', err);
-      });
+      }).finally(() => setTimeout(() => set({ isMutating: false }), 2000)); // replaced
   },
 
   approveEquipment: (id, isApproved) => {
+    set({ isMutating: true });
     const prev = get().equipmentIssues;
     set((state) => ({
       equipmentIssues: state.equipmentIssues.map(eq => eq.id === id ? { ...eq, isApproved } : eq),
@@ -1066,13 +1086,14 @@ export const useStore = create<AppState>((set, get) => ({
     }).catch(() => {
       set({ equipmentIssues: prev });
       console.error('[Store] 장비 승인 처리 실패 — 롤백합니다.');
-    });
+    }).finally(() => setTimeout(() => set({ isMutating: false }), 2000)); // replaced
   },
 
   /* ──────────────────────────────────────────────
      직원 (Employees)
      ────────────────────────────────────────────── */
   addEmployee: (employee) => {
+    set({ isMutating: true });
     const mainWorkplace = SHORT_TO_FULL_WORKPLACE[employee.mainWorkplace] || employee.mainWorkplace;
     const subWorkplace = SHORT_TO_FULL_WORKPLACE[employee.subWorkplace] || employee.subWorkplace;
     const mappedEmployee = { ...employee, mainWorkplace, subWorkplace };
@@ -1096,10 +1117,11 @@ export const useStore = create<AppState>((set, get) => ({
     }).catch(() => {
       set({ employees: previousEmployees });
       console.error('[Store] 직원 추가 실패 — 롤백합니다.');
-    });
+    }).finally(() => setTimeout(() => set({ isMutating: false }), 2000)); // replaced
   },
 
   updateEmployee: (employeeId, updatedFields) => {
+    set({ isMutating: true });
     const fieldsCopy = { ...updatedFields };
     if (fieldsCopy.mainWorkplace) fieldsCopy.mainWorkplace = SHORT_TO_FULL_WORKPLACE[fieldsCopy.mainWorkplace] || fieldsCopy.mainWorkplace;
     if (fieldsCopy.subWorkplace) fieldsCopy.subWorkplace = SHORT_TO_FULL_WORKPLACE[fieldsCopy.subWorkplace] || fieldsCopy.subWorkplace;
@@ -1117,10 +1139,11 @@ export const useStore = create<AppState>((set, get) => ({
     }).catch(() => {
       set({ employees: previousEmployees });
       console.error('[Store] 직원 수정 실패 — 롤백합니다.');
-    });
+    }).finally(() => setTimeout(() => set({ isMutating: false }), 2000)); // replaced
   },
 
   deleteEmployee: (employeeId) => {
+    set({ isMutating: true });
     const previousEmployees = get().employees;
 
     set((state) => ({
@@ -1132,13 +1155,14 @@ export const useStore = create<AppState>((set, get) => ({
     }).catch(() => {
       set({ employees: previousEmployees });
       console.error('[Store] 직원 삭제 실패 — 롤백합니다.');
-    });
+    }).finally(() => setTimeout(() => set({ isMutating: false }), 2000)); // replaced
   },
 
   /* ──────────────────────────────────────────────
      연차 관리 (Vacations)
      ────────────────────────────────────────────── */
   addVacation: (vacation) => {
+    set({ isMutating: true });
     const tempId = String(Date.now()) + '_' + Math.random().toString(36).substr(2, 9);
     const optimisticItem: Vacation = {
       id: tempId,
@@ -1163,10 +1187,11 @@ export const useStore = create<AppState>((set, get) => ({
     }).catch(() => {
       set({ vacations: previousVacations });
       console.error('[Store] 연차 신청 실패 — 롤백합니다.');
-    });
+    }).finally(() => setTimeout(() => set({ isMutating: false }), 2000)); // replaced
   },
 
   updateVacationStatus: (id, status) => {
+    set({ isMutating: true });
     const previousVacations = get().vacations;
 
     set((state) => ({
@@ -1180,10 +1205,11 @@ export const useStore = create<AppState>((set, get) => ({
     }).catch(() => {
       set({ vacations: previousVacations });
       console.error('[Store] 연차 상태 변경 실패 — 롤백합니다.');
-    });
+    }).finally(() => setTimeout(() => set({ isMutating: false }), 2000)); // replaced
   },
 
   editVacation: (id, fields) => {
+    set({ isMutating: true });
     const prev = get().vacations;
     set((state) => ({
       vacations: state.vacations.map(v => v.id === id ? { ...v, ...fields } : v),
@@ -1195,10 +1221,11 @@ export const useStore = create<AppState>((set, get) => ({
     }).catch(() => {
       set({ vacations: prev });
       console.error('[Store] 연차 수정 실패 — 롤백합니다.');
-    });
+    }).finally(() => setTimeout(() => set({ isMutating: false }), 2000)); // replaced
   },
 
   deleteVacation: (id) => {
+    set({ isMutating: true });
     const prev = get().vacations;
     set((state) => ({
       vacations: state.vacations.filter(v => v.id !== id),
@@ -1206,7 +1233,7 @@ export const useStore = create<AppState>((set, get) => ({
     fetch(`/api/vacations?id=${id}`, { method: 'DELETE' }).catch(() => {
       set({ vacations: prev });
       console.error('[Store] 연차 삭제 실패 — 롤백합니다.');
-    });
+    }).finally(() => setTimeout(() => set({ isMutating: false }), 2000)); // replaced
   },
 
   setScheduleYearMonth: (year, month) => {

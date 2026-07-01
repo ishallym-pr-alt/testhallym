@@ -1163,22 +1163,35 @@ function doPost(e) {
       var vacSheet = getSheet(SHEETS.vacations);
       var vacHeaders = vacSheet.getRange(1, 1, 1, vacSheet.getLastColumn()).getValues()[0];
       var vacMap = getHeaderMap(SHEETS.vacations);
-
       var vacLastRow = vacSheet.getLastRow();
-      var existingVacations = {};
+
+      // 1. 기존 엑셀 업로드 연차 싹 지우기 (초기화)
       if (vacLastRow >= 2) {
-        var vacEmpIdCol = vacHeaders.indexOf(vacMap['empId']) + 1;
-        var vacDateCol = vacHeaders.indexOf(vacMap['vacationDate']) + 1;
-        if (vacEmpIdCol > 0 && vacDateCol > 0) {
-          var eVals = vacSheet.getRange(2, vacEmpIdCol, vacLastRow - 1, 1).getValues();
-          var dVals = vacSheet.getRange(2, vacDateCol, vacLastRow - 1, 1).getValues();
-          for (var v = 0; v < eVals.length; v++) {
-            var key = String(eVals[v][0]).trim() + '_' + String(dVals[v][0]).trim();
-            existingVacations[key] = true;
+        var dateCol = vacHeaders.indexOf(vacMap['vacationDate']) + 1;
+        var reasonCol = vacHeaders.indexOf(vacMap['reason']) + 1;
+        if (dateCol > 0 && reasonCol > 0) {
+          var dVals = vacSheet.getRange(2, dateCol, vacLastRow - 1, 1).getValues();
+          var rVals = vacSheet.getRange(2, reasonCol, vacLastRow - 1, 1).getValues();
+          var targetPrefix = year + '-' + String(month).padStart(2, '0'); 
+          
+          for (var v = dVals.length - 1; v >= 0; v--) {
+            var vacDate = dVals[v][0];
+            var reason = String(rVals[v][0]).trim();
+            var vacDateStr = '';
+            if (vacDate instanceof Date) {
+              vacDateStr = vacDate.getFullYear() + '-' + String(vacDate.getMonth() + 1).padStart(2, '0');
+            } else {
+              vacDateStr = String(vacDate).trim();
+            }
+            
+            if (vacDateStr.startsWith(targetPrefix) && reason === '엑셀 업로드 자동 승인') {
+              vacSheet.deleteRow(v + 2);
+            }
           }
         }
       }
 
+      // 2. 새로운 연차 삽입 (existingVacations 체크 생략)
       var newVacations = [];
       for (var i = 0; i < inputEmployees.length; i++) {
         var emp = inputEmployees[i];
@@ -1188,28 +1201,23 @@ function doPost(e) {
 
           if (shiftVal === '연차' || shiftVal === '반차' || shiftVal === '오전반차' || shiftVal === '오후반차') {
             var dateStr = year + '-' + String(month).padStart(2, '0') + '-' + String(d).padStart(2, '0');
-            var key = String(emp.empId).trim() + '_' + dateStr;
+            var vacType = shiftVal === '연차' ? '종일연차' : (shiftVal === '오전반차' ? '오전반차' : (shiftVal === '오후반차' ? '오후반차' : '오전반차'));
+            if (shiftVal === '반차') vacType = '오전반차';
 
-            if (!existingVacations[key]) {
-              var vacType = shiftVal === '연차' ? '종일연차' : (shiftVal === '오전반차' ? '오전반차' : (shiftVal === '오후반차' ? '오후반차' : '오전반차'));
-              if (shiftVal === '반차') vacType = '오전반차';
+            var rowData = new Array(vacHeaders.length).fill('');
+            rowData[vacHeaders.indexOf(vacMap['id'])] = String(Date.now() + Math.floor(Math.random() * 10000) + d);
+            rowData[vacHeaders.indexOf(vacMap['empId'])] = emp.empId;
+            rowData[vacHeaders.indexOf(vacMap['name'])] = emp.name || '';
+            rowData[vacHeaders.indexOf(vacMap['department'])] = emp.department || '';
+            rowData[vacHeaders.indexOf(vacMap['mainWorkplace'])] = emp.mainWorkplace || emp.department || '';
+            rowData[vacHeaders.indexOf(vacMap['subWorkplace'])] = emp.subWorkplace || '';
+            rowData[vacHeaders.indexOf(vacMap['vacationDate'])] = dateStr;
+            rowData[vacHeaders.indexOf(vacMap['vacationType'])] = vacType;
+            rowData[vacHeaders.indexOf(vacMap['reason'])] = '엑셀 업로드 자동 승인';
+            rowData[vacHeaders.indexOf(vacMap['status'])] = '승인'; // 엑셀 업로드 시에만 자동 승인 처리
+            rowData[vacHeaders.indexOf(vacMap['createdAt'])] = formatDateTime(new Date());
 
-              var rowData = new Array(vacHeaders.length).fill('');
-              rowData[vacHeaders.indexOf(vacMap['id'])] = String(Date.now() + Math.floor(Math.random() * 10000) + d);
-              rowData[vacHeaders.indexOf(vacMap['empId'])] = emp.empId;
-              rowData[vacHeaders.indexOf(vacMap['name'])] = emp.name || '';
-              rowData[vacHeaders.indexOf(vacMap['department'])] = emp.department || '';
-              rowData[vacHeaders.indexOf(vacMap['mainWorkplace'])] = emp.mainWorkplace || emp.department || '';
-              rowData[vacHeaders.indexOf(vacMap['subWorkplace'])] = emp.subWorkplace || '';
-              rowData[vacHeaders.indexOf(vacMap['vacationDate'])] = dateStr;
-              rowData[vacHeaders.indexOf(vacMap['vacationType'])] = vacType;
-              rowData[vacHeaders.indexOf(vacMap['reason'])] = '엑셀 업로드 자동 승인';
-              rowData[vacHeaders.indexOf(vacMap['status'])] = '승인'; // 엑셀 업로드 시에만 자동 승인 처리
-              rowData[vacHeaders.indexOf(vacMap['createdAt'])] = formatDateTime(new Date());
-
-              newVacations.push(rowData);
-              existingVacations[key] = true;
-            }
+            newVacations.push(rowData);
           }
         }
       }

@@ -1477,13 +1477,15 @@ export default function Schedule() {
           >
             <CalendarDays className="w-3.5 h-3.5" /> 연차 신청 / 내역
           </button>
-          <button
-            onClick={() => setShowUploadModal(true)}
-            disabled={isSaving}
-            className="px-3 py-1.5 bg-primary-500 text-white text-xs font-bold rounded-lg flex items-center gap-1 hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Upload className="w-3.5 h-3.5" /> 엑셀 업로드
-          </button>
+          {viewMode === 'planned' && (
+            <button
+              onClick={() => setShowUploadModal(true)}
+              disabled={isSaving}
+              className="px-3 py-1.5 bg-primary-500 text-white text-xs font-bold rounded-lg flex items-center gap-1 hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Upload className="w-3.5 h-3.5" /> 엑셀 업로드
+            </button>
+          )}
         </div>
       </div>
 
