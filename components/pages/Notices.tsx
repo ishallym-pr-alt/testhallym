@@ -415,7 +415,7 @@ export default function Notices() {
                   </span>
                   <span className="flex items-center gap-1.5">
                     <Calendar className="w-4 h-4 text-gray-400" />
-                    {noticeDrawerMode === 'create' ? formatDateTime(new Date()) : currentNotice?.date}
+                    {mounted ? (noticeDrawerMode === 'create' ? formatDateTime(new Date()) : currentNotice?.date) : ''}
                   </span>
                 </div>
               </div>

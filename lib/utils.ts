@@ -1,3 +1,10 @@
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
 export function formatDateTime(dateInput: Date | string | number | undefined | null): string {
   if (!dateInput) return '';
   
@@ -6,19 +13,15 @@ export function formatDateTime(dateInput: Date | string | number | undefined | n
     return dateInput;
   }
   
-  const d = new Date(dateInput);
-  if (isNaN(d.getTime())) {
+  try {
+    const tzDate = dayjs(dateInput).tz('Asia/Seoul');
+    if (!tzDate.isValid()) {
+      return String(dateInput);
+    }
+    return tzDate.format('YYYY-MM-DD HH:mm:ss');
+  } catch (error) {
     return String(dateInput);
   }
-  
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  const hh = String(d.getHours()).padStart(2, '0');
-  const min = String(d.getMinutes()).padStart(2, '0');
-  const ss = String(d.getSeconds()).padStart(2, '0');
-  
-  return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`;
 }
 
 export function getDeptColor(dept: string): string {

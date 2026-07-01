@@ -5,6 +5,12 @@ import { formatDateTime } from '@/lib/utils';
 import { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import EquipmentHeader from './EquipmentHeader';
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 const EQUIPMENT_GROUPS = [
   {
@@ -1008,7 +1014,8 @@ export default function Equipment() {
                     </div>
                     <div className="flex">
                       {timelineDays.map(d => {
-                        const isToday = d.toDateString() === new Date().toDateString();
+                        const todayStr = mounted ? dayjs().tz('Asia/Seoul').format('YYYY-MM-DD') : '';
+                        const isToday = todayStr ? dayjs(d).tz('Asia/Seoul').format('YYYY-MM-DD') === todayStr : false;
                         return (
                           <div key={d.toISOString()} className={`w-12 shrink-0 border-r border-gray-100 p-2 flex flex-col items-center justify-center ${isToday ? 'bg-[#004b8d]/10' : ''}`}>
                             <span className={`text-[10px] font-bold uppercase ${isToday ? 'text-[#004b8d]' : 'text-gray-400'}`}>
@@ -1062,7 +1069,8 @@ export default function Equipment() {
                                 </div>
                                 <div className="flex relative">
                                   {timelineDays.map(d => {
-                                    const isToday = d.toDateString() === new Date().toDateString();
+                                    const todayStr = mounted ? dayjs().tz('Asia/Seoul').format('YYYY-MM-DD') : '';
+                                    const isToday = todayStr ? dayjs(d).tz('Asia/Seoul').format('YYYY-MM-DD') === todayStr : false;
                                     return <div key={d.toISOString()} className={`w-12 shrink-0 border-r border-gray-50 ${isToday ? 'bg-[#004b8d]/5 border-l border-r border-l-[#004b8d]/20 border-r-[#004b8d]/20' : ''}`} />;
                                   })}
 
@@ -1091,7 +1099,8 @@ export default function Equipment() {
                             </div>
                             <div className="flex">
                               {timelineDays.map(d => {
-                                const isToday = d.toDateString() === new Date().toDateString();
+                                const todayStr = mounted ? dayjs().tz('Asia/Seoul').format('YYYY-MM-DD') : '';
+                                const isToday = todayStr ? dayjs(d).tz('Asia/Seoul').format('YYYY-MM-DD') === todayStr : false;
                                 return <div key={d.toISOString()} className={`w-12 shrink-0 border-r border-gray-50 ${isToday ? 'bg-[#004b8d]/5' : ''}`} />;
                               })}
                             </div>

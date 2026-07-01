@@ -3,6 +3,12 @@ export const dynamic = 'force-dynamic';
 import { gasGet, gasPost, getCache, setCache, invalidateCache, invalidateCacheByPrefix } from '@/lib/googleSheets';
 import { formatDateTime } from '@/lib/utils';
 import { updateVersion } from '@/lib/version';
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 const CACHE_KEY = 'vacations';
 
@@ -19,10 +25,9 @@ export async function GET() {
     const data = rows.map(row => {
       let vDate = String(row.vacationDate || '');
       if (vDate.includes('T')) {
-        const d = new Date(vDate);
-        if (!isNaN(d.getTime())) {
-          const kst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
-          vDate = `${kst.getUTCFullYear()}-${String(kst.getUTCMonth() + 1).padStart(2, '0')}-${String(kst.getUTCDate()).padStart(2, '0')}`;
+        const d = dayjs(vDate).tz('Asia/Seoul');
+        if (d.isValid()) {
+          vDate = d.format('YYYY-MM-DD');
         }
       }
 
