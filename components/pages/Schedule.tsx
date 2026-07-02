@@ -936,13 +936,16 @@ export default function Schedule() {
           // 새로고침 후 팝오버로 근무지 변경 시 오탐 하이라이트가 발생하지 않음.
           const currentOriginalDataStr = originalDataStr; // 클로저로 현재 시점의 originalDataStr 캡처
           (() => {
-            let prevOriginal: { shifts?: Record<string, Record<number, string>>; supports?: Record<string, Record<number, any>> } | null = null;
+            let prevOriginal: { year?: number, month?: number, shifts?: Record<string, Record<number, string>>; supports?: Record<string, Record<number, any>> } | null = null;
             if (currentOriginalDataStr) {
               try { prevOriginal = JSON.parse(currentOriginalDataStr); } catch { prevOriginal = null; }
             }
 
             // 이전에 서버에서 받은 적이 없으면(= 최초 로드이면) 비교 생략
             if (!prevOriginal) return;
+            
+            // 연/월이 다르면 비교 생략 (달 변경 시 전체 알림 발생 방지)
+            if (prevOriginal.year !== year || prevOriginal.month !== month) return;
 
             const newShifts = updatedData.shifts || {};
             const oldShifts = prevOriginal.shifts || {};
@@ -1008,13 +1011,16 @@ export default function Schedule() {
             const isMySelfSaved = globalVersion !== 0 && globalVersion === useStore.getState().myLastSavedScheduleVersion;
             console.log("[Schedule Debug] isMySelfSaved:", isMySelfSaved, "changedKeys:", changedKeys);
 
-            if (changedKeys.length > 0 && !isMySelfSaved) {
+            // 변경된 셀이 너무 많으면(예: 50개 이상) 대규모 업데이트(엑셀 업로드, 백업 복구 등)로 간주하고 알림 생략
+            if (changedKeys.length > 0 && changedKeys.length <= 50 && !isMySelfSaved) {
               console.log("[Schedule Debug] Adding highlights for keys:", changedKeys);
               setTimeout(() => {
                 changedKeys.forEach(key => {
                   addHighlightedItemId(key);
                 });
               }, 0);
+            } else if (changedKeys.length > 50) {
+              console.log("[Schedule Debug] Too many changes detected (", changedKeys.length, "), skipping highlights to prevent badge spam.");
             }
           })();
 
@@ -1037,7 +1043,7 @@ export default function Schedule() {
             }
             return updatedData;
           });
-          setOriginalDataStr(JSON.stringify({ shifts: updatedData.shifts, supports: updatedData.supports }));
+          setOriginalDataStr(JSON.stringify({ year, month, shifts: updatedData.shifts, supports: updatedData.supports }));
           localStorage.setItem(cacheKey, JSON.stringify(updatedData));
         }
       } catch (err) {
@@ -1051,7 +1057,7 @@ export default function Schedule() {
             supports: {}
           };
           setScheduleData(fallbackData);
-          setOriginalDataStr(JSON.stringify({ shifts: fallbackData.shifts, supports: fallbackData.supports }));
+          setOriginalDataStr(JSON.stringify({ year, month, shifts: fallbackData.shifts, supports: fallbackData.supports }));
         }
       } finally {
         if (isMounted) {
@@ -1075,7 +1081,8 @@ export default function Schedule() {
     try {
       if (originalDataStr) {
         const original = JSON.parse(originalDataStr);
-        const changedEmpIds = new Set<string>();
+        if (original.year === year && original.month === month) {
+          const changedEmpIds = new Set<string>();
 
         // shifts 비교
         Object.keys(scheduleData.shifts || {}).forEach(empId => {
@@ -1131,6 +1138,7 @@ export default function Schedule() {
             diffSummary = `${changedNames[0]} 외 ${changedNames.length - 1}명의 근무표가 수정되었습니다.`;
           }
         }
+        }
       }
     } catch (e) { }
 
@@ -1158,7 +1166,7 @@ export default function Schedule() {
         setMyLastSavedScheduleVersion(responseData.version);
       }
       setToast('근무표가 성공적으로 저장되었습니다.');
-      setOriginalDataStr(JSON.stringify({ shifts: scheduleData.shifts, supports: scheduleData.supports }));
+      setOriginalDataStr(JSON.stringify({ year, month, shifts: scheduleData.shifts, supports: scheduleData.supports }));
       // 저장 성공 → 로컬 미저장 변경사항 초기화 (이후 API sync 정상 동작)
       pendingLocalChanges.current = null;
     } catch (err) {
