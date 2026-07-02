@@ -9,7 +9,7 @@ import * as holidaysKr from '@hyunbinseo/holidays-kr';
 import PersonalCalendar from '@/components/ui/PersonalCalendar';
 
 const ROOM_NAME_MAP: Record<string, string> = {
-  '면역': '면역', '근전도': '근전', '뇌파': '뇌파', '안과': '안과',
+  '면역': '면역', '근전도': '근전도', '뇌파': '뇌파', '안과': '안과',
   '심기능': '심기', '심초': '심초', '청력': '청력', '소화': '소화',
   '호흡': '호흡', '수면': '수면', '육아휴직': '휴직',
 };
@@ -805,7 +805,7 @@ export default function Schedule() {
     const map: Record<string, string> = {
       '8F 면역': '면역', '4F 안과': '안과', '4F 수면': '수면', '3F 뇌파': '뇌파',
       '2F 소화': '소화', '2F 심기': '심기능', '2F 심초': '심초',
-      '1F 근전': '근전도', '1F 호흡': '호흡', 'B1 청력': '청력'
+      '1F 근전도': '근전도', '1F 호흡': '호흡', 'B1 청력': '청력'
     };
     return map[roomName] || '';
   };
@@ -2069,13 +2069,13 @@ export default function Schedule() {
             const map: Record<string, string> = {
               '면역': '8F 면역', '안과': '4F 안과', '수면': '4F 수면', '뇌파': '3F 뇌파',
               '소화': '2F 소화', '심기능': '2F 심기', '심초': '2F 심초',
-              '근전도': '1F 근전', '호흡': '1F 호흡', '청력': 'B1 청력'
+              '근전도': '1F 근전도', '호흡': '1F 호흡', '청력': 'B1 청력'
             };
             return map[dept] || '';
           };
           const ROOM_ORDER = [
             '8F 면역', '4F 안과', '4F 수면', '3F 뇌파', '2F 소화',
-            '2F 심기', '2F 심초', '1F 근전', '1F 호흡', 'B1 청력'
+            '2F 심기', '2F 심초', '1F 근전도', '1F 호흡', 'B1 청력'
           ];
           const myDept = currentUser?.mainWorkplace || currentUser?.department || '';
           const sortedRoomOrder = [...ROOM_ORDER].sort((a, b) => {

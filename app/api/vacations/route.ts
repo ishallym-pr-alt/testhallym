@@ -44,6 +44,7 @@ export async function GET() {
         status: (row.status || '대기') as '대기' | '승인' | '반려',
         createdAt: formatDateTime(row.createdAt),
         handoverEmpId: String(row.handoverEmpId || ''),
+        approvedBy: String(row.approvedBy || ''),
       };
     });
 
@@ -72,6 +73,7 @@ export async function POST(request: Request) {
       status: '대기',
       createdAt: body.createdAt || formatDateTime(new Date()),
       handoverEmpId: body.handoverEmpId || '',
+      approvedBy: '',
     });
 
     // 연차 캐시 무효화
@@ -104,6 +106,7 @@ export async function PUT(request: Request) {
       await gasPost('updateVacationStatus', {
         id: body.id,
         status: body.status,
+        approvedBy: body.approvedBy,
       });
 
       // 승인 시 근무표에 연차/반차가 들어가므로 근무표 캐시도 전부 무효화

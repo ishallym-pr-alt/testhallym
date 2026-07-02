@@ -143,7 +143,8 @@ function getHeaderMap(sheetTitle) {
       reason: '사유',
       status: '상태',
       createdAt: '신청일시',
-      handoverEmpId: '인수자사번'
+      handoverEmpId: '인수자사번',
+      approvedBy: '승인한부서장'
     };
   } else if (sheetTitle === SHEETS.pushSubscriptions) {
     map = {
@@ -196,7 +197,7 @@ function getSheet(sheetTitle) {
   } else if (sheetTitle === SHEETS.employees) {
     keys = ['no', 'empId', 'name', 'position', 'department', 'mainWorkplace', 'subWorkplace', 'password', 'isManager', 'isRetired', 'attempts', 'lockUntil', 'lockCount'];
   } else if (sheetTitle === SHEETS.vacations) {
-    keys = ['id', 'empId', 'name', 'department', 'mainWorkplace', 'subWorkplace', 'vacationDate', 'vacationType', 'reason', 'status', 'createdAt', 'handoverEmpId'];
+    keys = ['id', 'empId', 'name', 'department', 'mainWorkplace', 'subWorkplace', 'vacationDate', 'vacationType', 'reason', 'status', 'createdAt', 'handoverEmpId', 'approvedBy'];
   } else if (sheetTitle === SHEETS.pushSubscriptions) {
     keys = ['empId', 'subscription'];
   } else if (sheetTitle === SHEETS.workplaces) {
@@ -1379,6 +1380,12 @@ function doPost(e) {
 
       // 상태 업데이트
       sheet.getRange(rowIndex, headers.indexOf(map['status']) + 1).setValue(data.status);
+
+      if (data.approvedBy !== undefined) {
+        if (headers.indexOf(map['approvedBy']) !== -1) {
+          sheet.getRange(rowIndex, headers.indexOf(map['approvedBy']) + 1).setValue(data.approvedBy);
+        }
+      }
 
       // 승인일 경우, 근무표 시트에 자동 연동
       if (data.status === '승인') {

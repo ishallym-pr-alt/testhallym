@@ -67,7 +67,7 @@ const SHIFT_CODES: Record<string, { label: string; hours: string; color: string;
 };
 
 const ROOM_NAME_MAP: Record<string, string> = {
-  '면역': '면역', '근전도': '근전', '뇌파': '뇌파', '안과': '안과',
+  '면역': '면역', '근전도': '근전도', '뇌파': '뇌파', '안과': '안과',
   '심기능': '심기', '심초': '심초', '청력': '청력', '소화': '소화',
   '호흡': '호흡', '수면': '수면', '육아휴직': '휴직',
 };

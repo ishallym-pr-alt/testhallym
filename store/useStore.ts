@@ -40,6 +40,7 @@ export interface Vacation {
   status: '대기' | '승인' | '반려';
   createdAt: string;
   handoverEmpId?: string; // 인수자(대타) 사번
+  approvedBy?: string; // 승인한 부서장 명단 (콤마로 구분)
 }
 
 export interface Workplace {
@@ -132,7 +133,7 @@ interface AppState {
   deleteEmployee: (employeeId: string) => void;
 
   addVacation: (vacation: Omit<Vacation, 'id' | 'status' | 'createdAt'>) => void;
-  updateVacationStatus: (id: string, status: '대기' | '승인' | '반려') => void;
+  updateVacationStatus: (id: string, status: '대기' | '승인' | '반려', approvedBy?: string) => void;
 
   // 수정/삭제/승인 액션
   editNotice: (id: number, fields: Partial<Notice>) => void;
@@ -1259,18 +1260,18 @@ export const useStore = create<AppState>((set, get) => ({
     }).finally(() => setTimeout(() => set({ isMutating: false }), 2000)); // replaced
   },
 
-  updateVacationStatus: (id, status) => {
+  updateVacationStatus: (id, status, approvedBy) => {
     set({ isMutating: true });
     const previousVacations = get().vacations;
 
     set((state) => ({
-      vacations: state.vacations.map(v => v.id === id ? { ...v, status } : v),
+      vacations: state.vacations.map(v => v.id === id ? { ...v, status, approvedBy: approvedBy !== undefined ? approvedBy : v.approvedBy } : v),
     }));
 
     fetch('/api/vacations', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, status }),
+      body: JSON.stringify({ id, status, approvedBy }),
     }).then(async (res) => {
       const data = await res.json();
       if (data.version) set({ globalVersion: data.version });

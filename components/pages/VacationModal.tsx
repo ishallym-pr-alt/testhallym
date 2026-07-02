@@ -148,21 +148,53 @@ export default function VacationModal({
     setActiveTab('list');
   };
 
-  const handleApprove = (id: string) => {
-    if (confirm('승인하시겠습니까? 근무표에 자동 연동됩니다.')) {
-      updateVacationStatus(id, '승인');
+  const getManagersInDept = (v: Vacation) => {
+    const applicant = rawEmployees.find((e: any) => String(e.empId).trim() === String(v.empId).trim());
+    const applicantDept = applicant?.mainWorkplace || applicant?.department || v.mainWorkplace || v.department;
+    
+    return rawEmployees.filter((e: any) => {
+      if (!e.isManager || e.isRetired) return false;
+      const dept = e.mainWorkplace || e.department;
+      return dept === applicantDept;
+    });
+  };
+
+  const handleApprove = (v: Vacation) => {
+    const managersInDept = getManagersInDept(v);
+    const totalManagers = managersInDept.length;
+    
+    const approvedList = v.approvedBy ? v.approvedBy.split(',').map(s => s.trim()).filter(Boolean) : [];
+    
+    if (approvedList.includes(currentUser.name)) {
+      alert('이미 승인하셨습니다.');
+      return;
+    }
+
+    const newApprovedList = [...approvedList, currentUser.name];
+    const newApprovedByStr = newApprovedList.join(',');
+
+    const isFullyApproved = totalManagers === 0 || newApprovedList.length >= totalManagers;
+
+    if (isFullyApproved) {
+      if (confirm('최종 승인하시겠습니까? 근무표에 자동 연동됩니다.')) {
+        updateVacationStatus(v.id, '승인', newApprovedByStr);
+      }
+    } else {
+      if (confirm(`승인하시겠습니까? (현재 ${newApprovedList.length}/${totalManagers}명 승인)`)) {
+        updateVacationStatus(v.id, '대기', newApprovedByStr);
+      }
     }
   };
 
-  const handleReject = (id: string) => {
+  const handleReject = (v: Vacation) => {
     if (confirm('반려하시겠습니까?')) {
-      updateVacationStatus(id, '반려');
+      updateVacationStatus(v.id, '반려', '');
     }
   };
 
-  const handleRevert = (id: string) => {
-    if (confirm('승인/반려를 취소하고 대기 상태로 되돌리시겠습니까?')) {
-      updateVacationStatus(id, '대기');
+  const handleRevert = (v: Vacation) => {
+    if (confirm('승인/반려를 취소하고 대기 상태로 되돌리시겠습니까? 이전 승인 내역도 모두 초기화됩니다.')) {
+      updateVacationStatus(v.id, '대기', '');
     }
   };
 
@@ -227,6 +259,11 @@ export default function VacationModal({
             {v.status === '승인' && <CheckCircle className="w-3.5 h-3.5" />}
             {v.status === '반려' && <XCircle className="w-3.5 h-3.5" />}
             {v.status}
+            {v.status === '대기' && v.approvedBy && (
+              <span className="text-blue-500 ml-1">
+                (진행중 {v.approvedBy.split(',').filter(Boolean).length}/{getManagersInDept(v).length})
+              </span>
+            )}
           </span>
         </div>
 
@@ -262,31 +299,36 @@ export default function VacationModal({
 
         {/* 관리/액션 영역 */}
         <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-gray-50">
-          {/* 부서장 결재 (대기 상태일 때) */}
-          {currentUser.isManager && v.status === '대기' && (
+          {/* 부서장 결재 영역 */}
+          {currentUser.isManager && (
             <>
-              <button
-                onClick={() => handleApprove(v.id)}
-                className="px-3 py-1.5 bg-green-50 text-green-700 hover:bg-green-100 rounded-lg text-xs font-bold border border-green-200 transition-colors"
-              >
-                승인
-              </button>
-              <button
-                onClick={() => handleReject(v.id)}
-                className="px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-xs font-bold border border-red-200 transition-colors"
-              >
-                반려
-              </button>
+              {/* 대기 상태이면서 내가 아직 승인하지 않은 경우 */}
+              {v.status === '대기' && !(v.approvedBy && v.approvedBy.includes(currentUser.name)) && (
+                <>
+                  <button
+                    onClick={() => handleApprove(v)}
+                    className="px-3 py-1.5 bg-green-50 text-green-700 hover:bg-green-100 rounded-lg text-xs font-bold border border-green-200 transition-colors"
+                  >
+                    승인
+                  </button>
+                  <button
+                    onClick={() => handleReject(v)}
+                    className="px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-xs font-bold border border-red-200 transition-colors"
+                  >
+                    반려
+                  </button>
+                </>
+              )}
+              {/* 이미 내가 승인했거나 (아직 대기 중), 최종 승인/반려 상태인 경우 -> 되돌리기 가능 */}
+              {(v.status !== '대기' || (v.approvedBy && v.approvedBy.includes(currentUser.name))) && (
+                <button
+                  onClick={() => handleRevert(v)}
+                  className="px-3 py-1.5 bg-orange-50 text-orange-600 hover:bg-orange-100 rounded-lg text-xs font-bold border border-orange-200 transition-colors"
+                >
+                  되돌리기
+                </button>
+              )}
             </>
-          )}
-          {/* 부서장 결재 취소 */}
-          {currentUser.isManager && v.status !== '대기' && (
-            <button
-              onClick={() => handleRevert(v.id)}
-              className="px-3 py-1.5 bg-orange-50 text-orange-600 hover:bg-orange-100 rounded-lg text-xs font-bold border border-orange-200 transition-colors"
-            >
-              되돌리기
-            </button>
           )}
           {/* 작성자 본인 수정/삭제 (대기 상태일 때만) */}
           {canEditVac(v) && (
