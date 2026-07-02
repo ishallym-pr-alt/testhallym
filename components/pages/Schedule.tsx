@@ -432,6 +432,32 @@ export default function Schedule() {
     return !c || ['OFF', 'NO', 'SO', '연차', '육휴', '휴직', '특휴', '태검'].includes(c);
   }, []);
 
+  const getLeaveAmPmState = useCallback((empId: string, day: number, shiftCode: string) => {
+    const shiftCodeUpper = shiftCode?.toUpperCase().trim() || '';
+    if (!['HO', 'MO', '반차'].includes(shiftCodeUpper)) {
+      return { isAmLeave: false, isPmLeave: false };
+    }
+    const vDateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const vacation = approvedVacationsMap[`${empId}_${vDateStr}`];
+    const vType = vacation?.vacationType || '';
+    
+    let isAmLeave = false;
+    let isPmLeave = false;
+    
+    if (vType.includes('오전')) {
+      isAmLeave = true;
+    } else if (vType.includes('오후')) {
+      isPmLeave = true;
+    } else {
+      // For HO/MO, default to PM leave (Morning Work)
+      if (['HO', 'MO'].includes(shiftCodeUpper)) {
+        isPmLeave = true;
+      }
+    }
+    return { isAmLeave, isPmLeave };
+  }, [year, month, approvedVacationsMap]);
+
+
   const [viewMode, setViewMode] = useState<'planned' | 'actual' | 'employee' | 'room' | 'calendar'>('actual');
 
   // 초기 상태는 일단 빈 데이터로 시작
@@ -658,6 +684,8 @@ export default function Schedule() {
     const isSatM = dow === 6 && shiftCode.toUpperCase().trim() === 'M';
     const isForceMorningOnly = isHolidayHo || isSatM;
 
+    const { isAmLeave, isPmLeave } = getLeaveAmPmState(empId, day, shiftCode);
+
     const isDefaultMorningOnly = !isFullOff(shiftCode) && (
       ['M', 'M1', 'MX', 'H', 'HO', 'MO'].includes(shiftCode.toUpperCase().trim()) ||
       (dow === 6)
@@ -665,12 +693,16 @@ export default function Schedule() {
 
     const amRaw = mergedScheduleData.supports?.[empId]?.[day]?.am;
     const pmRaw = mergedScheduleData.supports?.[empId]?.[day]?.pm;
-    const am = amRaw && amRaw.length > 0 ? [...amRaw] : [emp?.mainWorkplace || emp?.department || ''];
-    const pm = isForceMorningOnly
-      ? []
-      : (isDefaultMorningOnly && !(pmRaw && pmRaw.length > 0))
-        ? []
-        : (pmRaw && pmRaw.length > 0 ? [...pmRaw] : [emp?.mainWorkplace || emp?.department || '']);
+    const defaultDept = emp?.mainWorkplace || emp?.department || '';
+    
+    let defaultAm = [defaultDept];
+    let defaultPm = [defaultDept];
+
+    if (isAmLeave) defaultAm = [];
+    if (isForceMorningOnly || isPmLeave || (isDefaultMorningOnly && !isAmLeave)) defaultPm = [];
+
+    const am = amRaw && amRaw.length > 0 ? [...amRaw] : defaultAm;
+    const pm = (pmRaw && pmRaw.length > 0) ? [...pmRaw] : defaultPm;
     while (am.length < 2) am.push('');
     while (pm.length < 2) pm.push('');
     return { am, pm };
@@ -1652,18 +1684,21 @@ export default function Schedule() {
               const isSatM = dow === 6 && shiftCode.toUpperCase().trim() === 'M';
               const isForceMorningOnly = isHolidayHo || isSatM;
 
+              const { isAmLeave, isPmLeave } = getLeaveAmPmState(empId, day, shiftCode);
+
               const isDefaultMorningOnly = !off && (
                 ['M', 'M1', 'MX', 'H', 'HO', 'MO'].includes(shiftCode.toUpperCase().trim()) ||
                 (dow === 6)
               );
 
-              const amSupports = amRaw && amRaw.length > 0 ? amRaw.map((r: string) => getRoomName(r)) : [defaultRoom];
-              const pmSupports = isForceMorningOnly
-                ? []
-                : (isDefaultMorningOnly && !(pmRaw && pmRaw.length > 0))
-                  ? []
-                  : (pmRaw && pmRaw.length > 0 ? pmRaw.map((r: string) => getRoomName(r)) : [defaultRoom]);
-              const isSplit = amSupports.length > 1 || pmSupports.length > 1 || amSupports[0] !== pmSupports[0] || pmSupports.length === 0;
+              let defaultAm = [defaultRoom];
+              let defaultPm = [defaultRoom];
+              if (isAmLeave) defaultAm = [];
+              if (isForceMorningOnly || isPmLeave || (isDefaultMorningOnly && !isAmLeave)) defaultPm = [];
+
+              const amSupports = amRaw && amRaw.length > 0 ? amRaw.map((r: string) => getRoomName(r)) : defaultAm;
+              const pmSupports = pmRaw && pmRaw.length > 0 ? pmRaw.map((r: string) => getRoomName(r)) : defaultPm;
+              const isSplit = amSupports.length > 1 || pmSupports.length > 1 || amSupports[0] !== pmSupports[0] || pmSupports.length === 0 || amSupports.length === 0;
 
               if (!current) {
                 current = { startDay: day, endDay: day, colSpan: 1, shiftCode, isOff: off, amSupports, pmSupports, isSplit, days: [{ day, shiftCode }] };
@@ -2065,18 +2100,22 @@ export default function Schedule() {
               const isSatM = dateInfo.dow === 6 && shiftCode.toUpperCase().trim() === 'M';
               const isForceMorningOnly = isHolidayHo || isSatM;
 
+              const { isAmLeave, isPmLeave } = getLeaveAmPmState(emp.empId, day, shiftCode);
+
               const isDefaultMorningOnly = ['M', 'M1', 'MX', 'H', 'HO', 'MO'].includes(shiftCode.toUpperCase().trim()) || (dateInfo.dow === 6);
+              
+              let defaultAm = [emp.mainWorkplace || emp.department];
+              let defaultPm = [emp.mainWorkplace || emp.department];
+              if (isAmLeave) defaultAm = [];
+              if (isForceMorningOnly || isPmLeave || (isDefaultMorningOnly && !isAmLeave)) defaultPm = [];
+
               if (period === 'am') {
                 const amRaw = mergedScheduleData.supports?.[emp.empId]?.[day]?.am;
-                const amSupports = amRaw && amRaw.length > 0 ? amRaw : [emp.mainWorkplace || emp.department];
+                const amSupports = amRaw && amRaw.length > 0 ? amRaw : defaultAm;
                 return amSupports.some((dept: string) => getFullRoomName(dept) === roomName);
               } else {
                 const pmRaw = mergedScheduleData.supports?.[emp.empId]?.[day]?.pm;
-                const pmSupports = isForceMorningOnly
-                  ? []
-                  : (isDefaultMorningOnly && !(pmRaw && pmRaw.length > 0))
-                    ? []
-                    : (pmRaw && pmRaw.length > 0 ? pmRaw : [emp.mainWorkplace || emp.department]);
+                const pmSupports = pmRaw && pmRaw.length > 0 ? pmRaw : defaultPm;
                 return pmSupports.some((dept: string) => getFullRoomName(dept) === roomName);
               }
             });
@@ -2207,8 +2246,13 @@ export default function Schedule() {
 
                                   if (['HO', 'MO', '반차'].includes(codeUpper)) {
                                     return (
-                                      <div key={bd.day} className="flex flex-col justify-center items-center w-full py-0.5">
-                                        <span className="block text-[11px] font-extrabold leading-none text-center truncate w-full">{sc}</span>
+                                      <div key={bd.day} className="flex flex-col justify-center w-full py-0.5">
+                                        <span className="block text-[9px] font-extrabold opacity-80 leading-none text-center mb-0.5">
+                                          {sc}
+                                        </span>
+                                        <span className="block text-[11px] font-extrabold leading-tight text-center truncate w-full pl-1">
+                                          {emp.name}
+                                        </span>
                                       </div>
                                     );
                                   } else if (i === firstNonSpecialIdx || (firstNonSpecialIdx === -1 && i === 0)) {
