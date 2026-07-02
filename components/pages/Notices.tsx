@@ -262,11 +262,54 @@ export default function Notices() {
 
         <div className="w-full flex flex-col overflow-hidden rounded-l-3xl">
           <form onSubmit={handleEditSubmit} className="w-full h-[calc(100vh-56px)] flex flex-col overflow-hidden bg-white">
-            <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between shrink-0">
-              <h3 className="font-bold text-gray-900 text-lg">
-                {noticeDrawerMode === 'create' ? '새 공지사항 등록' : (isFormEditable ? '공지사항 수정' : '공지사항 상세')}
-              </h3>
-              <div className="flex items-center gap-2">
+            <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between shrink-0 gap-4">
+              <div className="flex flex-wrap items-center gap-3 flex-1 min-w-0">
+                <h3 className="font-bold text-gray-900 text-lg shrink-0">
+                  {noticeDrawerMode === 'create' ? '새 공지사항' : (isFormEditable ? '공지사항 수정' : '공지 상세')}
+                </h3>
+                
+                {/* 이동된 카테고리 선택 영역 */}
+                <div className="flex items-center gap-2">
+                  <div className="relative w-fit min-w-[130px]">
+                    <select
+                      value={formCategory}
+                      onChange={e => setFormCategory(e.target.value)}
+                      disabled={!isFormEditable}
+                      className="w-full h-8 px-3 bg-blue-50 rounded-lg text-sm font-bold text-blue-600 outline-none cursor-pointer border border-transparent hover:border-blue-300 focus:border-blue-500 transition-all appearance-none text-center disabled:opacity-80 pr-7"
+                      required
+                    >
+                      <option value="기능검사팀 공지">기능검사팀 공지</option>
+                      <option value="검사실별 공지">검사실별 공지</option>
+                      <option value="병원 공지">병원 공지</option>
+                      <option value="감염관리">감염관리</option>
+                      <option value="건의사항">건의사항</option>
+                    </select>
+                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-600 pointer-events-none" />
+                  </div>
+
+                  {formCategory === '검사실별 공지' && (
+                    <div className="relative w-fit min-w-[140px]">
+                      <select
+                        required
+                        value={formTargetDepartment}
+                        onChange={e => setFormTargetDepartment(e.target.value)}
+                        disabled={!isFormEditable}
+                        className="w-full h-8 px-3 bg-gray-50 border border-gray-200 rounded-lg focus:border-[#004b8d] focus:bg-white transition-all outline-none text-sm font-medium appearance-none cursor-pointer disabled:opacity-80 pr-7"
+                      >
+                        <option value="" disabled>대상 검사실 선택</option>
+                        {workplaces.filter(w => w.id !== '전체').map(workplace => (
+                          <option key={workplace.id} value={workplace.name}>
+                            {workplace.floor} - {workplace.name}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsPinned(!isPinned)}
@@ -279,48 +322,8 @@ export default function Notices() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-5 space-y-4 custom-scrollbar">
-              <div className="flex flex-col sm:flex-row gap-3 items-end mb-1 w-full">
-                <div className="relative w-full sm:w-fit min-w-[160px]">
-                  <select
-                    value={formCategory}
-                    onChange={e => setFormCategory(e.target.value)}
-                    disabled={!isFormEditable}
-                    className="w-full h-9 px-3 bg-blue-50 rounded-lg text-sm font-bold text-blue-600 outline-none cursor-pointer border border-transparent hover:border-blue-300 focus:border-blue-500 transition-all appearance-none text-center disabled:opacity-80 pr-8"
-                    required
-                  >
-                    <option value="기능검사팀 공지">기능검사팀 공지</option>
-                    <option value="검사실별 공지">검사실별 공지</option>
-                    <option value="병원 공지">병원 공지</option>
-                    <option value="감염관리">감염관리</option>
-                    <option value="건의사항">건의사항</option>
-                  </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-600 pointer-events-none" />
-                </div>
+            <div className={`flex-1 overflow-y-auto p-5 custom-scrollbar ${noticeDrawerMode === 'create' ? 'flex flex-col gap-4' : 'space-y-4'}`}>
 
-                {formCategory === '검사실별 공지' && (
-                  <div className="flex-1 flex flex-col min-w-0 w-full">
-                    <label className="block text-xs font-bold text-gray-400 mb-1">대상 검사실</label>
-                    <div className="relative w-full">
-                      <select
-                        required
-                        value={formTargetDepartment}
-                        onChange={e => setFormTargetDepartment(e.target.value)}
-                        disabled={!isFormEditable}
-                        className="w-full px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:border-[#004b8d] focus:bg-white focus:ring-4 focus:ring-[#004b8d]/10 transition-all outline-none text-sm font-medium appearance-none cursor-pointer disabled:opacity-80 pr-8"
-                      >
-                        <option value="" disabled>대상 검사실을 선택하세요</option>
-                        {workplaces.filter(w => w.id !== '전체').map(workplace => (
-                          <option key={workplace.id} value={workplace.name}>
-                            {workplace.floor} - {workplace.name}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                    </div>
-                  </div>
-                )}
-              </div>
 
               {isFormEditable ? (
                 <input
@@ -337,19 +340,21 @@ export default function Notices() {
                 </div>
               )}
 
-              {isFormEditable ? (
-                <textarea
-                  value={formContent}
-                  onChange={e => setFormContent(e.target.value)}
-                  placeholder="자세한 공지 내용을 기록합니다..."
-                  className="w-full flex-1 bg-gray-50 p-4 rounded-xl text-base text-gray-700 whitespace-pre-wrap leading-relaxed border border-gray-100 hover:border-gray-200 focus:border-[#004b8d] focus:bg-white outline-none resize-none placeholder-gray-400 transition-all shadow-inner min-h-[160px]"
-                  required
-                />
-              ) : (
+              <div className={`space-y-1.5 flex flex-col w-full ${noticeDrawerMode === 'create' ? 'flex-1 min-h-[300px]' : 'min-h-0'}`}>
+                {isFormEditable ? (
+                  <textarea
+                    value={formContent}
+                    onChange={e => setFormContent(e.target.value)}
+                    placeholder="자세한 공지 내용을 기록합니다..."
+                    className={`w-full flex-1 bg-gray-50 p-4 rounded-xl text-base text-gray-700 whitespace-pre-wrap leading-relaxed border border-gray-100 hover:border-gray-200 focus:border-[#004b8d] focus:bg-white outline-none resize-none placeholder-gray-400 transition-all shadow-inner ${noticeDrawerMode === 'create' ? 'flex-1 h-full' : 'min-h-[160px]'}`}
+                    required
+                  />
+                ) : (
                 <div className="w-full flex-1 bg-gray-50 p-4 rounded-xl text-base text-gray-700 whitespace-pre-wrap leading-relaxed border border-gray-100 min-h-[160px] overflow-y-auto">
                   {formContent}
                 </div>
               )}
+              </div>
 
               {/* 확인자 목록 및 미확인 직원 목록 (드로어 내 보기 모드일 때 렌더링) */}
               {!isFormEditable && currentNotice && (

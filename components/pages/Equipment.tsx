@@ -687,8 +687,8 @@ export default function Equipment() {
 
         <div className="w-full flex flex-col overflow-hidden rounded-l-3xl">
           <form onSubmit={handleFormSubmit} className="w-full h-[calc(100vh-56px)] flex flex-col overflow-hidden bg-white">
-            <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between shrink-0">
-              <h3 className="font-bold text-gray-900 text-lg">{modalMode === 'create' ? '장비 이슈 등록' : '장비 이슈 수정'}</h3>
+            <div className="px-5 py-1.5 border-b border-gray-100 flex items-center justify-between shrink-0">
+              <h3 className="font-bold text-gray-900 text-base">{modalMode === 'create' ? '장비 이슈 등록' : '장비 이슈 수정'}</h3>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -702,7 +702,7 @@ export default function Equipment() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-5 space-y-4 custom-scrollbar">
+            <div className={`flex-1 overflow-y-auto p-5 custom-scrollbar ${modalMode === 'create' ? 'flex flex-col gap-4' : 'space-y-4'}`}>
               <div className="flex flex-wrap gap-2 mb-1 shrink-0">
                 <select value={formRoom} onChange={e => setFormRoom(e.target.value)} className="px-2 py-1 bg-gray-100 rounded text-xs font-bold text-gray-600 outline-none cursor-pointer border border-transparent hover:border-gray-300 focus:border-[#004b8d] transition-colors appearance-none text-center" required>
                   {filteredRooms.map(r => (
@@ -783,7 +783,9 @@ export default function Equipment() {
                 )}
               </div>
 
-              <textarea value={formContent} onChange={e => setFormContent(e.target.value)} placeholder="자세한 내용이나 증상을 기록합니다..." className="w-full flex-1 bg-gray-50 p-4 rounded-xl text-sm text-gray-700 whitespace-pre-wrap leading-relaxed border border-gray-100 hover:border-gray-200 focus:border-[#004b8d] focus:bg-white outline-none resize-none placeholder-gray-400 transition-all shadow-inner min-h-[140px]" required />
+              <div className={`space-y-1.5 flex flex-col w-full ${modalMode === 'create' ? 'flex-1 min-h-[300px]' : 'min-h-0'}`}>
+                <textarea value={formContent} onChange={e => setFormContent(e.target.value)} placeholder="자세한 내용이나 증상을 기록합니다..." className={`w-full flex-1 bg-gray-50 p-4 rounded-xl text-sm text-gray-700 whitespace-pre-wrap leading-relaxed border border-gray-100 hover:border-gray-200 focus:border-[#004b8d] focus:bg-white outline-none resize-none placeholder-gray-400 transition-all shadow-inner ${modalMode === 'create' ? 'flex-1 h-full' : 'min-h-[140px]'}`} required />
+              </div>
 
               <div className="flex flex-wrap items-center gap-4 mt-3 text-xs text-gray-500 font-medium bg-gray-50/50 p-2.5 rounded-xl border border-gray-50 shrink-0">
                 <span className="flex items-center gap-1.5"><UserIcon className="w-3.5 h-3.5 text-gray-400" />{modalMode === 'create' ? currentUser.name : (selectedIssue?.reporter || currentUser.name)}</span>
@@ -828,8 +830,8 @@ export default function Equipment() {
         </div>
 
         <div className="w-full flex flex-col overflow-hidden rounded-l-3xl">
-          <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between shrink-0">
-            <h3 className="font-bold text-gray-900 text-lg">장비 이슈 상세</h3>
+          <div className="px-5 py-1.5 border-b border-gray-100 flex items-center justify-between shrink-0">
+            <h3 className="font-bold text-gray-900 text-base">장비 이슈 상세</h3>
             <div className="flex items-center gap-2">
               <button
                 type="button"

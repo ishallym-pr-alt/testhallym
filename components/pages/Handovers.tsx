@@ -306,8 +306,8 @@ export default function Handovers() {
 
         <div className="w-full flex flex-col overflow-hidden rounded-l-3xl">
           <form onSubmit={handleDrawerSubmit} className="w-full h-[calc(100vh-56px)] flex flex-col overflow-hidden bg-white">
-            <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between shrink-0">
-              <h3 className="font-bold text-gray-900 text-lg">
+            <div className="px-5 py-1.5 border-b border-gray-100 flex items-center justify-between shrink-0">
+              <h3 className="font-bold text-gray-900 text-base">
                 {handoverDrawerMode === 'create' ? '새 인수인계 등록' : (isFormEditable ? '인수인계 수정' : '인수인계 상세')}
               </h3>
               <div className="flex items-center gap-2">
@@ -323,7 +323,7 @@ export default function Handovers() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-5 space-y-4 custom-scrollbar">
+            <div className={`flex-1 overflow-y-auto p-5 custom-scrollbar ${handoverDrawerMode === 'create' ? 'flex flex-col gap-4' : 'space-y-4'}`}>
               <div className="space-y-1.5 shrink-0">
                 <label className="block text-xs font-bold text-gray-400">제목</label>
                 {isFormEditable ? (
@@ -363,14 +363,14 @@ export default function Handovers() {
                 </div>
               </div>
 
-              <div className="space-y-1.5 flex flex-col flex-1 min-h-0 w-full">
+              <div className={`space-y-1.5 flex flex-col w-full ${handoverDrawerMode === 'create' ? 'flex-1 min-h-[300px]' : 'min-h-0'}`}>
                 <label className="block text-xs font-bold text-gray-400 shrink-0">내용</label>
                 {isFormEditable ? (
                   <textarea
                     value={formContent}
                     onChange={e => setFormContent(e.target.value)}
-                    placeholder="인계할 내용을 상세히 적어주세요..."
-                    className="w-full flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-[#004b8d] focus:bg-white focus:ring-4 focus:ring-[#004b8d]/10 transition-all outline-none resize-none text-base font-medium leading-relaxed min-h-[160px]"
+                    placeholder="자세한 인수인계 내용을 기록합니다..."
+                    className={`w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-[#004b8d] focus:bg-white focus:ring-4 focus:ring-[#004b8d]/10 transition-all outline-none resize-none text-base font-medium leading-relaxed ${handoverDrawerMode === 'create' ? 'flex-1 h-full' : 'min-h-[160px]'}`}
                     required
                   />
                 ) : (
