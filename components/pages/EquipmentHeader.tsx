@@ -28,9 +28,66 @@ export default function EquipmentHeader({
   };
 
   const handleMediinfoLaunch = () => {
-    // mediinfo:// URI 호출 → 등록된 PS 스크립트 실행
+    let hasBlurred = false;
+    const onBlur = () => { hasBlurred = true; };
+    window.addEventListener('blur', onBlur);
+
+    // mediinfo:// URI 호출
     window.location.href = 'mediinfo://open';
     showToast('메디인포를 실행하거나 활성화합니다...');
+
+    // 1초 후에도 창 포커스를 잃지 않았다면 프로토콜 미등록으로 간주
+    setTimeout(() => {
+      window.removeEventListener('blur', onBlur);
+      if (!hasBlurred) {
+        showToast('연동 설정이 필요하여 자동 설정 파일을 다운로드합니다.');
+        downloadSetupBat();
+      }
+    }, 1000);
+  };
+
+  const downloadSetupBat = () => {
+    const origin = window.location.origin;
+    const batContent = `@echo off
+chcp 65001 >nul
+echo ===================================================
+echo 메디인포 연동 자동 설정 스크립트
+echo ===================================================
+echo.
+echo [1/2] 필수 스크립트를 다운로드합니다...
+
+set "TARGET_DIR=%USERPROFILE%\\MediInfo"
+if not exist "%TARGET_DIR%" mkdir "%TARGET_DIR%"
+
+powershell -Command "Invoke-WebRequest -Uri '${origin}/scripts/launch_mediinfo.ps1' -OutFile '%TARGET_DIR%\\launch_mediinfo.ps1'"
+
+if not exist "%TARGET_DIR%\\launch_mediinfo.ps1" (
+    echo [오류] 스크립트 다운로드에 실패했습니다. 서버 상태를 확인하세요.
+    pause
+    exit /b
+)
+
+echo [2/2] 윈도우 레지스트리에 연동 프로토콜을 등록합니다...
+reg add "HKCR\\mediinfo" /ve /t REG_SZ /d "URL:MediInfo Protocol" /f
+reg add "HKCR\\mediinfo" /v "URL Protocol" /t REG_SZ /d "" /f
+reg add "HKCR\\mediinfo\\shell\\open\\command" /ve /t REG_SZ /d "powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File \\"%TARGET_DIR%\\launch_mediinfo.ps1\\" \\"%%1\\"" /f
+
+echo.
+echo ===================================================
+echo [성공] 모든 설정이 완료되었습니다! 
+echo 이제 웹사이트에서 메디인포 버튼을 다시 눌러주세요.
+echo ===================================================
+pause
+`;
+    const blob = new Blob([batContent], { type: 'application/bat' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'mediinfo_setup.bat';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   return (

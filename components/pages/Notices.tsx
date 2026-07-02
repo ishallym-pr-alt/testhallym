@@ -146,10 +146,7 @@ export default function Notices() {
     const readUsers = n.readBy || [];
     const activeEmps = (employees || []).filter(e => !e.isRetired);
 
-    let targetEmps = activeEmps;
-    if (n.targetDepartment) {
-      targetEmps = activeEmps.filter(e => e.mainWorkplace === n.targetDepartment);
-    }
+    const targetEmps = activeEmps;
 
     return targetEmps.filter(e => !readUsers.includes(e.name)).map(e => e.name);
   };
@@ -537,12 +534,16 @@ export default function Notices() {
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
             {["기능검사팀 공지", "검사실별 공지", "병원 공지", "감염관리", "건의사항"].map(cat => {
               const isActive = currentNoticeCategory === cat;
-              const baseClass = `relative flex flex-col py-2 px-1 rounded-xl border transition-all cursor-pointer text-center overflow-hidden justify-center items-center ${isActive ? "border-accent-500 bg-accent-50 shadow-sm shadow-orange-100/50" : "border-gray-100 bg-white hover:bg-gray-50 hover:border-gray-200 shadow-sm"}`;
+              const baseClass = `relative flex flex-col py-2 px-1 rounded-xl border transition-all cursor-pointer text-center justify-center items-center ${isActive ? "border-accent-500 bg-accent-50 shadow-sm shadow-orange-100/50" : "border-gray-100 bg-white hover:bg-gray-50 hover:border-gray-200 shadow-sm"}`;
               const labelText = isActive ? "text-accent-600 font-bold" : "text-gray-700 font-medium";
+              const hasUnread = notices.some(post => post.category === cat && !post.readBy?.includes(currentUser.name));
 
               return (
                 <button key={cat} onClick={() => setCurrentNoticeCategory(cat)} className={baseClass} title={cat}>
-                  <span className={`text-[11px] sm:text-xs ${labelText} leading-tight truncate w-full`}>{cat}</span>
+                  <span className={`text-[11px] sm:text-xs ${labelText} leading-tight truncate w-full px-1`}>{cat}</span>
+                  {hasUnread && (
+                    <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full shadow-[0_0_4px_rgba(239,68,68,0.5)] z-10"></span>
+                  )}
                 </button>
               );
             })}
@@ -560,18 +561,23 @@ export default function Notices() {
               >
                 전체보기
               </button>
-              {workplaces.filter(w => w.id !== '전체').map(w => (
+              {workplaces.filter(w => w.id !== '전체').map(w => {
+                const hasUnread = notices.some(post => post.category === '검사실별 공지' && post.targetDepartment === w.name && !post.readBy?.includes(currentUser.name));
+                return (
                 <button
                   key={w.id}
                   onClick={() => setSubCategory(w.name)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${subCategory === w.name
+                  className={`relative px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${subCategory === w.name
                     ? 'border-[#004b8d] bg-blue-50 text-[#004b8d]'
                     : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50 hover:border-gray-300'
                     }`}
                 >
                   {w.floor} - {w.name}
+                  {hasUnread && (
+                    <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full shadow-[0_0_4px_rgba(239,68,68,0.5)] z-10"></span>
+                  )}
                 </button>
-              ))}
+              )})}
             </div>
           )}
         </div>
@@ -594,7 +600,6 @@ export default function Notices() {
             ))
           ) : filteredNotices.length > 0 ? (
             filteredNotices.map(n => {
-              const isHighlighted = n.id === highlightedItemId || highlightedItemIds.includes(n.id);
               return (
                 <div
                   key={n.id}
@@ -609,10 +614,7 @@ export default function Notices() {
                     if (n.id === highlightedItemId) setHighlightedItemId(null);
                     if (highlightedItemIds.includes(n.id)) removeHighlightedItemId(n.id);
                   }}
-                  className={`bg-white rounded-2xl p-4 sm:p-5 shadow-sm border transition-all cursor-pointer ${isHighlighted
-                    ? 'alarm-highlight shadow-md shadow-orange-100'
-                    : 'border-gray-100 hover:shadow-md hover:border-gray-200'
-                    }`}
+                  className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border transition-all cursor-pointer border-gray-100 hover:shadow-md hover:border-gray-200"
                 >
                   <div className="flex items-start justify-between gap-4 mb-2">
                     <div className="flex items-center gap-2 flex-wrap min-w-0">

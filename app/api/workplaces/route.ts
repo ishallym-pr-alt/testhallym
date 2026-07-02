@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-export const dynamic = 'force-dynamic';
 import { gasGet, setCache, getCache } from '@/lib/googleSheets';
 
+export const dynamic = 'force-dynamic';
 const CACHE_KEY = 'workplaces';
 
 export async function GET() {

@@ -47,6 +47,8 @@ export default function Sidebar() {
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = currentPage === item.id;
+          const badgeCount = item.id === 'schedule' ? scheduleAlarmCount : (unreadCounts[item.id] || 0);
+
           return (
             <button
               key={item.id}
@@ -55,14 +57,9 @@ export default function Sidebar() {
             >
               <Icon className="w-4 h-4" />
               <span>{item.label}</span>
-              {unreadCounts[item.id] > 0 && (
-                <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center shadow-sm">
-                  {unreadCounts[item.id] > 99 ? '99+' : unreadCounts[item.id]}
-                </span>
-              )}
-              {item.id === 'schedule' && scheduleAlarmCount > 0 && (
-                <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center animate-pulse">
-                  {scheduleAlarmCount}
+              {badgeCount > 0 && (
+                <span className={`ml-auto w-[18px] h-[18px] flex items-center justify-center bg-[#eb4d3d] text-white text-[11px] font-bold rounded-full shrink-0 tracking-tighter leading-none ${item.id === 'schedule' ? 'animate-pulse' : ''}`}>
+                  {badgeCount > 99 ? '99+' : badgeCount}
                 </span>
               )}
             </button>

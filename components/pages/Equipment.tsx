@@ -493,9 +493,7 @@ export default function Equipment() {
     const unconfirmedText = unconfirmedUsers.length > 0 ? `미확인: ${unconfirmedUsers.join(', ')}` : '전원 확인 완료';
 
     const isHighlighted = eq.id === highlightedItemId || highlightedItemIds.includes(eq.id);
-    const highlightClass = isHighlighted
-      ? 'alarm-highlight shadow-md shadow-orange-100'
-      : cardBorder;
+    const highlightClass = cardBorder;
 
     return (
       <div

@@ -1889,8 +1889,7 @@ export default function Schedule() {
                                         }
                                       }}
                                       className={`w-full h-full min-h-[26px] flex items-stretch justify-stretch rounded-md ${isAmHighlighted || isPmHighlighted ? 'overflow-visible' : 'overflow-hidden'
-                                        } shadow-sm border border-black/5 ${isWrapperHighlighted ? 'alarm-highlight' : ''
-                                        } ${(isSplit && pmSupports.length > 0 && !['수면', 'HO', 'MO', '반차'].includes(shiftCode?.toUpperCase().trim()))
+                                        } shadow-sm border border-black/5 ${(isSplit && pmSupports.length > 0 && !['수면', 'HO', 'MO', '반차'].includes(shiftCode?.toUpperCase().trim()))
                                           ? 'p-0 bg-transparent flex-col border-none shadow-none'
                                           : `py-1 ${getDeptColor(amSupports[0]).split(' ').filter(c => !c.startsWith('border-')).join(' ')}`
                                         }`}
@@ -1901,7 +1900,7 @@ export default function Schedule() {
                                             <div
                                               id={isAmHighlighted ? `cell-${emp.empId}-${amHighlightDay}-am` : undefined}
                                               onMouseEnter={() => { if (isAmHighlighted) { amHighlightsInBlock.forEach(removeHighlightedItemId); } }}
-                                              className={`px-2 py-0.5 w-full flex-1 flex flex-col justify-center rounded-md shadow-sm border border-black/5 ${isAmHighlighted ? 'alarm-highlight' : ''} ${getDeptColor(amSupports[0]).split(' ').filter(c => !c.startsWith('border-')).join(' ')}`}
+                                              className={`px-2 py-0.5 w-full flex-1 flex flex-col justify-center rounded-md shadow-sm border border-black/5 ${getDeptColor(amSupports[0]).split(' ').filter(c => !c.startsWith('border-')).join(' ')}`}
                                             >
                                               {amSupports.map((amSupport, sIdx) => (
                                                 <span key={`am-${sIdx}`} className="block text-[10px] font-extrabold leading-tight text-left truncate">
@@ -1915,7 +1914,7 @@ export default function Schedule() {
                                             <div
                                               id={isPmHighlighted ? `cell-${emp.empId}-${pmHighlightDay}-pm` : undefined}
                                               onMouseEnter={() => { if (isPmHighlighted) { pmHighlightsInBlock.forEach(removeHighlightedItemId); } }}
-                                              className={`px-2 py-0.5 w-full flex-1 flex flex-col justify-center rounded-md shadow-sm border border-black/5 ${isPmHighlighted ? 'alarm-highlight' : ''} ${getDeptColor(pmSupports[0]).split(' ').filter(c => !c.startsWith('border-')).join(' ')}`}
+                                              className={`px-2 py-0.5 w-full flex-1 flex flex-col justify-center rounded-md shadow-sm border border-black/5 ${getDeptColor(pmSupports[0]).split(' ').filter(c => !c.startsWith('border-')).join(' ')}`}
                                             >
                                               {pmSupports.map((pmSupport, sIdx) => (
                                                 <span key={`pm-${sIdx}`} className="block text-[10px] font-extrabold leading-tight text-left truncate">
@@ -1959,10 +1958,7 @@ export default function Schedule() {
                                                     <div
                                                       id={isThisDayAmHighlighted ? `cell-${emp.empId}-${bd.day}-am` : undefined}
                                                       onMouseEnter={() => { if (isThisDayAmHighlighted) removeHighlightedItemId(thisDayAmHighlightId); }}
-                                                      className={`w-full flex-1 flex flex-col justify-center items-center rounded-md border transition-all ${isThisDayAmHighlighted
-                                                        ? `alarm-highlight z-10 ${bgClass}`
-                                                        : 'border-transparent'
-                                                        }`}
+                                                      className="w-full flex-1 flex flex-col justify-center items-center rounded-md border transition-all border-transparent"
                                                     >
                                                       <span className="block text-[11px] font-extrabold leading-none text-center truncate w-full">
                                                         {bd.shiftCode}
@@ -1971,10 +1967,7 @@ export default function Schedule() {
                                                     <div
                                                       id={isThisDayPmHighlighted ? `cell-${emp.empId}-${bd.day}-pm` : undefined}
                                                       onMouseEnter={() => { if (isThisDayPmHighlighted) removeHighlightedItemId(thisDayPmHighlightId); }}
-                                                      className={`w-full flex-1 flex flex-col justify-center items-center rounded-md border transition-all ${isThisDayPmHighlighted
-                                                        ? `alarm-highlight z-10 ${pmBgClass}`
-                                                        : 'border-transparent'
-                                                        } ${isPmActive ? pmBgClass : 'bg-transparent'}`}
+                                                      className={`w-full flex-1 flex flex-col justify-center items-center rounded-md border transition-all border-transparent ${isPmActive ? pmBgClass : 'bg-transparent'}`}
                                                     >
                                                       {isPmActive && (
                                                         <span className="block text-[10px] font-extrabold leading-none text-center truncate w-full">
@@ -2000,10 +1993,7 @@ export default function Schedule() {
                                                         if (isThisDayPmHighlighted) removeHighlightedItemId(thisDayPmHighlightId);
                                                       }
                                                     }}
-                                                    className={`flex flex-col justify-center w-full py-0.5 border rounded-md transition-all ${isThisDayHighlighted
-                                                      ? `alarm-highlight z-10 ${bgClass}`
-                                                      : 'border-transparent'
-                                                      }`}
+                                                    className="flex flex-col justify-center w-full py-0.5 border rounded-md transition-all border-transparent"
                                                   >
                                                     {showSmallShift && (
                                                       <span className="block text-[9px] font-extrabold opacity-80 leading-none text-center mb-0.5">
@@ -2026,10 +2016,7 @@ export default function Schedule() {
                                                         if (isThisDayPmHighlighted) removeHighlightedItemId(thisDayPmHighlightId);
                                                       }
                                                     }}
-                                                    className={`w-full flex flex-col justify-center items-center py-0.5 border rounded-md transition-all ${isThisDayHighlighted
-                                                      ? `alarm-highlight z-10 ${bgClass}`
-                                                      : 'border-transparent'
-                                                      }`}
+                                                    className="w-full flex flex-col justify-center items-center py-0.5 border rounded-md transition-all border-transparent"
                                                   >
                                                     {showSmallShift && (
                                                       <span className="block text-[9px] font-extrabold opacity-80 leading-none text-center mb-0.5">

@@ -464,9 +464,7 @@ export default function Handovers() {
 
   const renderCard = (h: Handover) => {
     const isHighlighted = h.id === highlightedItemId || highlightedItemIds.includes(h.id);
-    const borderClass = isHighlighted
-      ? 'alarm-highlight shadow-md shadow-orange-100'
-      : (h.isSigned ? "border-gray-200" : "border-orange-300 border-[1.5px]");
+    const borderClass = h.isSigned ? "border-gray-200" : "border-orange-300 border-[1.5px]";
 
     return (
       <div
@@ -670,15 +668,19 @@ export default function Handovers() {
               </button>
               {workplaces.filter(w => w.id !== '전체').map(workplace => {
                 const isActive = currentRoom === workplace.id;
-                const baseClass = `relative flex-1 flex flex-col py-1 px-1 rounded-lg border transition-all cursor-pointer text-center overflow-hidden justify-center items-center ${isActive ? "border-accent-500 bg-accent-50 shadow-sm shadow-orange-100/50" : "border-gray-100 bg-white hover:bg-gray-50 hover:border-gray-200 shadow-sm"
+                const baseClass = `relative flex-1 flex flex-col py-1 px-1 rounded-lg border transition-all cursor-pointer text-center justify-center items-center ${isActive ? "border-accent-500 bg-accent-50 shadow-sm shadow-orange-100/50" : "border-gray-100 bg-white hover:bg-gray-50 hover:border-gray-200 shadow-sm"
                   }`;
                 const floorText = isActive ? "text-accent-500" : "text-gray-400";
                 const labelText = isActive ? "text-accent-600 font-bold" : "text-gray-600 font-medium";
+                const hasUnread = handovers.some(h => h.mainWorkplace === workplace.name && !h.readBy?.includes(currentUser.name));
 
                 return (
                   <button key={workplace.id} onClick={() => setCurrentRoom(workplace.id)} className={baseClass} title={workplace.name}>
-                    <span className={`text-[8px] sm:text-[9px] font-bold ${floorText} truncate leading-tight`}>{workplace.floor}</span>
-                    <span className={`text-[9px] sm:text-[10px] ${labelText} leading-tight truncate`}>{workplace.name}</span>
+                    <span className={`text-[8px] sm:text-[9px] font-bold ${floorText} truncate leading-tight w-full`}>{workplace.floor}</span>
+                    <span className={`text-[9px] sm:text-[10px] ${labelText} leading-tight truncate w-full px-1`}>{workplace.name}</span>
+                    {hasUnread && (
+                      <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full shadow-[0_0_4px_rgba(239,68,68,0.5)] z-10"></span>
+                    )}
                   </button>
                 );
               })}

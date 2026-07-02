@@ -127,6 +127,20 @@ export default function VacationModal({
       return;
     }
 
+    // [버그 수정] 중복 연차 신청 검증 로직 (반려된 연차는 제외하고 중복 확인)
+    const existingUserVacations = vacations.filter(
+      v => String(v.empId).trim() === String(currentUser.employeeId).trim() && v.status !== '반려'
+    );
+
+    const overlappingDates = datesToApply.filter(dateStr => 
+      existingUserVacations.some(v => v.vacationDate === dateStr)
+    );
+
+    if (overlappingDates.length > 0) {
+      alert(`이미 해당 날짜에 신청된 연차 내역이 존재합니다.\n(중복 날짜: ${overlappingDates.join(', ')})`);
+      return;
+    }
+
     // 각 날짜별로 연차 신청
     datesToApply.forEach((dateStr) => {
       addVacation({
@@ -178,24 +192,24 @@ export default function VacationModal({
 
     if (isFullyApproved) {
       if (confirm('최종 승인하시겠습니까? 근무표에 자동 연동됩니다.')) {
-        updateVacationStatus(v.id, '승인', newApprovedByStr);
+        updateVacationStatus(v.id, '승인');
       }
     } else {
       if (confirm(`승인하시겠습니까? (현재 ${newApprovedList.length}/${totalManagers}명 승인)`)) {
-        updateVacationStatus(v.id, '대기', newApprovedByStr);
+        updateVacationStatus(v.id, '대기');
       }
     }
   };
 
   const handleReject = (v: Vacation) => {
     if (confirm('반려하시겠습니까?')) {
-      updateVacationStatus(v.id, '반려', '');
+      updateVacationStatus(v.id, '반려');
     }
   };
 
   const handleRevert = (v: Vacation) => {
     if (confirm('승인/반려를 취소하고 대기 상태로 되돌리시겠습니까? 이전 승인 내역도 모두 초기화됩니다.')) {
-      updateVacationStatus(v.id, '대기', '');
+      updateVacationStatus(v.id, '대기');
     }
   };
 
@@ -213,6 +227,20 @@ export default function VacationModal({
   const handleEditVacSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingVac) return;
+
+    // [버그 수정] 수정 시 중복 연차 검증 로직 (본인 연차 중 현재 수정하려는 연차 제외)
+    const isOverlap = vacations.some(v => 
+      String(v.empId).trim() === String(currentUser.employeeId).trim() &&
+      v.id !== editingVac.id &&
+      v.status !== '반려' &&
+      v.vacationDate === editDate
+    );
+
+    if (isOverlap) {
+      alert(`이미 ${editDate}에 신청된 연차 내역이 존재합니다.`);
+      return;
+    }
+
     editVacation(editingVac.id, { 
       vacationDate: editDate, 
       vacationType: editType, 

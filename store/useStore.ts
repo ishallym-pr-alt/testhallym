@@ -237,10 +237,19 @@ export const useStore = create<AppState>((set, get) => ({
         };
         const currentDepartment = emp.mainWorkplace || emp.department || '기능검사실';
 
+        let initialReadIds: string[] = [];
+        if (typeof window !== 'undefined') {
+          try {
+            const storedIds = localStorage.getItem(`read_vacations_${currentUser.employeeId}`);
+            if (storedIds) initialReadIds = JSON.parse(storedIds);
+          } catch(e) {}
+        }
+
         set({
           isLoggedIn: true,
           currentUser,
-          currentDepartment
+          currentDepartment,
+          readVacationIds: initialReadIds
         });
 
         if (typeof window !== 'undefined') {
@@ -267,7 +276,7 @@ export const useStore = create<AppState>((set, get) => ({
       localStorage.removeItem('session_expiry');
       localStorage.removeItem('highlighted_item_ids');
     }
-    set({ isLoggedIn: false, currentUser: { employeeId: '', name: '', position: '', department: '', mainWorkplace: '', subWorkplace: '', isManager: false, isRetired: false }, currentPage: 'notices', highlightedItemId: null, highlightedItemIds: [] });
+    set({ isLoggedIn: false, currentUser: { employeeId: '', name: '', position: '', department: '', mainWorkplace: '', subWorkplace: '', isManager: false, isRetired: false }, currentPage: 'notices', highlightedItemId: null, highlightedItemIds: [], readVacationIds: [] });
   },
   restoreSession: () => {
     if (typeof window === 'undefined') return;
@@ -283,10 +292,17 @@ export const useStore = create<AppState>((set, get) => ({
       if (now < expiry) {
         try {
           const user = JSON.parse(loggedInUserStr);
+          let initialReadIds: string[] = [];
+          try {
+            const storedIds = localStorage.getItem(`read_vacations_${user.employeeId}`);
+            if (storedIds) initialReadIds = JSON.parse(storedIds);
+          } catch(e) {}
+
           set({
             isLoggedIn: true,
             currentUser: user,
-            currentDepartment: currentDept || user.mainWorkplace || user.department || '기능검사실'
+            currentDepartment: currentDept || user.mainWorkplace || user.department || '기능검사실',
+            readVacationIds: initialReadIds
           });
         } catch (e) {
           console.error('[Store] 로컬 세션 복구 실패:', e);
