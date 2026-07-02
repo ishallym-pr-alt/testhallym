@@ -413,13 +413,14 @@ export const useStore = create<AppState>((set, get) => ({
     }
 
     try {
-      const [noticesRes, handoversRes, equipmentRes, employeesRes, vacationsRes, workplacesRes] = await Promise.allSettled([
+      const [noticesRes, handoversRes, equipmentRes, employeesRes, vacationsRes, workplacesRes, memosRes] = await Promise.allSettled([
         fetch('/api/notices'),
         fetch('/api/handovers'),
         fetch('/api/equipment'),
         fetch('/api/employees'),
         fetch('/api/vacations'),
         fetch('/api/workplaces'),
+        fetch('/api/memos'),
       ]);
 
       const updates: Partial<AppState> = {};
@@ -454,6 +455,13 @@ export const useStore = create<AppState>((set, get) => ({
         updates.workplaces = data;
         localStorage.setItem('cached_workplaces', JSON.stringify(data));
       }
+      if (memosRes.status === 'fulfilled' && memosRes.value.ok) {
+        const data = await memosRes.value.json();
+        updates.calendarMemos = data.reduce((acc: any, curr: any) => {
+          acc[curr.dateKey] = curr.memoText;
+          return acc;
+        }, {});
+      }
 
       set({ ...updates, isDataLoaded: true, isLoading: false, isGlobalSyncing: false });
     } catch (error) {
@@ -474,13 +482,14 @@ export const useStore = create<AppState>((set, get) => ({
 
     try {
       const nowTs = Date.now();
-      const [noticesRes, handoversRes, equipmentRes, employeesRes, vacationsRes, workplacesRes] = await Promise.allSettled([
+      const [noticesRes, handoversRes, equipmentRes, employeesRes, vacationsRes, workplacesRes, memosRes] = await Promise.allSettled([
         fetch(`/api/notices?_t=${nowTs}`, { cache: 'no-store' }),
         fetch(`/api/handovers?_t=${nowTs}`, { cache: 'no-store' }),
         fetch(`/api/equipment?_t=${nowTs}`, { cache: 'no-store' }),
         fetch(`/api/employees?_t=${nowTs}`, { cache: 'no-store' }),
         fetch(`/api/vacations?_t=${nowTs}`, { cache: 'no-store' }),
         fetch(`/api/workplaces?_t=${nowTs}`, { cache: 'no-store' }),
+        fetch(`/api/memos?_t=${nowTs}`, { cache: 'no-store' }),
       ]);
 
       stillSyncing = false;
@@ -691,6 +700,17 @@ export const useStore = create<AppState>((set, get) => ({
         if (JSON.stringify(oldData) !== JSON.stringify(data)) {
           updates.workplaces = data;
           localStorage.setItem('cached_workplaces', JSON.stringify(data));
+        }
+      }
+
+      if (memosRes.status === 'fulfilled' && memosRes.value.ok) {
+        const data = await memosRes.value.json();
+        const mergedMemos = data.reduce((acc: any, curr: any) => {
+          acc[curr.dateKey] = curr.memoText;
+          return acc;
+        }, {});
+        if (JSON.stringify(get().calendarMemos) !== JSON.stringify(mergedMemos)) {
+          updates.calendarMemos = mergedMemos;
         }
       }
 
@@ -1387,32 +1407,24 @@ export const useStore = create<AppState>((set, get) => ({
     get().loadCalendarMemos(year, month);
   },
 
-  loadCalendarMemos: (year, month) => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(`calendar_memos_${year}_${month}`);
-      let memos = {};
-      if (saved) {
-        try { memos = JSON.parse(saved); } catch (e) { }
-      }
-      set({ calendarMemos: memos });
-    }
-  },
+  loadCalendarMemos: (year, month) => {},
 
   saveCalendarMemo: (year, month, key, text) => {
-    if (typeof window !== 'undefined') {
-      const storageKey = `calendar_memos_${year}_${month}`;
-      const saved = localStorage.getItem(storageKey);
-      let memos: Record<string, string> = {};
-      if (saved) {
-        try { memos = JSON.parse(saved); } catch (e) { }
-      }
-      if (text.trim()) {
-        memos[key] = text.trim();
-      } else {
-        delete memos[key];
-      }
-      localStorage.setItem(storageKey, JSON.stringify(memos));
-      set({ calendarMemos: memos });
-    }
+    set({ isMutating: true });
+    const previousMemos = get().calendarMemos;
+    const newMemos = { ...previousMemos };
+    if (text.trim()) newMemos[key] = text.trim();
+    else delete newMemos[key];
+    
+    set({ calendarMemos: newMemos });
+    
+    fetch('/api/memos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dateKey: key, memoText: text }),
+    }).catch(() => {
+      set({ calendarMemos: previousMemos });
+      console.error('[Store] 메모 저장 실패 — 롤백합니다.');
+    }).finally(() => setTimeout(() => set({ isMutating: false }), 2000));
   },
 }));

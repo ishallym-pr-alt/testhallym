@@ -44,7 +44,8 @@ var SHEETS = {
   schedules: '근무표',
   vacations: '연차신청',
   pushSubscriptions: '푸시구독',
-  workplaces: '근무지목록'
+  workplaces: '근무지목록',
+  memos: '캘린더메모'
 };
 
 /**
@@ -157,6 +158,8 @@ function getHeaderMap(sheetTitle) {
       name: '근무지명',
       floor: '층'
     };
+  } else if (sheetTitle === SHEETS.memos) {
+    map = { dateKey: '날짜', memoText: '메모내용' };
   }
   return map;
 }
@@ -202,6 +205,8 @@ function getSheet(sheetTitle) {
     keys = ['empId', 'subscription'];
   } else if (sheetTitle === SHEETS.workplaces) {
     keys = ['id', 'name', 'floor'];
+  } else if (sheetTitle === SHEETS.memos) {
+    keys = ['dateKey', 'memoText'];
   }
 
   if (!sheet) {
@@ -545,6 +550,11 @@ function doGet(e) {
       return makeJsonResponse(readSheetData(sheet));
     }
 
+    if (action === 'getMemos') {
+      var sheet = getSheet(SHEETS.memos);
+      return makeJsonResponse(readSheetData(sheet));
+    }
+
     if (action === 'migrate') {
       migrateAndInitializeWorkplaces();
       return makeJsonResponse({ success: true, message: 'Migration completed successfully.' });
@@ -678,6 +688,29 @@ function doPost(e) {
         }
       }
       return makeJsonResponse({ success: false, error: '사번 또는 비밀번호가 일치하지 않습니다.' });
+    }
+
+    if (action === 'saveMemo') {
+      var sheet = getSheet(SHEETS.memos);
+      var rowIndex = findRowIndex(sheet, 'dateKey', data.dateKey);
+      var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+      var map = getHeaderMap(SHEETS.memos);
+      
+      if (rowIndex === -1) {
+        if (data.memoText && data.memoText.trim() !== '') {
+          var rowData = new Array(headers.length).fill('');
+          rowData[headers.indexOf(map['dateKey'])] = data.dateKey;
+          rowData[headers.indexOf(map['memoText'])] = data.memoText;
+          sheet.appendRow(rowData);
+        }
+      } else {
+        if (!data.memoText || data.memoText.trim() === '') {
+          sheet.deleteRow(rowIndex);
+        } else {
+          sheet.getRange(rowIndex, headers.indexOf(map['memoText']) + 1).setValue(data.memoText);
+        }
+      }
+      return makeJsonResponse({ success: true });
     }
 
     // 1. 공지사항 추가

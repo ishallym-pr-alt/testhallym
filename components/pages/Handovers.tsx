@@ -579,14 +579,21 @@ export default function Handovers() {
         {/* 스레드식 답글 목록 */}
         {(h.comments && h.comments.length > 0) && (
           <div className="mt-4 pt-3 border-t border-gray-100/50" onClick={e => e.stopPropagation()}>
-            {/* 작성자 댓글 기본 노출 */}
+            {/* 작성자, 인수자, 부서장 댓글 기본 노출 */}
             {(() => {
-              const authorComments = (h.comments || []).filter(c => c.author === h.sender);
-              const otherComments = (h.comments || []).filter(c => c.author !== h.sender);
+              const managerNames = activeManagers.map(m => m.name);
+
+              // 기본 노출 조건: 인계자, 인수자, 부서장
+              const isAlwaysVisible = (authorName: string) => {
+                return authorName === h.sender || authorName === h.receiver || managerNames.includes(authorName);
+              };
+
+              const essentialComments = (h.comments || []).filter(c => isAlwaysVisible(c.author));
+              const hiddenComments = (h.comments || []).filter(c => !isAlwaysVisible(c.author));
               const isExpanded = !!expandedReplies[h.id];
 
-              // 기본 노출할 목록: 확장 시 전체 노출, 미확장 시 작성자 댓글만 노출
-              const visibleComments = isExpanded ? (h.comments || []) : authorComments;
+              // 기본 노출할 목록: 확장 시 전체 노출, 미확장 시 essentialComments만 노출
+              const visibleComments = isExpanded ? (h.comments || []) : essentialComments;
 
               return (
                 <div className="space-y-3 relative pl-4 border-l-2 border-gray-100 ml-2 mt-2">
@@ -620,14 +627,14 @@ export default function Handovers() {
                   })}
 
                   {/* 답글 보기 / 접기 버튼 */}
-                  {otherComments.length > 0 && (
+                  {hiddenComments.length > 0 && (
                     <div className="pt-1">
                       <button
                         onClick={() => setExpandedReplies(prev => ({ ...prev, [h.id]: !prev[h.id] }))}
                         className="text-xs font-bold text-[#004b8d] hover:text-[#003c71] flex items-center gap-1 transition-colors pl-8 relative"
                       >
                         <div className="absolute left-0 top-1/2 -translate-y-1/2 w-6 h-0.5 bg-gray-100" />
-                        {isExpanded ? '답글 접기' : `답글 보기 (${otherComments.length}개 더 보기)`}
+                        {isExpanded ? '답글 접기' : `답글 보기 (${hiddenComments.length}개 더 보기)`}
                       </button>
                     </div>
                   )}
