@@ -358,7 +358,7 @@ export default function PersonalCalendar(props: PersonalCalendarProps) {
 
   const handleSaveMemo = () => {
     if (!selectedMemoEmpId || selectedMemoDay === null) return;
-    const key = `${selectedMemoEmpId}_${selectedMemoDay}`;
+    const key = `${year}-${String(month).padStart(2, '0')}-${String(selectedMemoDay).padStart(2, '0')}_${selectedMemoEmpId}`;
     const existing = memos[key] || '';
     const updated = existing ? `${existing}\n${memoText.trim()}` : memoText.trim();
     saveCalendarMemo(year, month, key, updated);
@@ -733,7 +733,8 @@ export default function PersonalCalendar(props: PersonalCalendarProps) {
                       {/* 2열: 메모 영역 */}
                       <div className="flex flex-col gap-1 w-full">
                         {displayEmployees.map(emp => {
-                          const memoContent = memos[`${emp.empId}_${info.day}`];
+                          const memoKey = `${year}-${String(month).padStart(2, '0')}-${String(info.day).padStart(2, '0')}_${emp.empId}`;
+                          const memoContent = memos[memoKey];
                           if (!memoContent) return null;
                           return (
                             <div
@@ -788,7 +789,7 @@ export default function PersonalCalendar(props: PersonalCalendarProps) {
 
                 {/* [기존 작성된 메모] 영역 */}
                 {(() => {
-                  const key = `${selectedMemoEmpId}_${selectedMemoDay}`;
+                  const key = `${year}-${String(month).padStart(2, '0')}-${String(selectedMemoDay).padStart(2, '0')}_${selectedMemoEmpId}`;
                   const existing = memos[key];
                   if (!existing) return null;
                   return (
@@ -810,7 +811,7 @@ export default function PersonalCalendar(props: PersonalCalendarProps) {
                 <div className="flex items-center justify-between mt-4">
                   {/* [초기화] 버튼 */}
                   {(() => {
-                    const key = `${selectedMemoEmpId}_${selectedMemoDay}`;
+                    const key = `${year}-${String(month).padStart(2, '0')}-${String(selectedMemoDay).padStart(2, '0')}_${selectedMemoEmpId}`;
                     const hasExisting = !!memos[key];
                     if (!hasExisting) return <div />;
                     return (

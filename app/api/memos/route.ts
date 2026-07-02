@@ -17,19 +17,24 @@ export async function GET() {
   }
 }
 
-export async function POST(req: Request) {
+export async function POST(request: Request) {
   try {
-    const body = await req.json();
-    const res = await fetch(GAS_URL, {
+    const body = await request.json();
+    
+    // 중요: 반드시 action과 data로 감싸서 보내야 GAS가 인식함
+    const response = await fetch(GAS_URL, {
       method: 'POST',
-      redirect: 'follow',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ action: 'saveMemo', data: body }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        action: 'saveMemo', 
+        data: body 
+      }),
     });
-    const data = await res.json();
-    return NextResponse.json(data);
+    
+    const result = await response.json();
+    return NextResponse.json(result);
   } catch (error) {
-    console.error('[API /memos POST] Error:', error);
-    return NextResponse.json({ error: 'Failed to save memo' }, { status: 500 });
+    console.error('Memo save error:', error);
+    return NextResponse.json({ success: false, error: 'Failed to save memo' }, { status: 500 });
   }
 }

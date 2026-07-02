@@ -1421,7 +1421,11 @@ export const useStore = create<AppState>((set, get) => ({
     fetch('/api/memos', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ dateKey: key, memoText: text }),
+      body: JSON.stringify({ 
+        dateKey: key, 
+        memoText: text, 
+        author: get().currentUser.name || '사용자' 
+      }),
     }).catch(() => {
       set({ calendarMemos: previousMemos });
       console.error('[Store] 메모 저장 실패 — 롤백합니다.');

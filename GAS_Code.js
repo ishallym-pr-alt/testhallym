@@ -159,7 +159,7 @@ function getHeaderMap(sheetTitle) {
       floor: '층'
     };
   } else if (sheetTitle === SHEETS.memos) {
-    map = { dateKey: '날짜', memoText: '메모내용' };
+    map = { dateKey: '날짜', memoText: '메모내용', author: '작성자' };
   }
   return map;
 }
@@ -206,7 +206,7 @@ function getSheet(sheetTitle) {
   } else if (sheetTitle === SHEETS.workplaces) {
     keys = ['id', 'name', 'floor'];
   } else if (sheetTitle === SHEETS.memos) {
-    keys = ['dateKey', 'memoText'];
+    keys = ['dateKey', 'memoText', 'author'];
   }
 
   if (!sheet) {
@@ -695,12 +695,16 @@ function doPost(e) {
       var rowIndex = findRowIndex(sheet, 'dateKey', data.dateKey);
       var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
       var map = getHeaderMap(SHEETS.memos);
-      
+      var authorName = data.author || data.userName || '알 수 없음';
+
       if (rowIndex === -1) {
         if (data.memoText && data.memoText.trim() !== '') {
           var rowData = new Array(headers.length).fill('');
           rowData[headers.indexOf(map['dateKey'])] = data.dateKey;
           rowData[headers.indexOf(map['memoText'])] = data.memoText;
+          if (headers.indexOf(map['author']) !== -1) {
+            rowData[headers.indexOf(map['author'])] = authorName;
+          }
           sheet.appendRow(rowData);
         }
       } else {
@@ -708,6 +712,9 @@ function doPost(e) {
           sheet.deleteRow(rowIndex);
         } else {
           sheet.getRange(rowIndex, headers.indexOf(map['memoText']) + 1).setValue(data.memoText);
+          if (headers.indexOf(map['author']) !== -1) {
+            sheet.getRange(rowIndex, headers.indexOf(map['author']) + 1).setValue(authorName);
+          }
         }
       }
       return makeJsonResponse({ success: true });
@@ -1406,7 +1413,7 @@ function doPost(e) {
 
       var appByCol = headers.indexOf(map['approvedBy']) + 1;
       var oldApprovedByStr = appByCol > 0 ? String(sheet.getRange(rowIndex, appByCol).getValue() || '') : '';
-      var approvedByList = oldApprovedByStr ? oldApprovedByStr.split(',').map(function(x){return x.trim();}).filter(Boolean) : [];
+      var approvedByList = oldApprovedByStr ? oldApprovedByStr.split(',').map(function (x) { return x.trim(); }).filter(Boolean) : [];
 
       var userName = data.userName;
       var reqStatus = data.status; // '승인', '반려', '대기', '승인취소'
@@ -1415,8 +1422,8 @@ function doPost(e) {
       // 현재 부서장 목록 전체 가져오기
       var empSheet = getSheet(SHEETS.employees);
       var empData = readSheetData(empSheet);
-      var activeManagers = empData.filter(function(e) { return e.isManager && !e.isRetired; });
-      var managerNames = activeManagers.map(function(m) { return m.name.trim(); });
+      var activeManagers = empData.filter(function (e) { return e.isManager && !e.isRetired; });
+      var managerNames = activeManagers.map(function (m) { return m.name.trim(); });
 
       if (reqStatus === '승인') {
         if (userName && approvedByList.indexOf(userName) === -1) approvedByList.push(userName);
@@ -1470,7 +1477,7 @@ function doPost(e) {
           var schedHeaders = schedSheet.getRange(1, 1, 1, schedSheet.getLastColumn()).getValues()[0];
           var schedMap = getHeaderMap(SHEETS.schedules);
           var schedRowIndex = findScheduleRowIndex(schedSheet, Number(vacParts[0]), Number(vacParts[1]), empId);
-          
+
           if (schedRowIndex === -1) {
             var schedRowData = new Array(schedHeaders.length).fill('');
             schedRowData[schedHeaders.indexOf(schedMap['year'])] = String(Number(vacParts[0]));
@@ -1484,7 +1491,7 @@ function doPost(e) {
           else if (vacType === '오전반차' || vacType === '오후반차') shiftCode = '반차';
           else if (vacType === '토요일 오전 MO' || vacType === '토요일 오후 MO') shiftCode = 'MO';
           else if (vacType === '대체 오전 HO' || vacType === '대체 오후 HO') shiftCode = 'HO';
-          
+
           schedSheet.getRange(schedRowIndex, schedHeaders.indexOf(schedMap['day_' + day + '_shift']) + 1).setValue(shiftCode);
         }
         syncVacationSupportToSchedule(rowIndex, '승인');
