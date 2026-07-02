@@ -372,8 +372,9 @@ export default function Schedule() {
     return map;
   }, [vacations]);
 
-  const pendingVacationsCount = currentUser?.isManager ? vacations.filter(v => v.status === '대기').length : 0;
-  const vacationAlarmCount = highlightedItemIds.filter(id => typeof id === 'string' && id.startsWith('vacation_')).length + pendingVacationsCount;
+  const pendingVacationsCount = currentUser?.isManager ? vacations.filter(v => v.status === '대기' && !(v.approvedBy || '').includes(currentUser.name)).length : 0;
+  const unreadVacationsCount = vacations.filter(v => !useStore.getState().readVacationIds.includes(v.id) && v.reason !== '엑셀 업로드 자동 승인').length;
+  const vacationAlarmCount = highlightedItemIds.filter(id => typeof id === 'string' && id.startsWith('vacation_')).length + pendingVacationsCount + unreadVacationsCount;
 
   const [isSyncing, setIsSyncing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);

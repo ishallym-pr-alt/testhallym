@@ -24,10 +24,11 @@ export default function VacationModal({
   setWidth: (w: number) => void;
   setIsDragging?: (dragging: boolean) => void;
 }) {
-  const { currentUser, vacations, employees: rawEmployees, addVacation, updateVacationStatus, editVacation, deleteVacation, highlightedItemIds, removeHighlightedItemId } = useStore();
+  const { currentUser, vacations, employees: rawEmployees, addVacation, updateVacationStatus, editVacation, deleteVacation, highlightedItemIds, removeHighlightedItemId, readVacationIds, markVacationAsRead } = useStore();
 
-  const pendingVacationsCount = currentUser.isManager ? vacations.filter(v => v.status === '대기').length : 0;
-  const vacationAlarmCount = highlightedItemIds.filter(id => typeof id === 'string' && id.startsWith('vacation_')).length + pendingVacationsCount;
+  const pendingVacationsCount = currentUser.isManager ? vacations.filter(v => v.status === '대기' && !(v.approvedBy || '').includes(currentUser.name)).length : 0;
+  const unreadVacationsCount = vacations.filter(v => !readVacationIds.includes(v.id) && v.reason !== '엑셀 업로드 자동 승인').length;
+  const vacationAlarmCount = highlightedItemIds.filter(id => typeof id === 'string' && id.startsWith('vacation_')).length + pendingVacationsCount + unreadVacationsCount;
 
   // 퇴사하지 않은 자기 자신 제외한 직원 리스트
   const availableEmployees = React.useMemo(() => {
@@ -226,7 +227,12 @@ export default function VacationModal({
   };
 
   const renderVacationCard = (v: Vacation) => {
-    const isHighlighted = highlightedItemIds.includes(`vacation_${v.id}`) || (currentUser.isManager && v.status === '대기');
+    const activeManagersCount = rawEmployees.filter(e => e.isManager && !e.isRetired).length;
+    const approvedByList = v.approvedBy ? v.approvedBy.split(',').map(x => x.trim()).filter(Boolean) : [];
+    const approvedCount = approvedByList.length;
+    const hasApproved = approvedByList.includes(currentUser.name);
+
+    const isUnread = !readVacationIds.includes(v.id) && v.reason !== '엑셀 업로드 자동 승인';
     let statusColor = 'text-orange-500';
     if (v.status === '승인') statusColor = 'text-green-600';
     if (v.status === '반려') statusColor = 'text-red-500';
@@ -243,27 +249,21 @@ export default function VacationModal({
     return (
       <div
         key={v.id}
-        className={`rounded-xl p-4 shadow-sm hover:shadow-md transition-all flex flex-col gap-2.5 relative animate-fade-in ${
-          isHighlighted ? 'ring-2 ring-orange-400 bg-orange-50/30' : 'border border-gray-100 bg-white'
-        }`}
-        onMouseEnter={() => {
-          if (highlightedItemIds.includes(`vacation_${v.id}`)) {
-            removeHighlightedItemId(`vacation_${v.id}`);
-          }
+        className="rounded-xl p-4 shadow-sm hover:shadow-md transition-all flex flex-col gap-2.5 relative animate-fade-in border border-gray-100 bg-white"
+        onClick={() => {
+          if (isUnread) markVacationAsRead(v.id);
         }}
       >
         {/* 헤더: 일자 및 상태 배지 */}
-        <div className="flex justify-between items-center">
-          <span className="text-xs font-bold text-gray-400">{v.vacationDate}</span>
+        <div className="flex justify-between items-center relative">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-gray-400">{v.vacationDate}</span>
+            {isUnread && <div className="w-2 h-2 bg-red-500 rounded-full shrink-0 animate-pulse"></div>}
+          </div>
           <span className={`inline-flex items-center gap-1 font-bold text-xs ${statusColor}`}>
             {v.status === '승인' && <CheckCircle className="w-3.5 h-3.5" />}
             {v.status === '반려' && <XCircle className="w-3.5 h-3.5" />}
-            {v.status}
-            {v.status === '대기' && v.approvedBy && (
-              <span className="text-blue-500 ml-1">
-                (진행중 {v.approvedBy.split(',').filter(Boolean).length}/{getManagersInDept(v).length})
-              </span>
-            )}
+            {v.status === '대기' && approvedCount > 0 ? `대기 (${approvedCount}/${activeManagersCount})` : v.status}
           </span>
         </div>
 
@@ -300,34 +300,33 @@ export default function VacationModal({
         {/* 관리/액션 영역 */}
         <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-gray-50">
           {/* 부서장 결재 영역 */}
-          {currentUser.isManager && (
+          {currentUser.isManager && v.status === '대기' && (
             <>
-              {/* 대기 상태이면서 내가 아직 승인하지 않은 경우 */}
-              {v.status === '대기' && !(v.approvedBy && v.approvedBy.includes(currentUser.name)) && (
-                <>
-                  <button
-                    onClick={() => handleApprove(v)}
-                    className="px-3 py-1.5 bg-green-50 text-green-700 hover:bg-green-100 rounded-lg text-xs font-bold border border-green-200 transition-colors"
-                  >
-                    승인
-                  </button>
-                  <button
-                    onClick={() => handleReject(v)}
-                    className="px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-xs font-bold border border-red-200 transition-colors"
-                  >
-                    반려
-                  </button>
-                </>
-              )}
-              {/* 이미 내가 승인했거나 (아직 대기 중), 최종 승인/반려 상태인 경우 -> 되돌리기 가능 */}
-              {(v.status !== '대기' || (v.approvedBy && v.approvedBy.includes(currentUser.name))) && (
+              {!hasApproved ? (
                 <button
-                  onClick={() => handleRevert(v)}
-                  className="px-3 py-1.5 bg-orange-50 text-orange-600 hover:bg-orange-100 rounded-lg text-xs font-bold border border-orange-200 transition-colors"
+                  onClick={() => updateVacationStatus(v.id, '승인')}
+                  className="px-3 py-1.5 bg-green-50 text-green-700 hover:bg-green-100 rounded-lg text-xs font-bold border border-green-200 transition-colors"
                 >
-                  되돌리기
+                  승인 ({approvedCount}/{activeManagersCount})
+                </button>
+              ) : (
+                <button
+                  onClick={() => updateVacationStatus(v.id, '승인취소')}
+                  className="px-3 py-1.5 bg-gray-50 text-gray-600 hover:bg-gray-100 rounded-lg text-xs font-bold border border-gray-200 transition-colors"
+                >
+                  승인 취소
                 </button>
               )}
+              <button
+                onClick={() => {
+                  if (confirm('반려하시겠습니까?')) {
+                    updateVacationStatus(v.id, '반려');
+                  }
+                }}
+                className="px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-xs font-bold border border-red-200 transition-colors"
+              >
+                반려
+              </button>
             </>
           )}
           {/* 작성자 본인 수정/삭제 (대기 상태일 때만) */}

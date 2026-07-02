@@ -56,6 +56,7 @@ interface AppState {
   highlightedItemId: number | string | null;
   highlightedItemIds: (number | string)[];
   highlightedItemTimestamp: number;
+  readVacationIds: string[];
 
   // Calendar/Schedule Sync
   scheduleYear: number;
@@ -98,6 +99,8 @@ interface AppState {
   // Actions
   login: (employeeId: string, password?: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
+  markVacationAsRead: (id: string) => void;
+  setReadVacationIds: (ids: string[]) => void;
   restoreSession: () => void;
   setCurrentPage: (page: AppState['currentPage']) => void;
   setHighlightedItemId: (id: number | string | null) => void;
@@ -133,7 +136,7 @@ interface AppState {
   deleteEmployee: (employeeId: string) => void;
 
   addVacation: (vacation: Omit<Vacation, 'id' | 'status' | 'createdAt'>) => void;
-  updateVacationStatus: (id: string, status: '대기' | '승인' | '반려', approvedBy?: string) => void;
+  updateVacationStatus: (id: string, status: '대기' | '승인' | '반려' | '승인취소') => void;
 
   // 수정/삭제/승인 액션
   editNotice: (id: number, fields: Partial<Notice>) => void;
@@ -171,6 +174,7 @@ export const useStore = create<AppState>((set, get) => ({
     }
   })() : [],
   highlightedItemTimestamp: 0,
+  readVacationIds: [],
 
   // 초기값은 빈 배열로 설정
   notices: [],
@@ -338,6 +342,15 @@ export const useStore = create<AppState>((set, get) => ({
       highlightedItemTimestamp: state.highlightedItemId === id ? 0 : state.highlightedItemTimestamp
     };
   }),
+  markVacationAsRead: (id) => set((state) => {
+    if (state.readVacationIds.includes(id)) return state;
+    const nextIds = [...state.readVacationIds, id];
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(`read_vacations_${state.currentUser.employeeId}`, JSON.stringify(nextIds));
+    }
+    return { readVacationIds: nextIds };
+  }),
+  setReadVacationIds: (ids) => set({ readVacationIds: ids }),
   clearHighlightedItemIds: () => {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('highlighted_item_ids');
@@ -604,6 +617,17 @@ export const useStore = create<AppState>((set, get) => ({
         const oldData = get().vacations;
         const currentUser = get().currentUser;
         const isInitialSync = oldData.length === 0;
+
+        const lsKey = `read_vacations_${currentUser.employeeId}`;
+        let currentReadIds: string[] | null = null;
+        if (typeof window !== 'undefined') {
+          try { currentReadIds = JSON.parse(localStorage.getItem(lsKey) || 'null'); } catch {}
+          if (!currentReadIds && data.length > 0) {
+            currentReadIds = data.map((v: Vacation) => v.id);
+            localStorage.setItem(lsKey, JSON.stringify(currentReadIds));
+          }
+        }
+        (updates as any).readVacationIds = currentReadIds || [];
 
         if (!isInitialSync) {
           data.forEach((newItem: Vacation) => {
@@ -1260,25 +1284,52 @@ export const useStore = create<AppState>((set, get) => ({
     }).finally(() => setTimeout(() => set({ isMutating: false }), 2000)); // replaced
   },
 
-  updateVacationStatus: (id, status, approvedBy) => {
+  updateVacationStatus: (id, status) => {
     set({ isMutating: true });
     const previousVacations = get().vacations;
+    const currentUser = get().currentUser;
+    const activeManagers = get().employees.filter(e => e.isManager && !e.isRetired).map(m => m.name);
 
     set((state) => ({
-      vacations: state.vacations.map(v => v.id === id ? { ...v, status, approvedBy: approvedBy !== undefined ? approvedBy : v.approvedBy } : v),
+      vacations: state.vacations.map(v => {
+        if (v.id === id) {
+          let newApprovedBy = v.approvedBy ? v.approvedBy.split(',').map(x => x.trim()).filter(Boolean) : [];
+          let newStatus = v.status;
+          
+          if (status === '승인') {
+            if (!newApprovedBy.includes(currentUser.name)) newApprovedBy.push(currentUser.name);
+            const allApproved = activeManagers.length > 0 && activeManagers.every(m => newApprovedBy.includes(m));
+            newStatus = allApproved ? '승인' : '대기';
+          } else if (status === '승인취소') {
+            newApprovedBy = newApprovedBy.filter(n => n !== currentUser.name);
+            newStatus = '대기';
+          } else if (status === '대기') {
+            newApprovedBy = [];
+            newStatus = '대기';
+          } else if (status === '반려') {
+            newStatus = '반려';
+          }
+          return { ...v, status: newStatus as any, approvedBy: newApprovedBy.join(', ') };
+        }
+        return v;
+      }),
     }));
 
     fetch('/api/vacations', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, status, approvedBy }),
+      body: JSON.stringify({ id, status, userName: currentUser.name }),
     }).then(async (res) => {
       const data = await res.json();
+      if (!res.ok || data.error) {
+        throw new Error(data.error || '연차 상태 변경에 실패했습니다.');
+      }
       if (data.version) set({ globalVersion: data.version });
-    }).catch(() => {
+    }).catch((err) => {
       set({ vacations: previousVacations });
-      console.error('[Store] 연차 상태 변경 실패 — 롤백합니다.');
-    }).finally(() => setTimeout(() => set({ isMutating: false }), 2000)); // replaced
+      console.error('[Store] 연차 상태 변경 실패 — 롤백합니다.', err);
+      alert('승인 처리 중 오류가 발생했습니다: ' + err.message);
+    }).finally(() => setTimeout(() => set({ isMutating: false }), 2000));
   },
 
   editVacation: (id, fields) => {

@@ -144,7 +144,7 @@ function getHeaderMap(sheetTitle) {
       status: '상태',
       createdAt: '신청일시',
       handoverEmpId: '인수자사번',
-      approvedBy: '승인한부서장'
+      approvedBy: '승인자목록'
     };
   } else if (sheetTitle === SHEETS.pushSubscriptions) {
     map = {
@@ -1365,87 +1365,96 @@ function doPost(e) {
     if (action === 'updateVacationStatus') {
       var sheet = getSheet(SHEETS.vacations);
       var rowIndex = findRowIndex(sheet, 'id', data.id);
-      if (rowIndex === -1) {
-        return makeJsonResponse({ error: 'Vacation request not found: ' + data.id });
-      }
+      if (rowIndex === -1) return makeJsonResponse({ error: 'Vacation request not found' });
 
       var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
       var map = getHeaderMap(SHEETS.vacations);
       var oldStatus = sheet.getRange(rowIndex, headers.indexOf(map['status']) + 1).getValue();
 
-      // 기존 승인 상태였다면 롤백 처리
-      if (oldStatus === '승인') {
-        syncVacationSupportToSchedule(rowIndex, '대기');
-      }
+      var appByCol = headers.indexOf(map['approvedBy']) + 1;
+      var oldApprovedByStr = appByCol > 0 ? String(sheet.getRange(rowIndex, appByCol).getValue() || '') : '';
+      var approvedByList = oldApprovedByStr ? oldApprovedByStr.split(',').map(function(x){return x.trim();}).filter(Boolean) : [];
 
-      // 상태 업데이트
-      sheet.getRange(rowIndex, headers.indexOf(map['status']) + 1).setValue(data.status);
+      var userName = data.userName;
+      var reqStatus = data.status; // '승인', '반려', '대기', '승인취소'
+      var newStatus = oldStatus;
 
-      if (data.approvedBy !== undefined) {
-        if (headers.indexOf(map['approvedBy']) !== -1) {
-          sheet.getRange(rowIndex, headers.indexOf(map['approvedBy']) + 1).setValue(data.approvedBy);
+      // 현재 부서장 목록 전체 가져오기
+      var empSheet = getSheet(SHEETS.employees);
+      var empData = readSheetData(empSheet);
+      var activeManagers = empData.filter(function(e) { return e.isManager && !e.isRetired; });
+      var managerNames = activeManagers.map(function(m) { return m.name.trim(); });
+
+      if (reqStatus === '승인') {
+        if (userName && approvedByList.indexOf(userName) === -1) approvedByList.push(userName);
+        var allApproved = true;
+        for (var i = 0; i < managerNames.length; i++) {
+          if (approvedByList.indexOf(managerNames[i]) === -1) { allApproved = false; break; }
         }
+        newStatus = allApproved ? '승인' : '대기';
+      } else if (reqStatus === '승인취소') {
+        if (userName) {
+          var idx = approvedByList.indexOf(userName);
+          if (idx !== -1) approvedByList.splice(idx, 1);
+        }
+        newStatus = '대기';
+      } else if (reqStatus === '대기') {
+        approvedByList = []; // 되돌리기 시 완전 초기화
+        newStatus = '대기';
+      } else if (reqStatus === '반려') {
+        newStatus = '반려';
       }
 
-      // 승인일 경우, 근무표 시트에 자동 연동
-      if (data.status === '승인') {
+      // 롤백 (승인 -> 대기/반려)
+      if (oldStatus === '승인' && newStatus !== '승인') {
+        syncVacationSupportToSchedule(rowIndex, '대기');
         var empId = sheet.getRange(rowIndex, headers.indexOf(map['empId']) + 1).getValue();
         var vacDateStr = sheet.getRange(rowIndex, headers.indexOf(map['vacationDate']) + 1).getValue();
-        var vacType = sheet.getRange(rowIndex, headers.indexOf(map['vacationType']) + 1).getValue();
-
-        var vacParts = String(vacDateStr).split('-'); // 예: "2024-06-15"
+        var vacParts = String(vacDateStr).split('-');
         if (vacParts.length === 3) {
-          var year = Number(vacParts[0]);
-          var month = Number(vacParts[1]);
-          var day = Number(vacParts[2]);
-
           var schedSheet = getSheet(SHEETS.schedules);
           var schedHeaders = schedSheet.getRange(1, 1, 1, schedSheet.getLastColumn()).getValues()[0];
           var schedMap = getHeaderMap(SHEETS.schedules);
-          var schedRowIndex = findScheduleRowIndex(schedSheet, year, month, empId);
+          var schedRowIndex = findScheduleRowIndex(schedSheet, Number(vacParts[0]), Number(vacParts[1]), empId);
+          if (schedRowIndex !== -1) {
+            schedSheet.getRange(schedRowIndex, schedHeaders.indexOf(schedMap['day_' + Number(vacParts[2]) + '_shift']) + 1).setValue('');
+          }
+        }
+      }
 
+      sheet.getRange(rowIndex, headers.indexOf(map['status']) + 1).setValue(newStatus);
+      if (appByCol > 0) sheet.getRange(rowIndex, appByCol).setValue(approvedByList.join(', '));
+
+      // 최종 승인 연동 (대기 -> 승인)
+      if (oldStatus !== '승인' && newStatus === '승인') {
+        var empId = sheet.getRange(rowIndex, headers.indexOf(map['empId']) + 1).getValue();
+        var vacDateStr = sheet.getRange(rowIndex, headers.indexOf(map['vacationDate']) + 1).getValue();
+        var vacType = sheet.getRange(rowIndex, headers.indexOf(map['vacationType']) + 1).getValue();
+        var vacParts = String(vacDateStr).split('-');
+        if (vacParts.length === 3) {
+          var day = Number(vacParts[2]);
+          var schedSheet = getSheet(SHEETS.schedules);
+          var schedHeaders = schedSheet.getRange(1, 1, 1, schedSheet.getLastColumn()).getValues()[0];
+          var schedMap = getHeaderMap(SHEETS.schedules);
+          var schedRowIndex = findScheduleRowIndex(schedSheet, Number(vacParts[0]), Number(vacParts[1]), empId);
+          
           if (schedRowIndex === -1) {
             var schedRowData = new Array(schedHeaders.length).fill('');
-            schedRowData[schedHeaders.indexOf(schedMap['year'])] = String(year);
-            schedRowData[schedHeaders.indexOf(schedMap['month'])] = String(month);
+            schedRowData[schedHeaders.indexOf(schedMap['year'])] = String(Number(vacParts[0]));
+            schedRowData[schedHeaders.indexOf(schedMap['month'])] = String(Number(vacParts[1]));
             schedRowData[schedHeaders.indexOf(schedMap['empId'])] = empId;
             schedSheet.appendRow(schedRowData);
             schedRowIndex = schedSheet.getLastRow();
           }
-
-          var shiftCode = '';
+          var shiftCode = '연차';
           if (vacType === '종일연차') shiftCode = '연차';
           else if (vacType === '오전반차' || vacType === '오후반차') shiftCode = '반차';
           else if (vacType === '토요일 오전 MO' || vacType === '토요일 오후 MO') shiftCode = 'MO';
           else if (vacType === '대체 오전 HO' || vacType === '대체 오후 HO') shiftCode = 'HO';
-          else shiftCode = '연차';
-
-          var colIndex = schedHeaders.indexOf(schedMap['day_' + day + '_shift']) + 1;
-          schedSheet.getRange(schedRowIndex, colIndex).setValue(shiftCode);
+          
+          schedSheet.getRange(schedRowIndex, schedHeaders.indexOf(schedMap['day_' + day + '_shift']) + 1).setValue(shiftCode);
         }
-
-        // 인수자 supports 연동
         syncVacationSupportToSchedule(rowIndex, '승인');
-      } else {
-        // 승인이 아닌 상태로 복원 시 인계자의 근무표 연차 코드도 제거
-        var empId = sheet.getRange(rowIndex, headers.indexOf(map['empId']) + 1).getValue();
-        var vacDateStr = sheet.getRange(rowIndex, headers.indexOf(map['vacationDate']) + 1).getValue();
-
-        var vacParts = String(vacDateStr).split('-');
-        if (vacParts.length === 3) {
-          var year = Number(vacParts[0]);
-          var month = Number(vacParts[1]);
-          var day = Number(vacParts[2]);
-
-          var schedSheet = getSheet(SHEETS.schedules);
-          var schedHeaders = schedSheet.getRange(1, 1, 1, schedSheet.getLastColumn()).getValues()[0];
-          var schedMap = getHeaderMap(SHEETS.schedules);
-          var schedRowIndex = findScheduleRowIndex(schedSheet, year, month, empId);
-          if (schedRowIndex !== -1) {
-            var colIndex = schedHeaders.indexOf(schedMap['day_' + day + '_shift']) + 1;
-            schedSheet.getRange(schedRowIndex, colIndex).setValue('');
-          }
-        }
       }
 
       return makeJsonResponse({ success: true });

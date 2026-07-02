@@ -106,7 +106,7 @@ export async function PUT(request: Request) {
       await gasPost('updateVacationStatus', {
         id: body.id,
         status: body.status,
-        approvedBy: body.approvedBy,
+        userName: body.userName,
       });
 
       // 승인 시 근무표에 연차/반차가 들어가므로 근무표 캐시도 전부 무효화

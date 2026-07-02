@@ -2,7 +2,7 @@ import { useStore } from '@/store/useStore';
 import { Megaphone, Repeat2, CalendarDays, MonitorCheck, BarChart3, User, LogOut } from 'lucide-react';
 
 export default function Sidebar() {
-  const { currentPage, setCurrentPage, currentUser, logout, notices, handovers, equipmentIssues, highlightedItemIds, vacations } = useStore();
+  const { currentPage, setCurrentPage, currentUser, logout, notices, handovers, equipmentIssues, highlightedItemIds, vacations, readVacationIds } = useStore();
 
   const unreadCounts: Record<string, number> = {
     notices: notices.filter(n => !n.readBy?.includes(currentUser.name)).length,
@@ -10,11 +10,12 @@ export default function Sidebar() {
     equipment: equipmentIssues.filter(eq => !eq.readBy?.includes(currentUser.name)).length,
   };
 
-  const pendingVacationsCount = currentUser.isManager ? vacations.filter(v => v.status === '대기').length : 0;
+  const pendingVacationsCount = currentUser.isManager ? vacations.filter(v => v.status === '대기' && !(v.approvedBy || '').includes(currentUser.name)).length : 0;
+  const unreadVacationsCount = vacations.filter(v => !readVacationIds.includes(v.id) && v.reason !== '엑셀 업로드 자동 승인').length;
 
   const scheduleAlarmCount = highlightedItemIds.filter(id => 
-    typeof id === 'string' && (id.startsWith('vacation_') || id.includes('_shift') || id.includes('_am') || id.includes('_pm'))
-  ).length + pendingVacationsCount;
+    typeof id === 'string' && (id.includes('_shift') || id.includes('_am') || id.includes('_pm'))
+  ).length + pendingVacationsCount + unreadVacationsCount;
 
   const navItems = [
     { id: 'notices', label: '공지사항', icon: Megaphone },
