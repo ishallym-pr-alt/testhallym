@@ -51,10 +51,10 @@ export default function EquipmentHeader({
     const batContent = `@echo off
 chcp 65001 >nul
 echo ===================================================
-echo 메디인포 연동 자동 설정 스크립트
+echo MediInfo Protocol Setup Script
 echo ===================================================
 echo.
-echo [1/2] 필수 스크립트를 다운로드합니다...
+echo [1/2] Downloading required script...
 
 set "TARGET_DIR=%USERPROFILE%\\MediInfo"
 if not exist "%TARGET_DIR%" mkdir "%TARGET_DIR%"
@@ -62,20 +62,20 @@ if not exist "%TARGET_DIR%" mkdir "%TARGET_DIR%"
 powershell -Command "Invoke-WebRequest -Uri '${origin}/scripts/launch_mediinfo.ps1' -OutFile '%TARGET_DIR%\\launch_mediinfo.ps1'"
 
 if not exist "%TARGET_DIR%\\launch_mediinfo.ps1" (
-    echo [오류] 스크립트 다운로드에 실패했습니다. 서버 상태를 확인하세요.
+    echo [Error] Failed to download script.
     pause
     exit /b
 )
 
-echo [2/2] 윈도우 레지스트리에 연동 프로토콜을 등록합니다...
-reg add "HKCR\\mediinfo" /ve /t REG_SZ /d "URL:MediInfo Protocol" /f
-reg add "HKCR\\mediinfo" /v "URL Protocol" /t REG_SZ /d "" /f
-reg add "HKCR\\mediinfo\\shell\\open\\command" /ve /t REG_SZ /d "powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File \\"%TARGET_DIR%\\launch_mediinfo.ps1\\" \\"%%1\\"" /f
+echo [2/2] Registering registry protocol...
+reg add "HKCU\\Software\\Classes\\mediinfo" /ve /t REG_SZ /d "URL:MediInfo Protocol" /f
+reg add "HKCU\\Software\\Classes\\mediinfo" /v "URL Protocol" /t REG_SZ /d "" /f
+reg add "HKCU\\Software\\Classes\\mediinfo\\shell\\open\\command" /ve /t REG_SZ /d "powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File \\"%TARGET_DIR%\\launch_mediinfo.ps1\\" \\"%%1\\"" /f
 
 echo.
 echo ===================================================
-echo [성공] 모든 설정이 완료되었습니다! 
-echo 이제 웹사이트에서 메디인포 버튼을 다시 눌러주세요.
+echo [Success] Setup completed successfully!
+echo Please click the MediInfo button again on the website.
 echo ===================================================
 pause
 `;
