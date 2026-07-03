@@ -829,40 +829,40 @@ export default function Equipment() {
                 )}
               </div>
 
-              <div className="mt-auto shrink-0 flex flex-col gap-2 pt-2">
-                <div className="flex flex-wrap items-center gap-3 mt-1.5 text-xs text-gray-500 font-medium bg-gray-50/50 p-1.5 rounded-xl border border-gray-50 shrink-0">
-                  <span className="flex items-center gap-1.5"><UserIcon className="w-3.5 h-3.5 text-gray-400" />{modalMode === 'create' ? currentUser.name : (currentIssue?.reporter || currentUser.name)}</span>
+              <div className="mt-auto shrink-0 flex flex-col gap-0 pt-0">
+                <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 font-medium bg-gray-50/50 py-0 px-2 my-0 rounded-xl border border-gray-50 shrink-0">
+                  <span className="flex items-center gap-1.5"><UserIcon className="w-3 h-3 text-gray-400" />{modalMode === 'create' ? currentUser.name : (currentIssue?.reporter || currentUser.name)}</span>
                   <label className="flex items-center gap-1.5 cursor-pointer group">
-                    <Calendar className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#004b8d] transition-colors" />
+                    <Calendar className="w-3 h-3 text-gray-400 group-hover:text-[#004b8d] transition-colors" />
                     <span className="text-gray-400 group-hover:text-[#004b8d] transition-colors">신고일:</span>
-                    <input type="date" value={formDate} onChange={e => setFormDate(e.target.value)} className="h-7 text-xs bg-transparent border-b border-dashed border-gray-300 hover:border-[#004b8d] focus:border-[#004b8d] outline-none text-gray-700 font-medium cursor-pointer transition-colors" required />
+                    <input type="date" value={formDate} onChange={e => setFormDate(e.target.value)} className="h-6 text-[11px] bg-transparent border-b border-dashed border-gray-300 hover:border-[#004b8d] focus:border-[#004b8d] outline-none text-gray-700 font-medium cursor-pointer transition-colors" required />
                   </label>
-                  <label className="flex items-center gap-1.5 text-green-600 bg-green-50 px-2 py-0.5 rounded-md border border-green-100 cursor-pointer hover:bg-green-100 transition-colors">
-                    <Calendar className="w-3.5 h-3.5" />
+                  <label className="flex items-center gap-1.5 text-green-600 bg-green-50 px-1.5 py-0 rounded-md border border-green-100 cursor-pointer hover:bg-green-100 transition-colors">
+                    <Calendar className="w-3 h-3" />
                     <span>종료일:</span>
-                    <input type="date" value={formEndDate} onChange={e => setFormEndDate(e.target.value)} className="h-7 text-xs bg-transparent border-b border-dashed border-green-300 hover:border-green-600 focus:border-green-600 outline-none text-green-700 font-bold cursor-pointer transition-colors" />
+                    <input type="date" value={formEndDate} onChange={e => setFormEndDate(e.target.value)} className="h-6 text-[11px] bg-transparent border-b border-dashed border-green-300 hover:border-green-600 focus:border-green-600 outline-none text-green-700 font-bold cursor-pointer transition-colors" />
                   </label>
                 </div>
 
                 {isFormEditable && (
-                  <div className="flex justify-end gap-2 mt-1 mb-1.5 shrink-0">
-                    <button type="button" onClick={closeModal} className="h-8 px-4 text-xs font-bold text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all">취소</button>
-                    <button type="submit" className="h-8 px-4 text-xs font-bold text-white bg-[#004b8d] rounded-xl hover:bg-[#003c71] transition-all shadow-md">{modalMode === 'create' ? '등록' : '수정 완료'}</button>
+                  <div className="flex justify-end gap-2 mt-0.5 mb-0.5 shrink-0">
+                    <button type="button" onClick={closeModal} className="h-7 px-3 text-xs font-bold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-all">취소</button>
+                    <button type="submit" className="h-7 px-3 text-xs font-bold text-white bg-[#004b8d] rounded-lg hover:bg-[#003c71] transition-all shadow-md">{modalMode === 'create' ? '등록' : '수정 완료'}</button>
                   </div>
                 )}
 
                 {modalMode === 'edit' && currentIssue && (
-                  <div className="border-t border-gray-100 pt-2 flex flex-col gap-2 shrink-0">
-                    <h5 className="font-bold text-gray-700 flex items-center gap-2 text-sm shrink-0">
+                  <div className="border-t border-gray-100 pt-1 flex flex-col gap-0 shrink-0 mt-0.5">
+                    <h5 className="font-bold text-gray-700 flex items-center gap-1.5 text-xs shrink-0">
                       <span>댓글</span>
-                      <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-xs">{currentIssue.comments?.length || 0}</span>
+                      <span className="bg-gray-100 text-gray-600 px-1.5 py-0 rounded-full text-[10px]">{currentIssue.comments?.length || 0}</span>
                     </h5>
-                    <div className="space-y-3 overflow-y-auto pr-1.5 custom-scrollbar max-h-[200px] mt-2">
+                    <div className="space-y-1.5 overflow-y-auto pr-1.5 custom-scrollbar max-h-[200px] mt-1">
                       {currentIssue.comments?.map(c => (
-                        <div key={c.id} className="bg-gray-50 p-3 rounded-xl border border-gray-100">
-                          <div className="flex justify-between items-center mb-1">
-                            <span className="font-bold text-sm text-gray-900 flex items-center gap-1.5">
-                              <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs text-gray-500 font-bold">{c.author[0]}</div>
+                        <div key={c.id} className="bg-gray-50 p-2 rounded-xl border border-gray-100">
+                          <div className="flex justify-between items-center mb-0.5">
+                            <span className="font-bold text-xs text-gray-900 flex items-center gap-1.5">
+                              <div className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center text-[10px] text-gray-500 font-bold">{c.author[0]}</div>
                               {c.author}
                             </span>
                             <span className="text-xs text-gray-400">{formatDateTime(c.date)}</span>
@@ -930,7 +930,7 @@ export default function Equipment() {
           <div className="w-1 h-8 rounded-full bg-gray-300 group-hover:bg-orange-50 group-active:bg-orange-600 transition-all opacity-0 group-hover:opacity-100" />
         </div>
 
-        <div className="w-full flex flex-col overflow-hidden rounded-l-3xl">
+        <div className="w-full h-[calc(100vh-56px)] flex flex-col overflow-hidden rounded-l-3xl bg-white">
           <div className="px-5 py-1.5 border-b border-gray-100 flex items-center justify-between shrink-0">
             <h3 className="font-bold text-gray-900 text-base">장비 이슈 상세</h3>
             <div className="flex items-center gap-2">
@@ -959,24 +959,24 @@ export default function Equipment() {
               </div>
             </div>
 
-            <div className="mt-auto shrink-0 flex flex-col gap-3 pt-4">
-              <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500 font-medium bg-gray-50/50 p-2 rounded-xl border border-gray-50 shrink-0">
-                <span className="flex items-center gap-1.5"><UserIcon className="w-3.5 h-3.5 text-gray-400" />{currentIssue.reporter}</span>
-                <span className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 text-gray-400" />{formatDateTime(currentIssue.date)}</span>
-                {currentIssue.endDate && <span className="flex items-center gap-1.5 text-green-600 bg-green-50 px-2 py-0.5 rounded-md"><Calendar className="w-3.5 h-3.5" />종료: {formatDateTime(currentIssue.endDate)}</span>}
+            <div className="mt-auto shrink-0 flex flex-col gap-0 pt-0">
+              <div className="flex flex-wrap items-center gap-2 text-[11px] text-gray-500 font-medium bg-gray-50/50 py-0 px-2 my-0 rounded-lg border border-gray-50 shrink-0">
+                <span className="flex items-center gap-1"><UserIcon className="w-3 h-3 text-gray-400" />{currentIssue.reporter}</span>
+                <span className="flex items-center gap-1"><Calendar className="w-3 h-3 text-gray-400" />{formatDateTime(currentIssue.date)}</span>
+                {currentIssue.endDate && <span className="flex items-center gap-1 text-green-600 bg-green-50 px-1.5 py-0 rounded-md"><Calendar className="w-3 h-3" />종료: {formatDateTime(currentIssue.endDate)}</span>}
               </div>
 
-              <div className="border-t border-gray-100 pt-2 flex flex-col gap-2 shrink-0">
-                <h5 className="font-bold text-gray-700 flex items-center gap-2 text-sm shrink-0">
+              <div className="border-t border-gray-100 pt-1 flex flex-col gap-0 shrink-0 mt-0.5">
+                <h5 className="font-bold text-gray-700 flex items-center gap-1.5 text-xs shrink-0">
                   <span>댓글</span>
-                  <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-xs">{currentIssue.comments?.length || 0}</span>
+                  <span className="bg-gray-100 text-gray-600 px-1.5 py-0 rounded-full text-[10px]">{currentIssue.comments?.length || 0}</span>
                 </h5>
-                <div className="space-y-3 overflow-y-auto pr-1.5 custom-scrollbar max-h-[200px] mt-2">
+                <div className="space-y-1.5 overflow-y-auto pr-1.5 custom-scrollbar max-h-[200px] mt-1">
                   {currentIssue.comments?.map(c => (
-                    <div key={c.id} className="bg-gray-50 p-3 rounded-xl border border-gray-100">
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="font-bold text-sm text-gray-900 flex items-center gap-1.5">
-                          <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs text-gray-500 font-bold">{c.author[0]}</div>
+                    <div key={c.id} className="bg-gray-50 p-2 rounded-xl border border-gray-100">
+                      <div className="flex justify-between items-center mb-0.5">
+                        <span className="font-bold text-xs text-gray-900 flex items-center gap-1.5">
+                          <div className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center text-[10px] text-gray-500 font-bold">{c.author[0]}</div>
                           {c.author}
                         </span>
                         <span className="text-xs text-gray-400">{formatDateTime(c.date)}</span>
