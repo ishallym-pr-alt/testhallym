@@ -1,5 +1,5 @@
 import { useStore } from '@/store/useStore';
-import { Search, Calendar, User as UserIcon, Pencil, Trash2, ShieldCheck, ShieldOff, KanbanSquare, GitCommit, Plus, Pin, Heart, MessageCircle } from 'lucide-react';
+import { Search, Calendar, User as UserIcon, Pencil, Trash2, ShieldCheck, ShieldOff, KanbanSquare, GitCommit, Plus, Pin, Heart, MessageCircle, Wrench } from 'lucide-react';
 import { EquipmentIssue, noticeRooms } from '@/lib/dummyData';
 import { formatDateTime } from '@/lib/utils';
 import { useState, useMemo, useEffect } from 'react';
@@ -152,6 +152,7 @@ export default function Equipment() {
   const [formStatus, setFormStatus] = useState('신고됨');
   const [formDate, setFormDate] = useState('');
   const [formEndDate, setFormEndDate] = useState('');
+  const [isMediInfoRegistered, setIsMediInfoRegistered] = useState(false);
 
   const [selectedIssue, setSelectedIssue] = useState<EquipmentIssue | null>(null);
   const [commentInput, setCommentInput] = useState('');
@@ -162,7 +163,7 @@ export default function Equipment() {
     return equipmentIssues.find(eq => eq.id === selectedIssue.id) || selectedIssue;
   }, [equipmentIssues, selectedIssue]);
 
-  const [drawerWidth, setDrawerWidth] = useState(550);
+  const [drawerWidth, setDrawerWidth] = useState(581);
   const [isDragging, setIsDragging] = useState(false);
   const [isEquipDropdownOpen, setIsEquipDropdownOpen] = useState(false);
 
@@ -334,6 +335,7 @@ export default function Equipment() {
     setFormStatus(defaultStatus);
     setFormDate(new Date().toISOString().split('T')[0]);
     setFormEndDate('');
+    setIsMediInfoRegistered(false);
   };
 
   const openEditModal = (eq: EquipmentIssue, e?: React.MouseEvent) => {
@@ -349,6 +351,7 @@ export default function Equipment() {
     setFormStatus(eq.status || '신고됨');
     setFormDate(toDateInputValue(eq.date) || new Date().toISOString().split('T')[0]);
     setFormEndDate(toDateInputValue(eq.endDate || ''));
+    setIsMediInfoRegistered(eq.isMediInfoRegistered === 'TRUE' || eq.isMediInfoRegistered === true || false);
   };
 
   const closeModal = () => {
@@ -386,6 +389,7 @@ export default function Equipment() {
         department: currentUser.department,
         mainWorkplace: currentUser.mainWorkplace || currentUser.department,
         reporter: currentUser.name,
+        isMediInfoRegistered,
       });
     } else if (modalMode === 'edit' && editingId !== null) {
       editEquipment(editingId, {
@@ -397,9 +401,10 @@ export default function Equipment() {
         status: formStatus,
         date: finalDate,
         endDate: finalEndDate,
+        isMediInfoRegistered,
       });
       if (selectedIssue && selectedIssue.id === editingId) {
-        setSelectedIssue(prev => prev ? { ...prev, title: formTitle, content: formContent, room: formRoom, equipmentName: formEquipName, category: formCategory, status: formStatus, date: finalDate, endDate: finalEndDate } : null);
+        setSelectedIssue(prev => prev ? { ...prev, title: formTitle, content: formContent, room: formRoom, equipmentName: formEquipName, category: formCategory, status: formStatus, date: finalDate, endDate: finalEndDate, isMediInfoRegistered } : null);
       }
     }
     closeModal();
@@ -539,9 +544,6 @@ export default function Equipment() {
             </span>
             {eq.isApproved && (
               <span className="px-1.5 py-0.5 rounded-md bg-green-50 text-green-600 text-[10px] font-bold whitespace-nowrap border border-green-200">✓ 승인됨</span>
-            )}
-            {!eq.isApproved && (
-              <span className="px-1.5 py-0.5 rounded-md bg-yellow-50 text-yellow-600 text-[10px] font-bold whitespace-nowrap border border-yellow-200">대기</span>
             )}
           </div>
           <div className="flex items-center gap-1 shrink-0 -mt-1 -mr-1">
@@ -819,7 +821,41 @@ export default function Equipment() {
               </div>
 
               <div className="space-y-1.5 flex flex-col flex-1 w-full min-h-[250px]">
-                <label className="block text-[11px] font-bold text-gray-400">내용</label>
+                <div className="flex items-center justify-between shrink-0">
+                  <label className="block text-[11px] font-bold text-gray-400">내용</label>
+                  {isFormEditable && (
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          let hasBlurred = false;
+                          const onBlur = () => { hasBlurred = true; };
+                          window.addEventListener('blur', onBlur);
+                          window.location.href = 'mediinfo://open';
+                          setTimeout(() => {
+                            window.removeEventListener('blur', onBlur);
+                            if (!hasBlurred) {
+                              alert('연동 설정이 필요합니다. 상단 헤더의 메디인포 버튼을 눌러 설정 파일을 다운로드하세요.');
+                            }
+                          }, 1000);
+                        }}
+                        className="flex items-center gap-1.5 px-2.5 py-1 bg-white border border-gray-200 hover:bg-blue-50 hover:text-[#004b8d] hover:border-blue-200 text-gray-600 text-[11px] font-bold rounded-lg transition-colors shadow-sm"
+                      >
+                        <Wrench className="w-3 h-3 text-[#004b8d]" />
+                        [메디인포 실행]
+                      </button>
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={isMediInfoRegistered}
+                          onChange={(e) => setIsMediInfoRegistered(e.target.checked)}
+                          className="w-3.5 h-3.5 text-[#004b8d] rounded border-gray-300 focus:ring-[#004b8d] cursor-pointer transition-colors"
+                        />
+                        <span className="text-[11px] font-bold text-gray-600">메디인포 작성여부</span>
+                      </label>
+                    </div>
+                  )}
+                </div>
                 {isFormEditable ? (
                   <textarea value={formContent} onChange={e => setFormContent(e.target.value)} placeholder="자세한 내용이나 증상을 기록합니다..." className={`w-full flex-1 bg-gray-50 p-4 rounded-xl text-sm text-gray-700 whitespace-pre-wrap leading-relaxed border border-gray-100 hover:border-gray-200 focus:border-[#004b8d] focus:bg-white outline-none resize-none placeholder-gray-400 transition-all shadow-inner ${modalMode === 'create' || modalMode === 'edit' ? 'flex-1 h-full' : 'min-h-[160px]'}`} required />
                 ) : (
@@ -830,25 +866,26 @@ export default function Equipment() {
               </div>
 
               <div className="mt-auto shrink-0 flex flex-col gap-0 pt-0">
-                <div className="flex flex-wrap items-center justify-between gap-2 py-0.5 px-2 my-1 bg-gray-50/50 rounded-xl border border-gray-50 shrink-0 w-full">
-                  {/* 1. 좌측 정보 영역 */}
-                  <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 font-medium">
-                    <span className="flex items-center gap-1.5"><UserIcon className="w-3.5 h-3.5 text-gray-400" />{modalMode === 'create' ? currentUser.name : (currentIssue?.reporter || currentUser.name)}</span>
-                    <label className="flex items-center gap-1.5 cursor-pointer group">
-                      <Calendar className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#004b8d] transition-colors" />
-                      <span className="text-gray-400 group-hover:text-[#004b8d] transition-colors">신고일:</span>
-                      <input type="date" value={formDate} onChange={e => setFormDate(e.target.value)} className="h-7 text-xs bg-transparent border-b border-dashed border-gray-300 hover:border-[#004b8d] focus:border-[#004b8d] outline-none text-gray-700 font-medium cursor-pointer transition-colors" required />
-                    </label>
-                    <label className="flex items-center gap-1.5 text-green-600 bg-green-50 px-2 py-0.5 rounded-md border border-green-100 cursor-pointer hover:bg-green-100 transition-colors">
-                      <Calendar className="w-3.5 h-3.5" />
-                      <span>종료일:</span>
-                      <input type="date" value={formEndDate} onChange={e => setFormEndDate(e.target.value)} className="h-7 text-xs bg-transparent border-b border-dashed border-green-300 hover:border-green-600 focus:border-green-600 outline-none text-green-700 font-bold cursor-pointer transition-colors" />
-                    </label>
-                  </div>
+                <div className="flex flex-wrap items-center gap-3 py-1 px-2 my-1 text-xs text-gray-500 font-medium bg-gray-50/50 rounded-xl border border-gray-50 shrink-0 w-full">
+                  <span className="flex items-center gap-1.5 shrink-0">
+                    <UserIcon className="w-3.5 h-3.5 text-gray-400" />
+                    {modalMode === 'create' ? currentUser.name : (currentIssue?.reporter || currentUser.name)}
+                  </span>
+                  
+                  <label className="flex items-center gap-1.5 cursor-pointer group shrink-0">
+                    <Calendar className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#004b8d] transition-colors" />
+                    <span className="text-gray-400 group-hover:text-[#004b8d] transition-colors">신고일:</span>
+                    <input type="date" value={formDate} onChange={e => setFormDate(e.target.value)} className="h-7 text-xs bg-transparent border-b border-dashed border-gray-300 hover:border-[#004b8d] focus:border-[#004b8d] outline-none text-gray-700 font-medium cursor-pointer transition-colors" required />
+                  </label>
+                  
+                  <label className="flex items-center gap-1.5 text-green-600 bg-green-50 px-2 py-0.5 rounded-md border border-green-100 cursor-pointer hover:bg-green-100 transition-colors shrink-0">
+                    <Calendar className="w-3.5 h-3.5" />
+                    <span>종료일:</span>
+                    <input type="date" value={formEndDate} onChange={e => setFormEndDate(e.target.value)} className="h-7 text-xs bg-transparent border-b border-dashed border-green-300 hover:border-green-600 focus:border-green-600 outline-none text-green-700 font-bold cursor-pointer transition-colors" />
+                  </label>
 
-                  {/* 2. 우측 전송 버튼 (취소 버튼은 제거됨) */}
                   {isFormEditable && (
-                    <button type="submit" className="h-7 px-4 text-xs font-bold text-white bg-[#004b8d] rounded-lg hover:bg-[#003c71] transition-all shadow-sm shrink-0 ml-auto">
+                    <button type="submit" className="ml-auto h-7 px-4 text-xs font-bold text-white bg-[#004b8d] rounded-lg hover:bg-[#003c71] transition-all shadow-sm shrink-0">
                       {modalMode === 'create' ? '등록' : '수정 완료'}
                     </button>
                   )}

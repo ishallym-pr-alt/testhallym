@@ -420,7 +420,7 @@ export default function Notices() {
               )}
 
               {noticeDrawerMode === 'edit' && currentNotice && (
-                <div className="mt-auto border-t border-gray-100 pt-2 flex flex-col gap-2 min-h-0 overflow-hidden" style={{maxHeight: '45%'}}>
+                <div className="mt-auto border-t border-gray-100 pt-2 flex flex-col gap-2 min-h-0 overflow-hidden" style={{ maxHeight: '45%' }}>
                   <h5 className="font-bold text-gray-700 flex items-center gap-2 text-sm shrink-0">
                     <span>댓글</span>
                     <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-xs">

@@ -58,6 +58,7 @@ export interface EquipmentIssue {
   isApproved?: boolean;
   comments?: Comment[];
   readBy?: string[];
+  isMediInfoRegistered?: boolean | string;
 }
 
 

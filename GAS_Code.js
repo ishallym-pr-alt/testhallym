@@ -102,7 +102,8 @@ function getHeaderMap(sheetTitle) {
       confirmedUsers: '확인자목록',
       comments: '댓글목록',
       likes: '좋아요목록',
-      readBy: '읽은사람목록'
+      readBy: '읽은사람목록',
+      isMediInfoRegistered: '메디인포_작성여부'
     };
   } else if (sheetTitle === SHEETS.employees) {
     map = {
@@ -196,7 +197,7 @@ function getSheet(sheetTitle) {
   } else if (sheetTitle === SHEETS.handovers) {
     keys = ['id', 'sender', 'receiver', 'content', 'date', 'isSigned', 'signedEmpId', 'signedAt', 'title', 'mainWorkplace', 'isApproved', 'comments', 'likes', 'readBy'];
   } else if (sheetTitle === SHEETS.equipment) {
-    keys = ['id', 'equipmentName', 'title', 'content', 'reporter', 'date', 'endDate', 'isApproved', 'department', 'mainWorkplace', 'category', 'room', 'status', 'confirmedUsers', 'comments', 'likes', 'readBy'];
+    keys = ['id', 'equipmentName', 'title', 'content', 'reporter', 'date', 'endDate', 'isApproved', 'department', 'mainWorkplace', 'category', 'room', 'status', 'confirmedUsers', 'comments', 'likes', 'readBy', 'isMediInfoRegistered'];
   } else if (sheetTitle === SHEETS.employees) {
     keys = ['no', 'empId', 'name', 'position', 'department', 'mainWorkplace', 'subWorkplace', 'password', 'isManager', 'isRetired', 'attempts', 'lockUntil', 'lockCount'];
   } else if (sheetTitle === SHEETS.vacations) {
@@ -934,6 +935,9 @@ function doPost(e) {
       rowData[headers.indexOf(map['status'])] = data.status || '신고됨';
       rowData[headers.indexOf(map['confirmedUsers'])] = JSON.stringify(data.confirmedUsers || [data.reporter || '사용자']);
       rowData[headers.indexOf(map['comments'])] = JSON.stringify(data.comments || []);
+      if (headers.indexOf(map['isMediInfoRegistered']) !== -1) {
+        rowData[headers.indexOf(map['isMediInfoRegistered'])] = data.isMediInfoRegistered ? 'TRUE' : 'FALSE';
+      }
 
       sheet.appendRow(rowData);
       return makeJsonResponse({ success: true, id: rowData[headers.indexOf(map['id'])], subscriptions: getAllSubscriptions() });
@@ -958,6 +962,9 @@ function doPost(e) {
       if (data.status !== undefined) sheet.getRange(rowIndex, headers.indexOf(map['status']) + 1).setValue(data.status);
       if (data.comments !== undefined) sheet.getRange(rowIndex, headers.indexOf(map['comments']) + 1).setValue(JSON.stringify(data.comments));
       if (data.likes !== undefined) sheet.getRange(rowIndex, headers.indexOf(map['likes']) + 1).setValue(JSON.stringify(data.likes));
+      if (data.isMediInfoRegistered !== undefined && headers.indexOf(map['isMediInfoRegistered']) !== -1) {
+        sheet.getRange(rowIndex, headers.indexOf(map['isMediInfoRegistered']) + 1).setValue(data.isMediInfoRegistered ? 'TRUE' : 'FALSE');
+      }
       return makeJsonResponse({ success: true, subscriptions: getAllSubscriptions() });
     }
 
