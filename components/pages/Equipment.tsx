@@ -200,6 +200,17 @@ export default function Equipment() {
   }, [isEquipDropdownOpen, currentUser.mainWorkplace, currentUser.department]);
 
   useEffect(() => {
+    if (modalMode) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [modalMode]);
+
+  useEffect(() => {
     setMounted(true);
   }, []);
 
@@ -329,6 +340,7 @@ export default function Equipment() {
     if (e) e.stopPropagation();
     setModalMode('edit');
     setEditingId(eq.id);
+    setSelectedIssue(eq);
     setFormTitle(eq.title || '');
     setFormContent(eq.content || '');
     setFormRoom(eq.room || filteredRooms[0]?.label || '기능검사');
@@ -508,9 +520,13 @@ export default function Equipment() {
           }
         }}
         className={`bg-white rounded-2xl p-4 shadow-sm hover:shadow-md transition-all cursor-pointer ${highlightClass}`}
-        onClick={() => {
-          setSelectedIssue(eq);
-          setModalMode(null);
+        onClick={(e) => {
+          if (canEdit(eq)) {
+            openEditModal(eq, e as any);
+          } else {
+            setSelectedIssue(eq);
+            setModalMode(null);
+          }
           if (!eq.readBy?.includes(currentUser.name)) {
             markAsRead('equipment', eq.id, currentUser.name);
           }
@@ -628,8 +644,8 @@ export default function Equipment() {
                         <div className="absolute -left-[18px] top-3.5 w-2.5 h-0.5 bg-gray-100" />
 
                         <div className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 ${isAuthorComment
-                            ? 'bg-blue-50 text-[#004b8d] border border-blue-100'
-                            : 'bg-gray-100 text-gray-600'
+                          ? 'bg-blue-50 text-[#004b8d] border border-blue-100'
+                          : 'bg-gray-100 text-gray-600'
                           }`}>
                           {c.author[0]}
                         </div>
@@ -671,6 +687,7 @@ export default function Equipment() {
   };
 
   const renderDrawerForm = () => {
+    const isFormEditable = modalMode === 'create' || (modalMode === 'edit' && selectedIssue && canEdit(selectedIssue));
     return (
       <div
         id="equipment-drawer"
@@ -687,9 +704,46 @@ export default function Equipment() {
 
         <div className="w-full flex flex-col overflow-hidden rounded-l-3xl">
           <form onSubmit={handleFormSubmit} className="w-full h-[calc(100vh-56px)] flex flex-col overflow-hidden bg-white">
-            <div className="px-5 py-1.5 border-b border-gray-100 flex items-center justify-between shrink-0">
-              <h3 className="font-bold text-gray-900 text-base">{modalMode === 'create' ? '장비 이슈 등록' : '장비 이슈 수정'}</h3>
-              <div className="flex items-center gap-2">
+            <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between shrink-0 gap-4">
+              <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
+                <h3 className="font-bold text-gray-900 text-base shrink-0">
+                  {modalMode === 'create' ? '장비 이슈 등록' : '장비 이슈 수정'}
+                </h3>
+                
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <select
+                    value={formRoom}
+                    onChange={e => setFormRoom(e.target.value)}
+                    className="h-7 px-2 bg-gray-100 rounded-lg text-xs font-bold text-gray-600 outline-none border border-transparent hover:border-gray-300 cursor-pointer transition-all appearance-none text-center"
+                  >
+                    {filteredRooms.map(r => <option key={r.id} value={r.label}>{r.label}</option>)}
+                  </select>
+                  
+                  <select
+                    value={formCategory}
+                    onChange={e => setFormCategory(e.target.value as any)}
+                    className="h-7 px-2 bg-orange-50 rounded-lg text-xs font-bold text-orange-600 outline-none border border-transparent hover:border-orange-300 cursor-pointer transition-all appearance-none text-center"
+                  >
+                    <option value="의료장비 고장">의료장비 고장</option>
+                    <option value="연동프로그램">연동프로그램</option>
+                    <option value="소모품">소모품</option>
+                  </select>
+
+                  <select
+                    value={formStatus}
+                    onChange={e => setFormStatus(e.target.value)}
+                    className="h-7 px-2 bg-blue-50 rounded-lg text-xs font-bold text-blue-600 outline-none border border-transparent hover:border-blue-300 cursor-pointer transition-all appearance-none text-center"
+                  >
+                    <option value="신고됨">할 일 (신고됨)</option>
+                    <option value="수리중">진행 중 (수리중)</option>
+                    <option value="조치완료">조치완료</option>
+                    <option value="정상복구">정상복구</option>
+                    <option value="폐기">폐기</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsPinned(!isPinned)}
@@ -698,32 +752,13 @@ export default function Equipment() {
                 >
                   <Pin className={`w-4 h-4 ${isPinned ? 'fill-current' : ''}`} />
                 </button>
-                <button type="button" onClick={closeModal} className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-gray-100">✕</button>
+                <button type="button" onClick={closeModal} className="text-gray-400 hover:text-gray-600 transition-colors p-1.5 rounded-lg hover:bg-gray-100">✕</button>
               </div>
             </div>
 
-            <div className={`flex-1 overflow-y-auto p-5 custom-scrollbar ${modalMode === 'create' ? 'flex flex-col gap-4' : 'space-y-4'}`}>
-              <div className="flex flex-wrap gap-2 mb-1 shrink-0">
-                <select value={formRoom} onChange={e => setFormRoom(e.target.value)} className="px-2 py-1 bg-gray-100 rounded text-xs font-bold text-gray-600 outline-none cursor-pointer border border-transparent hover:border-gray-300 focus:border-[#004b8d] transition-colors appearance-none text-center" required>
-                  {filteredRooms.map(r => (
-                    <option key={r.id} value={r.label}>{r.label}</option>
-                  ))}
-                </select>
-                <select value={formCategory} onChange={e => setFormCategory(e.target.value as any)} className="px-2 py-1 bg-orange-50 rounded text-xs font-bold text-orange-600 outline-none cursor-pointer border border-transparent hover:border-orange-300 focus:border-orange-500 transition-colors appearance-none text-center" required>
-                  <option value="의료장비 고장">의료장비 고장</option>
-                  <option value="연동프로그램">연동프로그램</option>
-                  <option value="소모품">소모품</option>
-                </select>
-                <select value={formStatus} onChange={e => setFormStatus(e.target.value)} className="px-2 py-1 bg-blue-50 rounded text-xs font-bold text-blue-600 outline-none cursor-pointer border border-transparent hover:border-blue-300 focus:border-blue-500 transition-colors appearance-none text-center" required>
-                  <option value="신고됨">할 일 (신고됨)</option>
-                  <option value="수리중">진행 중 (수리중)</option>
-                  <option value="조치완료">조치완료</option>
-                  <option value="정상복구">정상복구</option>
-                  <option value="폐기">폐기</option>
-                </select>
-              </div>
+            <div className="flex-1 px-5 pt-2 pb-5 custom-scrollbar flex flex-col gap-3 overscroll-contain overflow-hidden">
 
-              <input type="text" value={formTitle} onChange={e => setFormTitle(e.target.value)} placeholder="이슈 제목을 입력하세요" className="w-full text-lg font-bold text-gray-900 border-b border-dashed border-gray-200 hover:border-gray-300 focus:border-[#004b8d] outline-none bg-transparent placeholder-gray-300 transition-colors py-1 shrink-0" required />
+              <input type="text" value={formTitle} onChange={e => setFormTitle(e.target.value)} placeholder="이슈 제목을 입력하세요" className="w-full text-base font-bold text-gray-900 border-b border-dashed border-gray-200 hover:border-gray-300 focus:border-[#004b8d] outline-none bg-transparent placeholder-gray-300 transition-colors py-1 shrink-0" required />
 
               <div className="relative mb-2 shrink-0">
                 <div className="flex items-center justify-between gap-2 border-b border-dashed border-gray-200 hover:border-gray-300 focus-within:border-[#004b8d] transition-colors py-1">
@@ -769,8 +804,8 @@ export default function Equipment() {
                                 setIsEquipDropdownOpen(false);
                               }}
                               className={`text-left text-xs px-2 py-1 rounded-md transition-colors truncate ${formEquipName === eq
-                                  ? 'bg-blue-50 text-[#004b8d] font-bold'
-                                  : 'text-gray-700 hover:bg-gray-100'
+                                ? 'bg-blue-50 text-[#004b8d] font-bold'
+                                : 'text-gray-700 hover:bg-gray-100'
                                 }`}
                             >
                               {eq}
@@ -783,30 +818,96 @@ export default function Equipment() {
                 )}
               </div>
 
-              <div className={`space-y-1.5 flex flex-col w-full ${modalMode === 'create' ? 'flex-1 min-h-[300px]' : 'min-h-0'}`}>
-                <textarea value={formContent} onChange={e => setFormContent(e.target.value)} placeholder="자세한 내용이나 증상을 기록합니다..." className={`w-full flex-1 bg-gray-50 p-4 rounded-xl text-sm text-gray-700 whitespace-pre-wrap leading-relaxed border border-gray-100 hover:border-gray-200 focus:border-[#004b8d] focus:bg-white outline-none resize-none placeholder-gray-400 transition-all shadow-inner ${modalMode === 'create' ? 'flex-1 h-full' : 'min-h-[140px]'}`} required />
+              <div className="space-y-1.5 flex flex-col flex-1 w-full min-h-[250px]">
+                <label className="block text-[11px] font-bold text-gray-400">내용</label>
+                {isFormEditable ? (
+                  <textarea value={formContent} onChange={e => setFormContent(e.target.value)} placeholder="자세한 내용이나 증상을 기록합니다..." className={`w-full flex-1 bg-gray-50 p-4 rounded-xl text-sm text-gray-700 whitespace-pre-wrap leading-relaxed border border-gray-100 hover:border-gray-200 focus:border-[#004b8d] focus:bg-white outline-none resize-none placeholder-gray-400 transition-all shadow-inner ${modalMode === 'create' || modalMode === 'edit' ? 'flex-1 h-full' : 'min-h-[160px]'}`} required />
+                ) : (
+                  <div className="w-full flex-1 bg-gray-50 p-4 rounded-xl text-sm text-gray-700 whitespace-pre-wrap leading-relaxed border border-gray-100 overflow-y-auto">
+                    {formContent}
+                  </div>
+                )}
               </div>
 
-              <div className="flex flex-wrap items-center gap-4 mt-3 text-xs text-gray-500 font-medium bg-gray-50/50 p-2.5 rounded-xl border border-gray-50 shrink-0">
-                <span className="flex items-center gap-1.5"><UserIcon className="w-3.5 h-3.5 text-gray-400" />{modalMode === 'create' ? currentUser.name : (selectedIssue?.reporter || currentUser.name)}</span>
-                <label className="flex items-center gap-1.5 cursor-pointer group">
-                  <Calendar className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#004b8d] transition-colors" />
-                  <span className="text-gray-400 group-hover:text-[#004b8d] transition-colors">신고일:</span>
-                  <input type="date" value={formDate} onChange={e => setFormDate(e.target.value)} className="bg-transparent border-b border-dashed border-gray-300 hover:border-[#004b8d] focus:border-[#004b8d] outline-none text-gray-700 font-medium cursor-pointer transition-colors" required />
-                </label>
-                <label className="flex items-center gap-1.5 text-green-600 bg-green-50 px-2 py-1 rounded-md border border-green-100 cursor-pointer hover:bg-green-100 transition-colors">
-                  <Calendar className="w-3.5 h-3.5" />
-                  <span>종료일:</span>
-                  <input type="date" value={formEndDate} onChange={e => setFormEndDate(e.target.value)} className="bg-transparent border-b border-dashed border-green-300 hover:border-green-600 focus:border-green-600 outline-none text-green-700 font-bold cursor-pointer transition-colors" />
-                </label>
+              <div className="mt-auto shrink-0 flex flex-col gap-2 pt-2">
+                <div className="flex flex-wrap items-center gap-3 mt-1.5 text-xs text-gray-500 font-medium bg-gray-50/50 p-1.5 rounded-xl border border-gray-50 shrink-0">
+                  <span className="flex items-center gap-1.5"><UserIcon className="w-3.5 h-3.5 text-gray-400" />{modalMode === 'create' ? currentUser.name : (currentIssue?.reporter || currentUser.name)}</span>
+                  <label className="flex items-center gap-1.5 cursor-pointer group">
+                    <Calendar className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#004b8d] transition-colors" />
+                    <span className="text-gray-400 group-hover:text-[#004b8d] transition-colors">신고일:</span>
+                    <input type="date" value={formDate} onChange={e => setFormDate(e.target.value)} className="h-7 text-xs bg-transparent border-b border-dashed border-gray-300 hover:border-[#004b8d] focus:border-[#004b8d] outline-none text-gray-700 font-medium cursor-pointer transition-colors" required />
+                  </label>
+                  <label className="flex items-center gap-1.5 text-green-600 bg-green-50 px-2 py-0.5 rounded-md border border-green-100 cursor-pointer hover:bg-green-100 transition-colors">
+                    <Calendar className="w-3.5 h-3.5" />
+                    <span>종료일:</span>
+                    <input type="date" value={formEndDate} onChange={e => setFormEndDate(e.target.value)} className="h-7 text-xs bg-transparent border-b border-dashed border-green-300 hover:border-green-600 focus:border-green-600 outline-none text-green-700 font-bold cursor-pointer transition-colors" />
+                  </label>
+                </div>
+
+                {isFormEditable && (
+                  <div className="flex justify-end gap-2 mt-1 mb-1.5 shrink-0">
+                    <button type="button" onClick={closeModal} className="h-8 px-4 text-xs font-bold text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all">취소</button>
+                    <button type="submit" className="h-8 px-4 text-xs font-bold text-white bg-[#004b8d] rounded-xl hover:bg-[#003c71] transition-all shadow-md">{modalMode === 'create' ? '등록' : '수정 완료'}</button>
+                  </div>
+                )}
+
+                {modalMode === 'edit' && currentIssue && (
+                  <div className="border-t border-gray-100 pt-2 flex flex-col gap-2 shrink-0">
+                    <h5 className="font-bold text-gray-700 flex items-center gap-2 text-sm shrink-0">
+                      <span>댓글</span>
+                      <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-xs">{currentIssue.comments?.length || 0}</span>
+                    </h5>
+                    <div className="space-y-3 overflow-y-auto pr-1.5 custom-scrollbar max-h-[200px] mt-2">
+                      {currentIssue.comments?.map(c => (
+                        <div key={c.id} className="bg-gray-50 p-3 rounded-xl border border-gray-100">
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="font-bold text-sm text-gray-900 flex items-center gap-1.5">
+                              <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs text-gray-500 font-bold">{c.author[0]}</div>
+                              {c.author}
+                            </span>
+                            <span className="text-xs text-gray-400">{formatDateTime(c.date)}</span>
+                          </div>
+                          <p className="text-xs text-gray-700 leading-relaxed pl-7.5 break-all">{c.content}</p>
+                        </div>
+                      ))}
+                      {(!currentIssue.comments || currentIssue.comments.length === 0) && (
+                        <div className="text-center py-4 bg-gray-50 rounded-xl border border-gray-100 border-dashed">
+                          <p className="text-sm text-gray-400">등록된 댓글이 없습니다.<br />첫 댓글을 남겨보세요!</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* 3. 최하단 고정 버튼 영역 */}
-            <div className="px-5 py-3 border-t border-gray-100 bg-white flex justify-end gap-2.5 shrink-0">
-              <button type="button" onClick={closeModal} className="h-9 px-4 text-sm font-bold text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all">취소</button>
-              <button type="submit" className="h-9 px-4 text-sm font-bold text-white bg-[#004b8d] rounded-xl hover:bg-[#003c71] transition-all shadow-md">{modalMode === 'create' ? '새 글 등록' : '수정 완료'}</button>
-            </div>
+            {modalMode !== 'create' && currentIssue && (
+              <div className="px-5 py-3 bg-white border-t border-gray-100 shrink-0">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    id="equipment-comment-input"
+                    value={commentInput}
+                    onChange={e => setCommentInput(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                        e.preventDefault();
+                        handleCommentSubmit(currentIssue.id);
+                      }
+                    }}
+                    placeholder="댓글을 입력하세요..."
+                    className="flex-1 border border-gray-200 rounded-xl px-3.5 py-2 text-sm focus:border-[#004b8d] focus:ring-2 focus:ring-[#004b8d]/20 outline-none transition-all bg-gray-50 focus:bg-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleCommentSubmit(currentIssue.id)}
+                    className="px-5 py-2 bg-[#004b8d] text-sm font-bold text-white rounded-xl hover:bg-[#003c71] transition-all shadow-md active:scale-95 whitespace-nowrap"
+                  >
+                    등록
+                  </button>
+                </div>
+              </div>
+            )}
           </form>
         </div>
       </div>
@@ -841,55 +942,60 @@ export default function Equipment() {
               >
                 <Pin className={`w-4 h-4 ${isPinned ? 'fill-current' : ''}`} />
               </button>
-              {canEdit(currentIssue) && (
-                <button onClick={() => { openEditModal(currentIssue); }} className="text-gray-400 hover:text-blue-600 transition-colors p-1.5 rounded-lg hover:bg-blue-50">
-                  <Pencil className="w-4 h-4" />
-                </button>
-              )}
               <button onClick={() => setSelectedIssue(null)} className="text-gray-400 hover:text-gray-600 transition-colors p-1.5 rounded-lg hover:bg-gray-100">✕</button>
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto p-5 space-y-4 custom-scrollbar">
+          <div className="flex-1 px-5 pt-2 pb-5 custom-scrollbar flex flex-col gap-3 overscroll-contain overflow-hidden">
             <div className="flex gap-2 mb-1">
               <span className="px-2 py-1 bg-gray-100 rounded text-sm font-bold text-gray-600">{currentIssue.room}</span>
               <span className="px-2 py-1 bg-orange-50 rounded text-sm font-bold text-orange-600">{currentIssue.category}</span>
               <span className="px-2 py-1 bg-blue-50 rounded text-sm font-bold text-blue-600">{currentIssue.status}</span>
             </div>
-            <h4 className="text-lg font-bold text-gray-900 mb-1">{currentIssue.title || currentIssue.equipmentName}</h4>
-            <p className="text-base text-gray-500 mb-2">{currentIssue.equipmentName}</p>
-            <div className="bg-gray-50 p-4 rounded-xl text-lg text-gray-700 whitespace-pre-wrap leading-relaxed border border-gray-100 min-h-[140px]">
-              {currentIssue.content}
-            </div>
-            <div className="flex flex-wrap items-center gap-4 mt-3 text-base text-gray-500 font-medium bg-gray-50/50 p-3 rounded-xl border border-gray-50">
-              <span className="flex items-center gap-1.5"><UserIcon className="w-4 h-4 text-gray-400" />{currentIssue.reporter}</span>
-              <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4 text-gray-400" />{formatDateTime(currentIssue.date)}</span>
-              {currentIssue.endDate && <span className="flex items-center gap-1.5 text-green-600 bg-green-50 px-2 py-0.5 rounded-md"><Calendar className="w-4 h-4" />종료: {formatDateTime(currentIssue.endDate)}</span>}
+            <h4 className="text-base font-bold text-gray-900">{currentIssue.title || currentIssue.equipmentName}</h4>
+            <p className="text-sm text-gray-500">{currentIssue.equipmentName}</p>
+            <div className="space-y-1.5 flex flex-col flex-1 w-full min-h-[250px]">
+              <div className="w-full flex-1 bg-gray-50 p-4 rounded-xl text-sm text-gray-700 whitespace-pre-wrap leading-relaxed border border-gray-100 overflow-y-auto">
+                {currentIssue.content}
+              </div>
             </div>
 
-            <div className="border-t border-gray-100 pt-4 mt-2">
-              <h5 className="font-bold text-gray-900 mb-2 flex items-center gap-2 text-lg">
-                <span>댓글</span>
-                <span className="bg-gray-100 text-gray-600 px-2.5 py-0.5 rounded-full text-sm">{currentIssue.comments?.length || 0}</span>
-              </h5>
-              <div className="space-y-3 mb-3 max-h-[260px] overflow-y-auto pr-2 custom-scrollbar">
-                {currentIssue.comments?.map(c => (
-                  <div key={c.id} className="bg-gray-50 p-3 rounded-xl border border-gray-100">
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="font-bold text-sm text-gray-900 flex items-center gap-1.5">
-                        <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs text-gray-500 font-bold">{c.author[0]}</div>
-                        {c.author}
-                      </span>
-                      <span className="text-xs text-gray-400">{formatDateTime(c.date)}</span>
-                    </div>
-                    <p className="text-base text-gray-700 leading-relaxed pl-7.5">{c.content}</p>
-                  </div>
-                ))}
-                {(!currentIssue.comments || currentIssue.comments.length === 0) && (
-                  <div className="text-center py-4 bg-gray-50 rounded-xl border border-gray-100 border-dashed">
-                    <p className="text-base text-gray-400">등록된 댓글이 없습니다.<br />첫 댓글을 남겨보세요!</p>
-                  </div>
-                )}
+            <div className="mt-auto shrink-0 flex flex-col gap-3 pt-4">
+              <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500 font-medium bg-gray-50/50 p-2 rounded-xl border border-gray-50 shrink-0">
+                <span className="flex items-center gap-1.5"><UserIcon className="w-3.5 h-3.5 text-gray-400" />{currentIssue.reporter}</span>
+                <span className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 text-gray-400" />{formatDateTime(currentIssue.date)}</span>
+                {currentIssue.endDate && <span className="flex items-center gap-1.5 text-green-600 bg-green-50 px-2 py-0.5 rounded-md"><Calendar className="w-3.5 h-3.5" />종료: {formatDateTime(currentIssue.endDate)}</span>}
               </div>
+
+              <div className="border-t border-gray-100 pt-2 flex flex-col gap-2 shrink-0">
+                <h5 className="font-bold text-gray-700 flex items-center gap-2 text-sm shrink-0">
+                  <span>댓글</span>
+                  <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-xs">{currentIssue.comments?.length || 0}</span>
+                </h5>
+                <div className="space-y-3 overflow-y-auto pr-1.5 custom-scrollbar max-h-[200px] mt-2">
+                  {currentIssue.comments?.map(c => (
+                    <div key={c.id} className="bg-gray-50 p-3 rounded-xl border border-gray-100">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="font-bold text-sm text-gray-900 flex items-center gap-1.5">
+                          <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs text-gray-500 font-bold">{c.author[0]}</div>
+                          {c.author}
+                        </span>
+                        <span className="text-xs text-gray-400">{formatDateTime(c.date)}</span>
+                      </div>
+                      <p className="text-xs text-gray-700 leading-relaxed pl-7.5 break-all">{c.content}</p>
+                    </div>
+                  ))}
+                  {(!currentIssue.comments || currentIssue.comments.length === 0) && (
+                    <div className="text-center py-4 bg-gray-50 rounded-xl border border-gray-100 border-dashed">
+                      <p className="text-sm text-gray-400">등록된 댓글이 없습니다.<br />첫 댓글을 남겨보세요!</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {currentIssue && (
+            <div className="px-5 py-3 bg-white border-t border-gray-100 shrink-0">
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -903,22 +1009,18 @@ export default function Equipment() {
                     }
                   }}
                   placeholder="댓글을 입력하세요..."
-                  className="flex-1 border border-gray-200 rounded-xl px-3.5 py-2.5 text-base focus:border-[#004b8d] focus:ring-2 focus:ring-[#004b8d]/20 outline-none transition-all bg-gray-50 focus:bg-white"
+                  className="flex-1 border border-gray-200 rounded-xl px-3.5 py-2 text-sm focus:border-[#004b8d] focus:ring-2 focus:ring-[#004b8d]/20 outline-none transition-all bg-gray-50 focus:bg-white"
                 />
                 <button
                   onClick={() => handleCommentSubmit(currentIssue.id)}
-                  className="px-5 py-2.5 bg-[#004b8d] text-white text-base font-bold rounded-xl hover:bg-[#003c71] transition-all shadow-md active:scale-95 whitespace-nowrap"
+                  className="px-5 py-2 bg-[#004b8d] text-white text-sm font-bold rounded-xl hover:bg-[#003c71] transition-all shadow-md active:scale-95 whitespace-nowrap"
                 >
                   등록
                 </button>
               </div>
             </div>
-          </div>
+          )}
 
-          {/* 3. 최하단 고정 버튼 영역 */}
-          <div className="px-5 py-3 border-t border-gray-100 bg-white flex justify-end gap-2.5 shrink-0">
-            <button type="button" onClick={() => setSelectedIssue(null)} className="h-9 px-4 text-sm font-bold text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all">닫기</button>
-          </div>
         </div>
       </div>
     );
@@ -928,12 +1030,12 @@ export default function Equipment() {
 
   return (
     <div className={`fade-enter flex ${isPinnedActive
-        ? activeView === 'roadmap'
-          ? 'w-full max-w-none mx-0 p-0 flex-row h-[calc(100vh-56px)] md:h-[calc(100vh-56px)]'
-          : 'w-full max-w-none mx-0 pl-4 sm:pl-6 pr-0 py-0 flex-row gap-6 h-[calc(100vh-56px)] md:h-[calc(100vh-56px)]'
-        : activeView === 'roadmap'
-          ? 'w-full max-w-none mx-0 p-0 flex-col h-[calc(100vh-56px)] md:h-[calc(100vh-56px)]'
-          : 'w-full p-4 sm:p-6 max-w-[1400px] mx-auto flex-col h-[calc(100vh-60px)] md:h-[calc(100vh-88px)]'
+      ? activeView === 'roadmap'
+        ? 'w-full max-w-none mx-0 p-0 flex-row h-[calc(100vh-56px)] md:h-[calc(100vh-56px)]'
+        : 'w-full max-w-none mx-0 pl-4 sm:pl-6 pr-0 py-0 flex-row gap-6 h-[calc(100vh-56px)] md:h-[calc(100vh-56px)]'
+      : activeView === 'roadmap'
+        ? 'w-full max-w-none mx-0 p-0 flex-col h-[calc(100vh-56px)] md:h-[calc(100vh-56px)]'
+        : 'w-full p-4 sm:p-6 max-w-[1400px] mx-auto flex-col h-[calc(100vh-60px)] md:h-[calc(100vh-88px)]'
       }`}>
       <div className={`flex-1 min-w-0 flex flex-col h-full ${isPinnedActive && activeView !== 'roadmap' ? 'py-4 sm:py-6' : ''}`}>
         <div className={activeView === 'roadmap' ? 'px-4 sm:px-6 pt-4 sm:pt-6' : ''}>
@@ -1001,10 +1103,10 @@ export default function Equipment() {
             </div>
           ) : (
             <div className={`h-full bg-white flex flex-col overflow-hidden ${activeView === 'roadmap'
-                ? 'border-t border-gray-200 rounded-none'
-                : isPinnedActive
-                  ? 'border border-gray-200 rounded-2xl shadow-sm'
-                  : 'border-t border-gray-200 rounded-none'
+              ? 'border-t border-gray-200 rounded-none'
+              : isPinnedActive
+                ? 'border border-gray-200 rounded-2xl shadow-sm'
+                : 'border-t border-gray-200 rounded-none'
               }`}>
               <div className="overflow-auto flex-1 custom-scrollbar relative">
                 <div className="min-w-max">
@@ -1083,7 +1185,15 @@ export default function Equipment() {
                                         maxWidth: `${Math.max(40, (timelineDays.length - startIndex) * 48 - 8)}px`
                                       }}
                                       title={`${eq.equipmentName} (${eq.date})`}
-                                      onClick={(e) => openEditModal(eq, e)}
+                                      onClick={(e) => {
+                                        if (canEdit(eq)) {
+                                          openEditModal(eq, e as any);
+                                        } else {
+                                          if (e) e.stopPropagation();
+                                          setSelectedIssue(eq);
+                                          setModalMode(null);
+                                        }
+                                      }}
                                     >
                                       {duration > 1 ? eq.reporter : ''}
                                     </div>

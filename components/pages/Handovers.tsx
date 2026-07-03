@@ -43,6 +43,17 @@ export default function Handovers() {
   }, [employees]);
 
   useEffect(() => {
+    if (handoverDrawerMode) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [handoverDrawerMode]);
+
+  useEffect(() => {
     setMounted(true);
   }, []);
 
@@ -323,20 +334,19 @@ export default function Handovers() {
               </div>
             </div>
 
-            <div className={`flex-1 overflow-y-auto p-5 custom-scrollbar ${handoverDrawerMode === 'create' ? 'flex flex-col gap-4' : 'space-y-4'}`}>
+            <div className="flex-1 overflow-y-auto px-5 pt-2 pb-5 custom-scrollbar flex flex-col gap-3 overscroll-contain">
               <div className="space-y-1.5 shrink-0">
-                <label className="block text-xs font-bold text-gray-400">제목</label>
                 {isFormEditable ? (
                   <input
                     type="text"
                     value={formTitle}
                     onChange={e => setFormTitle(e.target.value)}
                     placeholder="예: 야간 당직 특이사항"
-                    className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:border-[#004b8d] focus:bg-white focus:ring-4 focus:ring-[#004b8d]/10 transition-all outline-none text-base font-medium"
+                    className="w-full text-base font-bold text-gray-900 border-b border-dashed border-gray-200 hover:border-gray-300 focus:border-[#004b8d] outline-none bg-transparent placeholder-gray-300 transition-colors py-1"
                     required
                   />
                 ) : (
-                  <div className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-base font-medium text-gray-900">
+                  <div className="w-full text-base font-bold text-gray-900 py-1 border-b border-gray-100 break-words">
                     {formTitle}
                   </div>
                 )}
@@ -363,18 +373,17 @@ export default function Handovers() {
                 </div>
               </div>
 
-              <div className={`space-y-1.5 flex flex-col w-full ${handoverDrawerMode === 'create' ? 'flex-1 min-h-[300px]' : 'min-h-0'}`}>
-                <label className="block text-xs font-bold text-gray-400 shrink-0">내용</label>
+              <div className="space-y-1.5 flex flex-col flex-1 w-full">
                 {isFormEditable ? (
                   <textarea
                     value={formContent}
                     onChange={e => setFormContent(e.target.value)}
                     placeholder="자세한 인수인계 내용을 기록합니다..."
-                    className={`w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-[#004b8d] focus:bg-white focus:ring-4 focus:ring-[#004b8d]/10 transition-all outline-none resize-none text-base font-medium leading-relaxed ${handoverDrawerMode === 'create' ? 'flex-1 h-full' : 'min-h-[160px]'}`}
+                    className="w-full flex-1 bg-gray-50 p-4 rounded-xl text-sm text-gray-700 whitespace-pre-wrap leading-relaxed border border-gray-100 hover:border-gray-200 focus:border-[#004b8d] focus:bg-white outline-none resize-none placeholder-gray-400 transition-all shadow-inner"
                     required
                   />
                 ) : (
-                  <div className="w-full flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-base font-medium text-gray-700 leading-relaxed min-h-[160px] whitespace-pre-wrap overflow-y-auto">
+                  <div className="w-full flex-1 bg-gray-50 p-4 rounded-xl text-sm text-gray-700 whitespace-pre-wrap leading-relaxed border border-gray-100 overflow-y-auto">
                     {formContent}
                   </div>
                 )}
@@ -387,17 +396,26 @@ export default function Handovers() {
                 </div>
               )}
 
+              {isFormEditable && (
+                <div className="flex justify-end gap-2 mt-1 mb-4">
+                  <button type="button" onClick={() => setHandoverDrawerMode(null)} className="h-9 px-4 text-sm font-bold text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all">취소</button>
+                  <button type="submit" className="h-9 px-4 text-sm font-bold text-white bg-[#004b8d] rounded-xl hover:bg-[#003c71] transition-all shadow-md">
+                    {handoverDrawerMode === 'create' ? '등록하기' : '수정 완료'}
+                  </button>
+                </div>
+              )}
+
               {/* 원래 폼 전송 버튼 제거 (최하단 고정바로 이동) */}
 
               {handoverDrawerMode === 'edit' && currentHandover && (
-                <div className="border-t border-gray-100 pt-4 mt-2 shrink-0">
-                  <h5 className="font-bold text-gray-900 mb-2 flex items-center gap-2 text-lg">
+                <div className="mt-auto border-t border-gray-100 pt-2 flex flex-col gap-2 min-h-0 overflow-hidden" style={{maxHeight: '45%'}}>
+                  <h5 className="font-bold text-gray-700 flex items-center gap-2 text-sm shrink-0">
                     <span>댓글</span>
-                    <span className="bg-gray-100 text-gray-600 px-2.5 py-0.5 rounded-full text-sm">
+                    <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-xs">
                       {currentHandover.comments?.length || 0}
                     </span>
                   </h5>
-                  <div className="space-y-3 mb-3 max-h-[260px] overflow-y-auto pr-2 custom-scrollbar">
+                  <div className="space-y-3 overflow-y-auto pr-1.5 custom-scrollbar flex-1 mt-2">
                     {currentHandover.comments?.map(c => (
                       <div key={c.id} className="bg-gray-50 p-3 rounded-xl border border-gray-100">
                         <div className="flex justify-between items-center mb-1">
@@ -407,55 +425,47 @@ export default function Handovers() {
                           </span>
                           <span className="text-xs text-gray-400">{formatDateTime(c.date)}</span>
                         </div>
-                        <p className="text-base text-gray-700 leading-relaxed pl-7.5">{c.content}</p>
+                        <p className="text-xs text-gray-700 leading-relaxed pl-7.5 break-all">{c.content}</p>
                       </div>
                     ))}
                     {(!currentHandover.comments || currentHandover.comments.length === 0) && (
                       <div className="text-center py-4 bg-gray-50 rounded-xl border border-gray-100 border-dashed">
-                        <p className="text-base text-gray-400">등록된 댓글이 없습니다.<br />첫 댓글을 남겨보세요!</p>
+                        <p className="text-sm text-gray-400">등록된 댓글이 없습니다.<br />첫 댓글을 남겨보세요!</p>
                       </div>
                     )}
-                  </div>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      id="handover-comment-input"
-                      value={commentInput}
-                      onChange={e => setCommentInput(e.target.value)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
-                          e.preventDefault();
-                          handleCommentSubmit(currentHandover.id);
-                        }
-                      }}
-                      placeholder="댓글을 입력하세요..."
-                      className="flex-1 border border-gray-200 rounded-xl px-3.5 py-2.5 text-base focus:border-[#004b8d] focus:ring-2 focus:ring-[#004b8d]/20 outline-none transition-all bg-gray-50 focus:bg-white"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleCommentSubmit(currentHandover.id)}
-                      className="px-5 py-2.5 bg-[#004b8d] text-white text-base font-bold rounded-xl hover:bg-[#003c71] transition-all shadow-md active:scale-95 whitespace-nowrap"
-                    >
-                      등록
-                    </button>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* 3. 최하단 고정 버튼 영역 */}
-            <div className="px-5 py-3 border-t border-gray-100 bg-white flex justify-end gap-2.5 shrink-0">
-              {isFormEditable ? (
-                <>
-                  <button type="button" onClick={() => setHandoverDrawerMode(null)} className="h-9 px-4 text-sm font-bold text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all">취소</button>
-                  <button type="submit" className="h-9 px-4 text-sm font-bold text-white bg-[#004b8d] rounded-xl hover:bg-[#003c71] transition-all shadow-md">
-                    {handoverDrawerMode === 'create' ? '등록하기' : '수정 완료'}
+            {/* 댓글 입력창 - 하단 고정 */}
+            {handoverDrawerMode !== 'create' && currentHandover && (
+              <div className="px-5 py-3 bg-white border-t border-gray-100 shrink-0">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    id="handover-comment-input"
+                    value={commentInput}
+                    onChange={e => setCommentInput(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                        e.preventDefault();
+                        handleCommentSubmit(currentHandover.id);
+                      }
+                    }}
+                    placeholder="댓글을 입력하세요..."
+                    className="flex-1 border border-gray-200 rounded-xl px-3.5 py-2 text-sm focus:border-[#004b8d] focus:ring-2 focus:ring-[#004b8d]/20 outline-none transition-all bg-gray-50 focus:bg-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleCommentSubmit(currentHandover.id)}
+                    className="px-5 py-2 bg-[#004b8d] text-sm font-bold text-white rounded-xl hover:bg-[#003c71] transition-all shadow-md active:scale-95 whitespace-nowrap"
+                  >
+                    등록
                   </button>
-                </>
-              ) : (
-                <button type="button" onClick={() => setHandoverDrawerMode(null)} className="h-9 px-4 text-sm font-bold text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all">닫기</button>
-              )}
-            </div>
+                </div>
+              </div>
+            )}
           </form>
         </div>
       </div>
