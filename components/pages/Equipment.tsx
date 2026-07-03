@@ -830,26 +830,29 @@ export default function Equipment() {
               </div>
 
               <div className="mt-auto shrink-0 flex flex-col gap-0 pt-0">
-                <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 font-medium bg-gray-50/50 py-0 px-2 my-0 rounded-xl border border-gray-50 shrink-0">
-                  <span className="flex items-center gap-1.5"><UserIcon className="w-3 h-3 text-gray-400" />{modalMode === 'create' ? currentUser.name : (currentIssue?.reporter || currentUser.name)}</span>
-                  <label className="flex items-center gap-1.5 cursor-pointer group">
-                    <Calendar className="w-3 h-3 text-gray-400 group-hover:text-[#004b8d] transition-colors" />
-                    <span className="text-gray-400 group-hover:text-[#004b8d] transition-colors">신고일:</span>
-                    <input type="date" value={formDate} onChange={e => setFormDate(e.target.value)} className="h-6 text-[11px] bg-transparent border-b border-dashed border-gray-300 hover:border-[#004b8d] focus:border-[#004b8d] outline-none text-gray-700 font-medium cursor-pointer transition-colors" required />
-                  </label>
-                  <label className="flex items-center gap-1.5 text-green-600 bg-green-50 px-1.5 py-0 rounded-md border border-green-100 cursor-pointer hover:bg-green-100 transition-colors">
-                    <Calendar className="w-3 h-3" />
-                    <span>종료일:</span>
-                    <input type="date" value={formEndDate} onChange={e => setFormEndDate(e.target.value)} className="h-6 text-[11px] bg-transparent border-b border-dashed border-green-300 hover:border-green-600 focus:border-green-600 outline-none text-green-700 font-bold cursor-pointer transition-colors" />
-                  </label>
-                </div>
-
-                {isFormEditable && (
-                  <div className="flex justify-end gap-2 mt-0.5 mb-0.5 shrink-0">
-                    <button type="button" onClick={closeModal} className="h-7 px-3 text-xs font-bold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-all">취소</button>
-                    <button type="submit" className="h-7 px-3 text-xs font-bold text-white bg-[#004b8d] rounded-lg hover:bg-[#003c71] transition-all shadow-md">{modalMode === 'create' ? '등록' : '수정 완료'}</button>
+                <div className="flex flex-wrap items-center justify-between gap-2 py-0.5 px-2 my-1 bg-gray-50/50 rounded-xl border border-gray-50 shrink-0 w-full">
+                  {/* 1. 좌측 정보 영역 */}
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 font-medium">
+                    <span className="flex items-center gap-1.5"><UserIcon className="w-3.5 h-3.5 text-gray-400" />{modalMode === 'create' ? currentUser.name : (currentIssue?.reporter || currentUser.name)}</span>
+                    <label className="flex items-center gap-1.5 cursor-pointer group">
+                      <Calendar className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#004b8d] transition-colors" />
+                      <span className="text-gray-400 group-hover:text-[#004b8d] transition-colors">신고일:</span>
+                      <input type="date" value={formDate} onChange={e => setFormDate(e.target.value)} className="h-7 text-xs bg-transparent border-b border-dashed border-gray-300 hover:border-[#004b8d] focus:border-[#004b8d] outline-none text-gray-700 font-medium cursor-pointer transition-colors" required />
+                    </label>
+                    <label className="flex items-center gap-1.5 text-green-600 bg-green-50 px-2 py-0.5 rounded-md border border-green-100 cursor-pointer hover:bg-green-100 transition-colors">
+                      <Calendar className="w-3.5 h-3.5" />
+                      <span>종료일:</span>
+                      <input type="date" value={formEndDate} onChange={e => setFormEndDate(e.target.value)} className="h-7 text-xs bg-transparent border-b border-dashed border-green-300 hover:border-green-600 focus:border-green-600 outline-none text-green-700 font-bold cursor-pointer transition-colors" />
+                    </label>
                   </div>
-                )}
+
+                  {/* 2. 우측 전송 버튼 (취소 버튼은 제거됨) */}
+                  {isFormEditable && (
+                    <button type="submit" className="h-7 px-4 text-xs font-bold text-white bg-[#004b8d] rounded-lg hover:bg-[#003c71] transition-all shadow-sm shrink-0 ml-auto">
+                      {modalMode === 'create' ? '등록' : '수정 완료'}
+                    </button>
+                  )}
+                </div>
 
                 {modalMode === 'edit' && currentIssue && (
                   <div className="border-t border-gray-100 pt-1 flex flex-col gap-0 shrink-0 mt-0.5">
